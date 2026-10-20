@@ -181,6 +181,18 @@
   .credito { color: var(--suave); font-size: 12px; margin-top: 10px; text-align: center; }
   .cifras.tres { grid-template-columns: repeat(3, 1fr); }
   .prefs { margin-top: 12px; }
+  /* Escala del mapa de calor, en el costado */
+  #escalaCalor { position: fixed; z-index: 900; right: 10px; top: calc(env(safe-area-inset-top) + 64px);
+    background: rgba(18,18,22,.78); backdrop-filter: blur(8px); border-radius: 12px;
+    padding: 8px 8px 10px; color: #c9c9d2; font-size: 11px; text-align: center; }
+  #escalaCalor b { display: block; font-weight: 700; margin-bottom: 6px; color: #f4f4f6; }
+  #escalaCalor .barra { position: relative; height: 170px; width: 40px; }
+  #escalaCalor .barra i { position: absolute; left: 4px; top: 0; bottom: 0; width: 8px; border-radius: 4px;
+    background: linear-gradient(0deg, #4a0a14 0%, #9c1424 15%, #f2401b 40%, #ff8a1f 62%, #ffd166 82%, #fff8e1 100%); }
+  #escalaCalor .marcas span { position: absolute; left: 16px; transform: translateY(50%);
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #escalaCalor .marcas span::before { content: ""; position: absolute; left: -6px; top: 50%;
+    width: 4px; height: 1px; background: #c9c9d2; }
   .fav { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0;
     border-bottom: 1px solid var(--linea); font-size: 14px; }
   .fav small { color: var(--suave); }
@@ -200,10 +212,16 @@
   body.vista-ciudad nav a.on { color: #ff6a2b; }
   body.vista-ciudad .leaflet-control-attribution { background: rgba(0,0,0,.5); color: #888; }
   body.vista-ciudad .leaflet-control-attribution a { color: #aaa; }
+  .popup-calor .leaflet-popup-content-wrapper, .popup-calor .leaflet-popup-tip {
+    background: #1d1d23; color: #f4f4f6; }
+  .popup-calor b { color: #ff8a1f; font-size: 16px; }
 </style>
 </head>
 <body>
 <div id="mapa"></div>
+<div id="escalaCalor" hidden aria-label="Escala: veces que corriste por ahí">
+  <b>veces</b><div class="barra"><i></i><div class="marcas"></div></div>
+</div>
 
 <header>
   <div class="marca">
@@ -343,6 +361,13 @@ function fijarSalida(lat, lon, nombre, centrar = false) {
   hoja('<p class="pista">Salida lista. Elige la sesión y pulsa «Crear ruta». Puedes arrastrar el punto.</p>');
 }
 mapa.on("click", (e) => {
+  if (vista === "ciudad") {
+    const n = calor.vecesEn(e.containerPoint);
+    L.popup({ closeButton: false, className: "popup-calor" }).setLatLng(e.latlng)
+      .setContent(n ? `Pasaste <b>${n}</b> ${n === 1 ? "vez" : "veces"} por aquí` : "Por aquí todavía no has corrido")
+      .openOn(mapa);
+    return;
+  }
   if (modo === "trazar") return agregarPunto(e.latlng.lat, e.latlng.lng);
   if (eligiendoMeta) return fijarMeta({ lat: e.latlng.lat, lon: e.latlng.lng });
   fijarSalida(e.latlng.lat, e.latlng.lng, "Punto en el mapa");
@@ -899,8 +924,10 @@ const RAMPA = (() => {
   return x.getImageData(0, 0, 256, 1).data;
 })();
 
+const TICKS = [1, 2, 3, 5, 10, 20, 30, 50, 100, 200];
+
 const CapaCalor = L.Layer.extend({
-  initialize() { this.rutas = []; },
+  initialize() { this.rutas = []; this.cuenta = null; },
   onAdd(m) {
     this._c = L.DomUtil.create("canvas", "leaflet-zoom-hide");
     this._c.style.pointerEvents = "none";
@@ -908,8 +935,23 @@ const CapaCalor = L.Layer.extend({
     m.on("moveend zoomend resize", this._dibujar, this);
     this._dibujar();
   },
-  onRemove(m) { L.DomUtil.remove(this._c); m.off("moveend zoomend resize", this._dibujar, this); },
+  onRemove(m) {
+    L.DomUtil.remove(this._c); m.off("moveend zoomend resize", this._dibujar, this);
+    $("escalaCalor").hidden = true;
+  },
   setRutas(r) { this.rutas = r; if (this._map) this._dibujar(); },
+  // Veces que pasaste por un punto de la pantalla (0 si nunca). Mira un
+  // pequeño entorno: un toque con el dedo no cae justo sobre la línea.
+  vecesEn(punto) {
+    const c = this.cuenta;
+    if (!c) return 0;
+    const x0 = Math.round(punto.x * c.r), y0 = Math.round(punto.y * c.r), rad = Math.round(10 * c.r);
+    let max = 0;
+    for (let y = Math.max(0, y0 - rad); y <= Math.min(c.h - 1, y0 + rad); y++)
+      for (let x = Math.max(0, x0 - rad); x <= Math.min(c.w - 1, x0 + rad); x++)
+        max = Math.max(max, c.datos[(y * c.w + x) * 4 + 3]);
+    return max;
+  },
   _dibujar() {
     const m = this._map, t = m.getSize(), r = Math.min(window.devicePixelRatio || 1, 2);
     const c = this._c;
@@ -917,14 +959,19 @@ const CapaCalor = L.Layer.extend({
     L.DomUtil.setPosition(c, m.containerPointToLayerPoint([0, 0]));
     const ctx = c.getContext("2d");
     ctx.clearRect(0, 0, c.width, c.height);
-    if (!this.rutas.length) return;
-    // 1) densidad
-    const dens = document.createElement("canvas"); dens.width = c.width; dens.height = c.height;
-    const d = dens.getContext("2d");
-    const z = m.getZoom();
-    d.lineWidth = Math.max(1.2, Math.min(5, 0.55 * (z - 9))) * r;
+    this.cuenta = null;
+    if (!this.rutas.length) { $("escalaCalor").hidden = true; return; }
+    // 1) Conteo: cada carrera suma exactamente 1 en el canal ALFA de los
+    //    píxeles por donde pasa (modo «lighter», alfa 1/255). En el alfa porque
+    //    el lienzo guarda el color premultiplicado: en los bordes suavizados un
+    //    rojo de 1 se leía de vuelta como 255. Un trazo por carrera: si repite
+    //    una calle dentro de la misma carrera, cuenta una vez.
+    const cont = document.createElement("canvas"); cont.width = c.width; cont.height = c.height;
+    const d = cont.getContext("2d", { willReadFrequently: true });
+    d.globalCompositeOperation = "lighter";
+    d.lineWidth = Math.max(2, Math.min(5, 0.55 * (m.getZoom() - 9))) * r;
     d.lineCap = d.lineJoin = "round";
-    d.strokeStyle = "rgba(0,0,0,0.2)";
+    d.strokeStyle = "rgba(0,0,0,0.003922)";          // 1/255
     const caja = m.getBounds().pad(0.1);
     for (const ruta of this.rutas) {
       if (!caja.intersects(ruta.caja)) continue;
@@ -935,25 +982,41 @@ const CapaCalor = L.Layer.extend({
       });
       d.stroke();
     }
-    // 2) color
-    const img = d.getImageData(0, 0, dens.width, dens.height), px = img.data;
+    const img = d.getImageData(0, 0, cont.width, cont.height), px = img.data;
+    this.cuenta = { w: cont.width, h: cont.height, r, datos: px.slice() };
+    let max = 1;
+    for (let i = 3; i < px.length; i += 4) if (px[i] > max) max = px[i];
+    // 2) Color por veces, en escala logarítmica de 1 al máximo de esta vista.
+    const lmax = Math.log(Math.max(max, 2));
     for (let i = 0; i < px.length; i += 4) {
-      const a = px[i + 3];
-      if (!a) continue;
-      const k = Math.min(255, Math.round(a * 1.15)) * 4;
-      px[i] = RAMPA[k]; px[i + 1] = RAMPA[k + 1]; px[i + 2] = RAMPA[k + 2];
-      px[i + 3] = Math.min(255, 110 + a * 1.4);
+      const n = px[i + 3];
+      if (!n) continue;
+      const f = 0.12 + 0.88 * Math.log(n) / lmax;
+      const k = Math.min(255, Math.round(f * 255)) * 4;
+      px[i] = RAMPA[k]; px[i + 1] = RAMPA[k + 1]; px[i + 2] = RAMPA[k + 2]; px[i + 3] = 235;
     }
+    d.globalCompositeOperation = "source-over";
     d.putImageData(img, 0, 0);
-    // 3) brillo
-    ctx.shadowColor = "rgba(255,90,30,0.85)";
-    ctx.shadowBlur = 10 * r;
-    ctx.drawImage(dens, 0, 0);
+    // 3) Brillo
+    ctx.shadowColor = "rgba(255,90,30,0.8)";
+    ctx.shadowBlur = 9 * r;
+    ctx.drawImage(cont, 0, 0);
     ctx.shadowBlur = 0;
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.35;
-    ctx.drawImage(dens, 0, 0);
+    ctx.globalAlpha = 0.3;
+    ctx.drawImage(cont, 0, 0);
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    this._escala(max);
+  },
+  _escala(max) {
+    const e = $("escalaCalor");
+    e.hidden = false;
+    const lmax = Math.log(Math.max(max, 2));
+    const pos = (v) => (0.12 + 0.88 * Math.log(v) / lmax) * 100;
+    const marcas = TICKS.filter((v) => v < max * 0.8);
+    marcas.push(max);
+    e.querySelector(".marcas").innerHTML = marcas.map((v) =>
+      `<span style="bottom:${pos(v).toFixed(1)}%">${v}</span>`).join("");
   },
 });
 const calor = new CapaCalor();
@@ -1017,7 +1080,7 @@ async function dibujarCalor(e, aviso, encuadrar) {
       <div class="cifra"><span>Carreras</span><b>${num(lista.length)}</b></div>
       <div class="cifra"><span>Kilómetros</span><b>${num(km)}</b></div>
       <div class="cifra"><span>Desde</span><b style="font-size:15px">${desde}</b></div></div>
-    <div class="leyenda"><span>1 vez</span><i></i><span>muchas veces</span></div>
+    <p class="pista">Toca el mapa para ver cuántas veces pasaste por ahí.</p>
     <p class="pista" id="sync"></p>
     ${e.privadas ? "" : '<p class="aviso">Sólo veo tus actividades públicas: al conectar no se dio permiso para las privadas.</p>'}
     ${seccionPreferencias(true)}
