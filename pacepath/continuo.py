@@ -24,7 +24,7 @@ from raceengine_contracts import ConstraintModel, GeoPoint
 from raceengine_geodata import ALL_CLASSES
 from raceengine_contracts.constraints import DistanceLayer, GeometryLayer
 from raceengine_engine.context import GraphContext
-from raceengine_engine.generate import generate_loops
+from raceengine_engine.generate import generate_loops, generate_open_routes
 from raceengine_engine.repair import adjust_distance
 from raceengine_routing import RoutingWeights
 from scipy.sparse import csr_matrix
@@ -180,6 +180,91 @@ def _arista(ctx: GraphContext, w: RoutingWeights, u: int, v: int) -> int:
     return int(es[np.argmin(w.weight[es])])
 
 
+def _metros_arbol(ctx: GraphContext, coste: np.ndarray, pred: np.ndarray,
+                  origen: int) -> np.ndarray:
+    """Metros reales desde `origen` siguiendo el árbol de coste mínimo (que no
+    es el del camino más corto: el árbol esquiva semáforos)."""
+    g = ctx.graph
+    orden = np.argsort(coste)
+    orden = orden[np.isfinite(coste[orden])]
+    metros = np.full(g.n_nodes, np.inf)
+    metros[origen] = 0.0
+    for v in orden[1:]:
+        u = pred[v]
+        if u >= 0 and np.isfinite(metros[u]):
+            metros[v] = metros[u] + float(np.hypot(g.x[v] - g.x[u], g.y[v] - g.y[u]))
+    return metros
+
+
+def _camino(ctx: GraphContext, w: RoutingWeights, pred: np.ndarray, origen: int,
+            destino: int) -> list[int]:
+    nodos = [destino]
+    while nodos[-1] != origen:
+        nodos.append(int(pred[nodos[-1]]))
+    nodos.reverse()
+    return [_arista(ctx, w, a, b) for a, b in zip(nodos, nodos[1:])]
+
+
+def _por_sector(ctx: GraphContext, casa: int, cand: np.ndarray, coste: np.ndarray,
+                n: int) -> list[int]:
+    """Un destino por rumbo: el más barato de cada sector."""
+    g = ctx.graph
+    ang = np.arctan2(g.y[cand] - g.y[casa], g.x[cand] - g.x[casa])
+    sector = ((ang + np.pi) / (2 * np.pi) * n).astype(int) % n
+    return [int(cand[sector == k][np.argmin(coste[cand[sector == k]])])
+            for k in range(n) if (sector == k).any()]
+
+
+def solo_ida(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
+             w: RoutingWeights, n: int = 24) -> list[tuple[list[int], Medida, float]]:
+    """Sin meta fija: termina donde se cumplen los km, por el camino más limpio
+    (para volver en metro, o que te pasen a buscar)."""
+    coste, pred = _arbol(ctx, w, casa, distancia_m * 6)
+    metros = _metros_arbol(ctx, coste, pred, casa)
+    cand = np.nonzero((metros >= 0.96 * distancia_m) & (metros <= 1.04 * distancia_m))[0]
+    out = []
+    for destino in (_por_sector(ctx, casa, cand, coste, n) if len(cand) else []):
+        aristas = _camino(ctx, w, pred, casa, destino)
+        med = medir(ctx, aristas, req.radio_agua_m)
+        out.append((aristas, med, puntuar(med, req, distancia_m)))
+    return out
+
+
+def hasta_meta(ctx: GraphContext, casa: int, meta: int, distancia_m: float,
+               req: Requisitos, w: RoutingWeights) -> list[tuple[list[int], Medida, float]]:
+    """De la salida a la meta midiendo `distancia_m`: arcos del motor de RaceEngine
+    (`generate_open_routes`) ajustados a la distancia, más el camino directo si
+    ya mide lo pedido."""
+    g = ctx.graph
+    directo = ctx.provider.shortest_path(casa, meta, w)
+    if directo is None or not directo.ok:
+        raise SinTramo("No hay camino corrible entre la salida y la meta.")
+    if directo.distance_m > distancia_m * 1.05:
+        raise SinTramo(f"La meta está a {directo.distance_m / 1000:.1f} km por calle: más "
+                       f"que los {distancia_m / 1000:.0f} km de la sesión.")
+    modelo = ConstraintModel(
+        region=ctx.region_id,
+        start=GeoPoint(lat=float(g.lat[casa]), lon=float(g.lon[casa])),
+        finish=GeoPoint(lat=float(g.lat[meta]), lon=float(g.lon[meta])),
+        distance=DistanceLayer(target_m=distancia_m, tolerance_pct=2.0),
+        geometry=GeometryLayer(smoothness=0.6, search_radius_max_m=distancia_m * 0.6 + 1500),
+    )
+    reach = ctx.provider.reachable(casa, w, distancia_m * 0.7)
+    rng = _semilla(casa * 7919 + meta, distancia_m, req.tipo.value)
+    out = []
+    if directo.distance_m >= distancia_m * 0.95:
+        med = medir(ctx, directo.edges, req.radio_agua_m)
+        out.append((list(directo.edges), med, puntuar(med, req, distancia_m)))
+    gen = modelo.model_copy(update={"distance": DistanceLayer(
+        target_m=distancia_m * RODEO, tolerance_pct=2.0)})
+    for lp in generate_open_routes(ctx, gen, w, casa, meta, reach, rng, k=4, budget_ms=1500):
+        ajustado, _ = adjust_distance(ctx, modelo, w, lp, casa, reach, {}, rng,
+                                      budget_ms=600, end_node=meta)
+        med = medir(ctx, ajustado.edges, req.radio_agua_m)
+        out.append((list(ajustado.edges), med, puntuar(med, req, distancia_m)))
+    return out
+
+
 def ida_y_vuelta(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
                  w: RoutingWeights, n: int = 24) -> list[tuple[list[int], Medida, float]]:
     """Candidatos de ida y vuelta: hasta un punto a media distancia por el camino
@@ -189,33 +274,12 @@ def ida_y_vuelta(ctx: GraphContext, casa: int, distancia_m: float, req: Requisit
     g = ctx.graph
     mitad = distancia_m / 2
     coste, pred = _arbol(ctx, w, casa, mitad * 6)
-    # Metros reales por el árbol de coste mínimo (no por el camino más corto).
-    orden = np.argsort(coste)
-    orden = orden[np.isfinite(coste[orden])]
-    metros = np.full(g.n_nodes, np.inf)
-    metros[casa] = 0.0
-    for v in orden[1:]:
-        u = pred[v]
-        if u >= 0 and np.isfinite(metros[u]):
-            dx, dy = g.x[v] - g.x[u], g.y[v] - g.y[u]
-            metros[v] = metros[u] + float(np.hypot(dx, dy))
+    metros = _metros_arbol(ctx, coste, pred, casa)
     cand = np.nonzero((metros >= 0.94 * mitad) & (metros <= 1.06 * mitad))[0]
-    if len(cand) == 0:
-        return []
-    ang = np.arctan2(g.y[cand] - g.y[casa], g.x[cand] - g.x[casa])
-    sector = ((ang + np.pi) / (2 * np.pi) * n).astype(int) % n
     rev = g.reverse
     out = []
-    for k in range(n):
-        en = cand[sector == k]
-        if not len(en):
-            continue
-        destino = int(en[np.argmin(coste[en])])         # el más barato del sector
-        nodos = [destino]
-        while nodos[-1] != casa:
-            nodos.append(int(pred[nodos[-1]]))
-        nodos.reverse()
-        ida = [_arista(ctx, w, a, b) for a, b in zip(nodos, nodos[1:])]
+    for destino in (_por_sector(ctx, casa, cand, coste, n) if len(cand) else []):
+        ida = _camino(ctx, w, pred, casa, destino)
         aristas = ida + [int(rev[e]) for e in reversed(ida)]
         med = medir(ctx, aristas, req.radio_agua_m)
         out.append((aristas, med, puntuar(med, req, distancia_m)))
@@ -277,19 +341,42 @@ def _marcas(ctx: GraphContext, aristas: list[int], med: Medida,
 
 # ── Fondo y regenerativo ────────────────────────────────────────────────────
 
-def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: float) -> dict:
+def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
+                        volver: bool = True,
+                        meta: tuple[float, float] | None = None) -> dict:
+    """Fondo o regenerativo.
+
+    · `volver` (lo habitual): circuito o ida y vuelta desde la salida.
+    · sin volver y con `meta`: de la salida a la meta midiendo lo pedido.
+    · sin volver y sin meta: termina donde se cumplen los km."""
     if sesion.tipo not in (TipoSesion.FONDO, TipoSesion.REGENERATIVO):
         raise ValueError("planificar_circuito arma fondos y regenerativos")
     req = requisitos(sesion)
     casa = nodo_salida(ctx, lat, lon)
-    aristas, med, otros = circuito(ctx, casa, req.distancia_m, req)
+    D = req.distancia_m
+    if volver:
+        aristas, med, otros = circuito(ctx, casa, D, req)
+        forma = "ida y vuelta" if med.repetido > 0.9 else "circuito"
+    else:
+        w = pesos_sesion(ctx, casa, D + 1500, req)
+        if meta is not None:
+            fin = nodo_salida(ctx, *meta)
+            cands = hasta_meta(ctx, casa, fin, D, req, w)
+            forma = "hasta la meta"
+        else:
+            cands = solo_ida(ctx, casa, D, req, w)
+            forma = "solo ida"
+        if not cands:
+            raise SinTramo(f"No encontré un recorrido de {D / 1000:.0f} km de solo ida "
+                           "dentro del mapa de esta comuna: prueba volviendo a la salida.")
+        cands.sort(key=lambda c: c[2])
+        (aristas, med, _), otros = cands[0], cands[1:]
     tipo = sesion.tipo.value
-    forma = "ida y vuelta" if med.repetido > 0.9 else "circuito"
     info = _resumen_medida(med) | {"calles": _calles_trote(ctx, aristas), "forma": forma}
     avisos = []
-    if abs(med.distancia_m - req.distancia_m) > 0.05 * req.distancia_m:
-        avisos.append(f"El circuito mide {med.distancia_m / 1000:.1f} km: no encontré uno "
-                      "más ajustado a la distancia pedida desde esta salida.")
+    if abs(med.distancia_m - D) > 0.05 * D:
+        avisos.append(f"El recorrido mide {med.distancia_m / 1000:.1f} km: no encontré uno "
+                      "más ajustado a la distancia pedida.")
     if sesion.tipo is TipoSesion.FONDO and not med.agua:
         avisos.append("No hay fuentes de agua registradas en OpenStreetMap junto a este "
                       "recorrido: lleva agua.")
@@ -302,6 +389,8 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
         "alternativas": [_resumen_medida(m) | {"puntos": round(p, 1)} for _, m, p in otros[:2]],
         "totales": {"distancia_m": round(med.distancia_m)},
         "avisos": avisos,
+        "volver": volver,
+        "llegada": _punto(ctx, aristas, med.cum, med.distancia_m),
     }
     plan["explicacion"] = explicar_continuo(plan)
     return plan

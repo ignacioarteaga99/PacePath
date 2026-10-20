@@ -45,14 +45,14 @@
   button.icono { display: flex; align-items: center; gap: 6px; padding: 11px 12px; font-size: 14px; }
   button.icono svg { width: 18px; height: 18px; }
   button:disabled { opacity: .55; }
-  #sugerencias { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; margin-top: 4px;
+  .sugerencias { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; margin-top: 4px;
     background: #fff; border: 1px solid var(--linea); border-radius: 12px; overflow: hidden;
     box-shadow: 0 8px 24px rgba(0,0,0,.12); display: none; }
-  #sugerencias button { display: block; width: 100%; text-align: left; background: #fff;
+  .sugerencias button { display: block; width: 100%; text-align: left; background: #fff;
     color: var(--tinta); border-radius: 0; font-weight: 500; font-size: 15px; padding: 11px 14px;
     border-bottom: 1px solid var(--linea); }
-  #sugerencias button small { color: var(--suave); margin-left: 6px; text-transform: capitalize; }
-  #sugerencias button:last-child { border-bottom: 0; }
+  .sugerencias button small { color: var(--suave); margin-left: 6px; text-transform: capitalize; }
+  .sugerencias button:last-child { border-bottom: 0; }
 
   .modos { display: grid; grid-template-columns: 1fr 1fr; background: var(--gris); border-radius: 10px;
     padding: 3px; margin-top: 10px; }
@@ -62,6 +62,10 @@
   body.modo-trazar .trazar { display: flex; }
   body.modo-trazar .solo-sesion { display: none; }
   body.modo-trazar #hoja { max-height: 28vh; }
+  .continuo { display: none; gap: 8px; margin-top: 8px; align-items: center; }
+  body.sesion-continua:not(.modo-trazar) .continuo { display: flex; }
+  .campo.meta { display: none; }
+  body.sesion-continua:not(.modo-trazar):not(.volver) .campo.meta { display: flex; }
   .interruptor { display: flex; align-items: center; gap: 8px; flex: 1; font-size: 14px; font-weight: 600; }
   .interruptor input { width: 22px; height: 22px; accent-color: var(--acento); }
   .num { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 2px solid var(--acento);
@@ -69,12 +73,27 @@
     box-shadow: 0 1px 3px rgba(0,0,0,.3); }
   .num.primero { background: var(--tinta); border-color: #fff; color: #fff; }
 
+  /* Con una ruta en pantalla el formulario se pliega: el mapa manda. */
+  .plegado { display: none; align-items: center; gap: 10px; margin-top: 10px; }
+  .plegado span { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  .plegado small { color: var(--suave); font-weight: 500; }
+  body.con-ruta:not(.modo-trazar) .plegado { display: flex; }
+  body.con-ruta:not(.modo-trazar) #form, body.con-ruta:not(.modo-trazar) .modos,
+  body.con-ruta:not(.modo-trazar) .chips { display: none !important; }
+
   /* Hoja inferior */
   #hoja { position: fixed; z-index: 1000; left: 0; right: 0;
     bottom: calc(env(safe-area-inset-bottom) + 58px); background: #fff;
     border-radius: 18px 18px 0 0; box-shadow: 0 -6px 24px rgba(0,0,0,.10);
     padding: 8px 16px 14px; max-height: 36vh; overflow-y: auto; }
-  .asa { width: 38px; height: 5px; border-radius: 3px; background: #d5d5db; margin: 0 auto 10px; }
+  /* Asa de la hoja: tocar o arrastrar para plegar/desplegar. Zona de toque amplia. */
+  .asa { display: block; width: 100%; height: 22px; margin: -8px 0 4px; padding: 0; background: none;
+    border: 0; cursor: grab; touch-action: none; }
+  .asa::before { content: ""; display: block; width: 38px; height: 5px; border-radius: 3px;
+    background: #d5d5db; margin: 9px auto 0; }
+  #hoja { transition: max-height .25s ease; }
+  #hoja.plegada { max-height: 92px !important; overflow: hidden; }
   .tipo { color: var(--acento); font-weight: 800; font-size: 12px; letter-spacing: .6px;
     text-transform: uppercase; }
   h2 { margin: 2px 0 2px; font-size: 20px; letter-spacing: -.3px; }
@@ -84,9 +103,22 @@
   .cifra span { display: block; color: var(--suave); font-size: 12px; }
   .cifra b { font-size: 20px; letter-spacing: -.3px; }
   .cifra b.cero { color: var(--ok); }
-  .perfil { margin: 10px 0 2px; }
-  .perfil svg { width: 100%; height: 56px; display: block; }
-  .perfil small { color: var(--suave); font-size: 12px; }
+  .perfil { margin: 12px 0 4px; }
+  .perfil-cab { font-size: 13px; color: var(--suave); margin-bottom: 6px; }
+  .perfil-cab b { color: var(--tinta); }
+  .perfil-graf { display: flex; gap: 6px; }
+  .ejey { display: flex; flex-direction: column; justify-content: space-between; font-size: 11px;
+    color: var(--suave); text-align: right; min-width: 30px; padding: 2px 0; }
+  .lienzo { position: relative; flex: 1; height: 80px; touch-action: none; }
+  .lienzo svg { width: 100%; height: 100%; display: block; }
+  .ejex { position: relative; height: 16px; margin-left: 36px; font-size: 11px; color: var(--suave); }
+  .ejex span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+  .ejex span:last-child { transform: translateX(-100%); }
+  .ejex span:first-child { transform: none; }
+  .cursor { position: absolute; top: 0; bottom: 0; width: 1.5px; background: var(--tinta); display: none; }
+  .globo { position: absolute; top: -4px; transform: translate(-50%, -100%); background: var(--tinta);
+    color: #fff; font-size: 12px; font-weight: 600; padding: 3px 7px; border-radius: 6px;
+    white-space: nowrap; display: none; }
   .texto p { margin: 8px 0; font-size: 14px; }
   .aviso { background: #fff6e5; border-radius: 10px; padding: 8px 10px; color: #8a5a00; font-size: 13px; }
   .fila { display: flex; gap: 8px; margin-top: 12px; }
@@ -134,6 +166,8 @@
     <button class="chip" type="button" data-t="cuestas 8x300 6%">Cuestas</button>
     <button class="chip" type="button" data-t="regenerativo 6k">Regenerativo</button>
   </div>
+  <div class="plegado"><span id="resumenForm"></span>
+    <button class="sec" type="button" id="editar">Editar</button></div>
   <form id="form" autocomplete="off">
     <div class="campo">
       <label for="desde">Desde</label>
@@ -142,12 +176,21 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
              stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
         Cerca de mí</button>
-      <div id="sugerencias"></div>
+      <div class="sugerencias" id="sugerencias"></div>
     </div>
     <div class="campo solo-sesion">
       <label for="texto">Sesión</label>
       <input id="texto" value="6x1k" aria-label="Sesión de hoy" placeholder="6x1k · tempo 8k · fondo 18k">
       <button id="armar" type="submit">Crear ruta</button>
+    </div>
+    <div class="continuo">
+      <label class="interruptor"><input type="checkbox" id="volverSesion" checked> Volver a la salida</label>
+    </div>
+    <div class="campo meta">
+      <label for="meta">Meta</label>
+      <input id="meta" placeholder="Opcional: dónde terminar" aria-label="Meta">
+      <button class="sec icono" id="metaMapa" type="button">En el mapa</button>
+      <div class="sugerencias" id="sugerenciasMeta"></div>
     </div>
     <div class="trazar">
       <label class="interruptor"><input type="checkbox" id="volver" checked> Volver a la salida</label>
@@ -180,7 +223,24 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(mapa);
 
 let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), animacion = null;
-const hoja = (html) => { $("hoja").innerHTML = '<div class="asa"></div>' + html; };
+const hoja = (html) => {
+  $("hoja").classList.remove("plegada");
+  $("hoja").innerHTML = '<button class="asa" type="button" aria-label="Plegar o desplegar"></button>' + html;
+  activarPerfil();
+};
+// Plegar y desplegar la hoja: un toque en el asa alterna; arrastrar hacia abajo
+// pliega y hacia arriba despliega.
+(() => {
+  let y0 = null;
+  $("hoja").addEventListener("pointerdown", (e) => { if (e.target.closest(".asa")) { y0 = e.clientY; e.preventDefault(); } });
+  window.addEventListener("pointerup", (e) => {
+    if (y0 == null) return;
+    const dy = e.clientY - y0; y0 = null;
+    const h = $("hoja");
+    if (Math.abs(dy) < 8) h.classList.toggle("plegada");
+    else h.classList.toggle("plegada", dy > 0);
+  });
+})();
 const pin = (clase, color) => L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11],
   html: `<div class="pin ${clase}" style="${color ? "background:" + color : ""}"></div>` });
 
@@ -206,8 +266,11 @@ function fijarSalida(lat, lon, nombre, centrar = false) {
   capas.clearLayers();
   hoja('<p class="pista">Salida lista. Elige la sesión y pulsa «Crear ruta». Puedes arrastrar el punto.</p>');
 }
-mapa.on("click", (e) => modo === "trazar" ? agregarPunto(e.latlng.lat, e.latlng.lng)
-                                         : fijarSalida(e.latlng.lat, e.latlng.lng, "Punto en el mapa"));
+mapa.on("click", (e) => {
+  if (modo === "trazar") return agregarPunto(e.latlng.lat, e.latlng.lng);
+  if (eligiendoMeta) return fijarMeta({ lat: e.latlng.lat, lon: e.latlng.lng });
+  fijarSalida(e.latlng.lat, e.latlng.lng, "Punto en el mapa");
+});
 
 $("cerca").onclick = () => {
   if (!navigator.geolocation) return hoja('<p class="aviso">Este navegador no da la ubicación: escribe una calle o toca el mapa.</p>');
@@ -218,25 +281,55 @@ $("cerca").onclick = () => {
     { enableHighAccuracy: true, timeout: 10000 });
 };
 
-let busqueda = 0;
-$("desde").addEventListener("input", () => {
-  const q = $("desde").value.trim(), yo = ++busqueda;
-  if (q.length < 3) { $("sugerencias").style.display = "none"; return; }
-  setTimeout(async () => {
-    if (yo !== busqueda) return;
-    const r = await fetch("/api/lugares?q=" + encodeURIComponent(q)).then((x) => x.json()).catch(() => []);
-    if (yo !== busqueda) return;
-    $("sugerencias").innerHTML = r.length
-      ? r.map((l, i) => `<button type="button" data-i="${i}">${esc(l.nombre)}<small>${esc(l.comuna.replace("_", " "))}</small></button>`).join("")
-      : '<button type="button" disabled>Sin resultados: prueba «Pocuro con Tobalaba» o toca el mapa</button>';
-    $("sugerencias").style.display = "block";
-    for (const b of $("sugerencias").querySelectorAll("button[data-i]")) {
-      b.onclick = () => { const l = r[+b.dataset.i]; $("sugerencias").style.display = "none";
-                          fijarSalida(l.lat, l.lon, l.nombre, true); };
-    }
-  }, 200);
-});
-$("desde").addEventListener("blur", () => setTimeout(() => { $("sugerencias").style.display = "none"; }, 200));
+// Buscador de lugares para un campo (salida o meta).
+function conectarBusqueda(campo, lista, alElegir) {
+  let busqueda = 0;
+  $(campo).addEventListener("input", () => {
+    const q = $(campo).value.trim(), yo = ++busqueda;
+    if (q.length < 3) { $(lista).style.display = "none"; return; }
+    setTimeout(async () => {
+      if (yo !== busqueda) return;
+      const r = await fetch("/api/lugares?q=" + encodeURIComponent(q)).then((x) => x.json()).catch(() => []);
+      if (yo !== busqueda) return;
+      $(lista).innerHTML = r.length
+        ? r.map((l, i) => `<button type="button" data-i="${i}">${esc(l.nombre)}<small>${esc(l.comuna.replace("_", " "))}</small></button>`).join("")
+        : '<button type="button" disabled>Sin resultados: prueba «Pocuro con Tobalaba» o toca el mapa</button>';
+      $(lista).style.display = "block";
+      for (const b of $(lista).querySelectorAll("button[data-i]")) {
+        b.onclick = () => { const l = r[+b.dataset.i]; $(lista).style.display = "none"; alElegir(l); };
+      }
+    }, 200);
+  });
+  $(campo).addEventListener("blur", () => setTimeout(() => { $(lista).style.display = "none"; }, 200));
+}
+conectarBusqueda("desde", "sugerencias", (l) => fijarSalida(l.lat, l.lon, l.nombre, true));
+
+// ── Meta (fondo y regenerativo sin volver a la salida) ──────────────────────
+// Sin meta, la ruta termina donde se cumplen los km.
+let meta = null, marcaMeta = null, eligiendoMeta = false;
+const CONTINUA = /\b(fondo|largo|tirada|regenerativo|suave|rodaje)\b/i;
+function revisarTipo() {
+  document.body.classList.toggle("sesion-continua", CONTINUA.test($("texto").value));
+  document.body.classList.toggle("volver", $("volverSesion").checked);
+}
+$("texto").addEventListener("input", revisarTipo);
+$("volverSesion").onchange = () => { revisarTipo(); if ($("volverSesion").checked) fijarMeta(null); };
+function fijarMeta(p, nombre) {
+  meta = p; eligiendoMeta = false;
+  $("metaMapa").textContent = "En el mapa";
+  if (!p) { $("meta").value = ""; if (marcaMeta) { marcaMeta.remove(); marcaMeta = null; } return; }
+  $("meta").value = nombre || "Punto en el mapa";
+  if (marcaMeta) marcaMeta.setLatLng([p.lat, p.lon]);
+  else {
+    marcaMeta = L.marker([p.lat, p.lon], { draggable: true, zIndexOffset: 950, icon: L.divIcon({ className: "",
+      iconSize: [22, 22], iconAnchor: [11, 11], html: '<div class="num">M</div>' }) }).addTo(mapa);
+    marcaMeta.on("dragend", () => { const q = marcaMeta.getLatLng(); meta = { lat: q.lat, lon: q.lng }; });
+  }
+}
+conectarBusqueda("meta", "sugerenciasMeta", (l) => fijarMeta({ lat: l.lat, lon: l.lon }, l.nombre));
+$("meta").addEventListener("input", () => { if (!$("meta").value.trim()) fijarMeta(null); });
+$("metaMapa").onclick = () => { eligiendoMeta = !eligiendoMeta;
+  $("metaMapa").textContent = eligiendoMeta ? "Toca el mapa…" : "En el mapa"; };
 
 // ── Trazar a mano ───────────────────────────────────────────────────────────
 // Cada toque agrega un punto; el servidor une los puntos por la calle. La
@@ -312,10 +405,13 @@ $("deshacer").onclick = () => { puntos.pop(); pintarPuntos(); if (puntos.length 
 $("borrar").onclick = () => { puntos = []; salida = null; pintarPuntos(); capas.clearLayers();
   hoja('<p class="pista">Toca el mapa para marcar la salida.</p>'); };
 
+$("editar").onclick = () => { document.body.classList.remove("con-ruta"); };
+
 for (const c of document.querySelectorAll(".chip")) {
   c.onclick = () => {
     document.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
     $("texto").value = c.dataset.t;
+    revisarTipo();
   };
 }
 for (const a of document.querySelectorAll("nav a[data-pronto]")) {
@@ -407,6 +503,9 @@ function marcas(plan) {
     L.marker(t.inicio, { icon: pin("", "#f2541b") }).addTo(capas).bindPopup("Inicio de la repetición");
     L.marker(t.fin, { icon: pin("", "#1d1d21") }).addTo(capas).bindPopup("Fin de la repetición");
   }
+  if (plan.volver === false && plan.llegada)
+    L.marker(plan.llegada, { icon: L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11],
+      html: '<div class="num primero">M</div>' }) }).addTo(capas).bindPopup("Llegada");
   for (const m of plan.marcas || []) {
     if (m.tipo === "extremo") continue;
     // En un fondo o regenerativo, un punto por cruce tapa la ruta: sólo agua.
@@ -436,26 +535,84 @@ function cifrasDe(plan) {
   return [primera, [r.semaforos, "Semáforos"], [cruces, "Cruces"], ultima];
 }
 
+// ── Altimetría ──────────────────────────────────────────────────────────────
+// Eje de km, altitudes mínima y máxima, subida y bajada totales. Al deslizar el
+// dedo por el gráfico se ve el km y la altitud, y un punto lo sigue en el mapa.
+let perfilPts = [], perfilTotal = 0, cursorMapa = null;
+
 function perfilSvg(plan) {
   const pts = [];
   let d = 0, prev = null;
   for (const p of plan.partes) for (const c of p.coordenadas || []) {
     if (prev) d += distM(prev, c);
-    pts.push([d, c[2]]); prev = c;
+    pts.push([d, c[2], c[0], c[1]]); prev = c;
   }
+  perfilPts = pts; perfilTotal = d;
   if (pts.length < 2 || d <= 0) return "";
-  const zs = pts.map((p) => p[1]), lo = Math.min(...zs), hi = Math.max(...zs), W = 320, H = 56;
-  const x = (v) => v / d * W, y = (z) => H - 4 - (z - lo) / Math.max(hi - lo, 5) * (H - 10);
+  let sube = 0, baja = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dz = pts[i][1] - pts[i - 1][1];
+    if (dz > 0) sube += dz; else baja -= dz;
+  }
+  const zs = pts.map((p) => p[1]), lo = Math.min(...zs), hi = Math.max(...zs);
+  const rango = Math.max(hi - lo, 10), base = lo - rango * 0.08, techo = hi + rango * 0.08;
+  const W = 300, H = 80;
+  const x = (v) => v / d * W, y = (z) => H - (z - base) / (techo - base) * H;
   const linea = pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
-  return `<div class="perfil"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <path d="${linea}L${W},${H}L0,${H}Z" fill="#fde3d8"/><path d="${linea}" fill="none" stroke="#f2541b" stroke-width="1.6"/></svg>
-    <small>Perfil · ${num(lo)}–${num(hi)} m s. n. m.</small></div>`;
+  const kmTot = d / 1000;
+  const paso = [0.5, 1, 2, 5, 10, 20].find((p) => kmTot / p <= 5) || 50;
+  let rejilla = "", etiquetas = "<span style=\"left:0\">0</span>";
+  for (let k = paso; k < kmTot - paso * 0.35; k += paso) {
+    rejilla += `<line x1="${x(k * 1000)}" x2="${x(k * 1000)}" y1="0" y2="${H}" stroke="#ececf0" stroke-width="1"/>`;
+    etiquetas += `<span style="left:${(k / kmTot * 100).toFixed(2)}%">${num(k, paso < 1 ? 1 : 0)}</span>`;
+  }
+  etiquetas += `<span style="left:100%">${num(kmTot, 1)} km</span>`;
+  return `<div class="perfil">
+    <div class="perfil-cab">Altimetría · <b>↑ ${num(sube)} m</b> subida · <b>↓ ${num(baja)} m</b> bajada</div>
+    <div class="perfil-graf">
+      <div class="ejey"><span>${num(hi)} m</span><span>${num(lo)} m</span></div>
+      <div class="lienzo" id="lienzo">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${rejilla}
+          <path d="${linea}L${W},${H}L0,${H}Z" fill="#fde3d8"/>
+          <path d="${linea}" fill="none" stroke="#f2541b" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg>
+        <div class="cursor" id="cursor"></div><div class="globo" id="globo"></div>
+      </div>
+    </div>
+    <div class="ejex">${etiquetas}</div>
+  </div>`;
+}
+
+function activarPerfil() {
+  const l = $("lienzo");
+  if (!l || perfilPts.length < 2) return;
+  const mover = (e) => {
+    const r = l.getBoundingClientRect();
+    const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const objetivo = f * perfilTotal;
+    let a = 0, b = perfilPts.length - 1;                 // búsqueda binaria por distancia
+    while (b - a > 1) { const m = (a + b) >> 1; if (perfilPts[m][0] < objetivo) a = m; else b = m; }
+    const p = perfilPts[b];
+    $("cursor").style.display = $("globo").style.display = "block";
+    $("cursor").style.left = $("globo").style.left = (f * 100) + "%";
+    $("globo").textContent = `km ${num(p[0] / 1000, 1)} · ${num(p[1])} m`;
+    if (!cursorMapa) cursorMapa = L.circleMarker([p[2], p[3]], { radius: 7, color: "#fff", weight: 3,
+      fillColor: "#1d1d21", fillOpacity: 1 }).addTo(mapa);
+    else cursorMapa.setLatLng([p[2], p[3]]);
+  };
+  const salir = () => {
+    $("cursor").style.display = $("globo").style.display = "none";
+    if (cursorMapa) { cursorMapa.remove(); cursorMapa = null; }
+  };
+  l.addEventListener("pointerdown", (e) => { l.setPointerCapture(e.pointerId); mover(e); });
+  l.addEventListener("pointermove", mover);
+  l.addEventListener("pointerup", salir);
+  l.addEventListener("pointerleave", salir);
 }
 
 function mostrar(plan) {
   const r = plan.tramo || plan.bloque || plan.recorrido;
   const calles = r.calles?.length ? r.calles.slice(0, 3).join(" · ") : "";
-  hoja(`<div class="tipo">${TIPOS[plan.sesion.tipo]} · ${km(plan.totales.distancia_m)} en total</div>
+  hoja(`<div class="tipo">${TIPOS[plan.sesion.tipo]} · ${km(plan.totales.distancia_m)}${plan.volver === false ? " · sin volver a la salida" : " en total"}</div>
     <h2>${esc(plan.sesion.resumen)}</h2>
     <div class="donde">${esc(calles)}</div>
     <div class="cifras">${cifrasDe(plan).map(([v, e]) =>
@@ -466,11 +623,16 @@ function mostrar(plan) {
     <div class="fila"><button id="gpx" type="button">Descargar GPX</button>
       <button class="sec" id="otra" type="button">Cambiar salida</button></div>`);
   $("gpx").onclick = descargarGpx;
-  $("otra").onclick = () => { capas.clearLayers(); $("desde").focus(); $("desde").select();
+  $("otra").onclick = () => { capas.clearLayers(); document.body.classList.remove("con-ruta");
+    $("desde").focus(); $("desde").select();
     hoja('<p class="pista">Escribe otra calle, usa «Cerca de mí» o toca el mapa.</p>'); };
 }
 
-function pedido() { return { lat: salida.lat, lon: salida.lon, texto: $("texto").value }; }
+function pedido() {
+  const p = { lat: salida.lat, lon: salida.lon, texto: $("texto").value };
+  if (CONTINUA.test(p.texto) && !$("volverSesion").checked) { p.volver = false; if (meta) p.meta = meta; }
+  return p;
+}
 
 async function descargarGpx() {
   const r = await fetch("/api/ruta.gpx", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -493,6 +655,8 @@ $("form").onsubmit = async (e) => {
     const j = await r.json();
     if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : "No pude armar la ruta.");
     $("comuna").textContent = j.comuna.replace("_", " ");
+    $("resumenForm").innerHTML = `${esc(j.sesion.resumen)} <small>· desde ${esc($("desde").value || "el mapa")}</small>`;
+    document.body.classList.add("con-ruta");
     mostrar(j);
     encuadrar(j);
     dibujarAnimado(j, () => marcas(j));
@@ -500,6 +664,7 @@ $("form").onsubmit = async (e) => {
     hoja(`<p class="aviso">${esc(err.message)}</p>`);
   } finally { $("armar").disabled = false; }
 };
+revisarTipo();
 </script>
 </body>
 </html>

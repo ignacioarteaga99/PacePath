@@ -116,10 +116,14 @@ def explicar_continuo(plan: dict) -> list[str]:
     r, s = plan["recorrido"], plan["sesion"]
     nombre = "Fondo" if s["tipo"] == "fondo" else "Regenerativo"
     por = f" por {lista(r['calles'][:5])}" if r.get("calles") else ""
-    forma = "en ida y vuelta" if r.get("forma") == "ida y vuelta" else "en circuito"
+    forma = {"ida y vuelta": "en ida y vuelta", "solo ida": "de solo ida",
+             "hasta la meta": "hasta tu meta"}.get(r.get("forma"), "en circuito")
     lineas = [f"{nombre} de {metros(r['distancia_m'])} {forma}{por}.",
               f"En el camino: {_paradas(r)}; {num(r['subida_m'])} m de subida; "
               f"{r['parque_pct']} % por parque."]
+    if r.get("forma") == "solo ida" and r.get("calles"):
+        lineas.append(f"Terminas en {r['calles'][-1]}: revisa cómo volver (metro, micro "
+                      "o que te pasen a buscar).")
     if s["tipo"] == "fondo":
         agua = [a for a in r["agua"] if a["tipo"] == "drinking_water"]
         banos = [a for a in r["agua"] if a["tipo"] == "toilets"]

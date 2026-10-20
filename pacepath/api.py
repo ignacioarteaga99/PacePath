@@ -35,11 +35,6 @@ _motor = threading.Lock()
 app.mount("/vendor", StaticFiles(directory=WEB / "vendor"), name="vendor")
 
 
-class Punto(BaseModel):
-    lat: float = Field(ge=-90, le=90)
-    lon: float = Field(ge=-180, le=180)
-
-
 class PedidoTrazado(BaseModel):
     puntos: list[Punto] = Field(min_length=2, max_length=MAX_PUNTOS)
     volver: bool = True          # la meta es la salida (lo habitual)
@@ -49,12 +44,21 @@ class TextoSesion(BaseModel):
     texto: str = Field(min_length=1, max_length=120)
 
 
+class Punto(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+
+
 class PedidoRuta(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
     texto: str | None = Field(default=None, max_length=120)
     sesion: Sesion | None = None
     comuna: str | None = None
+    # Fondo y regenerativo: volver a la salida (lo habitual) o no. Sin volver,
+    # con `meta` la ruta termina ahí; sin meta, donde se cumplen los km.
+    volver: bool = True
+    meta: Punto | None = None
 
     @model_validator(mode="after")
     def _una_sesion(self) -> "PedidoRuta":
@@ -104,7 +108,8 @@ def _plan(body: PedidoRuta) -> dict:
     try:
         with _motor:
             ctx = comunas.contexto(comuna)
-            return planificar(ctx, s, body.lat, body.lon)
+            meta = (body.meta.lat, body.meta.lon) if body.meta else None
+            return planificar(ctx, s, body.lat, body.lon, volver=body.volver, meta=meta)
     except SinTramo as exc:
         raise HTTPException(404, str(exc)) from exc
 
