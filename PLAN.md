@@ -57,8 +57,12 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
 - [ ] Generadores de tempo, fondo, cuestas y regenerativo (hoy la API responde 501).
 
 ## Fase 2 — Strava
-- [ ] OAuth de Strava (app propia en strava.com/settings/api; scopes
-      `read,activity:read_all`). Guardar tokens cifrados; refrescar.
+- [x] OAuth de Strava (app propia, scopes `read,activity:read_all`). Sin base
+      de datos por ahora: tokens en cookie cifrada (Fernet, clave derivada del
+      secreto), se renuevan solos; desconectar revoca el acceso en Strava.
+- [x] «Mi ciudad»: mapa de calor con tus carreras (polilínea resumida de cada
+      actividad), guardadas en el navegador (IndexedDB) e importación
+      incremental (`after=`).
 - [ ] Importar actividades de carrera (detalle con `map.polyline`; streams
       `latlng` cuando haga falta precisión). Respetar límites de la API
       (reintentos con espera; importación incremental por fecha).

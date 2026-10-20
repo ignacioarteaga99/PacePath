@@ -8,18 +8,26 @@
     POST /api/ruta               sesión + salida → plan completo
     POST /api/ruta.gpx           lo mismo, en GPX
     POST /api/trazar             ruta a mano: puntos → ruta por la calle (+ .gpx)
+
+    Strava (sin base de datos: tokens en cookie cifrada, carreras en el navegador)
+    GET  /api/strava/conectar    → strava.com (autorizar)
+    GET  /api/strava/vuelta      ← strava.com (código → tokens)
+    GET  /api/strava/estado
+    GET  /api/strava/actividades?pagina=&despues=
+    POST /api/strava/desconectar revoca el acceso en Strava y borra la cookie
 """
 from __future__ import annotations
 
+import os
 import threading
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
-from . import comunas, lugares
+from . import comunas, lugares, strava
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
 from .planificador import planificar
@@ -154,3 +162,83 @@ def ruta_gpx(body: PedidoRuta) -> Response:
     nombre = plan["sesion"]["resumen"].split(" (")[0].replace("×", "x").replace(" ", "")
     return Response(plan_a_gpx(plan), media_type="application/gpx+xml",
                     headers={"Content-Disposition": f'attachment; filename="pacepath-{nombre}.gpx"'})
+
+
+# ── Strava ──────────────────────────────────────────────────────────────────
+
+def _base(request: Request) -> str:
+    """URL pública de la app. Render termina el HTTPS antes de llegar aquí, así
+    que el esquema real viene en X-Forwarded-Proto."""
+    if os.environ.get("PACEPATH_URL"):
+        return os.environ["PACEPATH_URL"].rstrip("/")
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.headers.get("host", request.url.netloc))
+    return f"{proto}://{host}"
+
+
+def _poner_cookie(resp: Response, request: Request, nombre: str, valor: str,
+                  max_age: int) -> None:
+    resp.set_cookie(nombre, valor, max_age=max_age, httponly=True, samesite="lax",
+                    secure=_base(request).startswith("https"))
+
+
+@app.get("/api/strava/conectar", include_in_schema=False)
+def strava_conectar(request: Request) -> Response:
+    if not strava.configurado():
+        raise HTTPException(503, "Strava no está configurado en el servidor.")
+    estado = strava.nuevo_estado()
+    resp = RedirectResponse(strava.url_autorizar(f"{_base(request)}/api/strava/vuelta", estado))
+    _poner_cookie(resp, request, strava.COOKIE_ESTADO, estado, 600)
+    return resp
+
+
+@app.get("/api/strava/vuelta", include_in_schema=False)
+def strava_vuelta(request: Request, code: str | None = None, state: str | None = None,
+                  scope: str = "", error: str | None = None) -> Response:
+    destino = "/#ciudad"
+    if error or not code:
+        return RedirectResponse(destino + "-cancelado")
+    if not state or state != request.cookies.get(strava.COOKIE_ESTADO):
+        return RedirectResponse(destino + "-error")
+    try:
+        s = strava.canjear_codigo(code, scope)
+    except strava.StravaError:
+        return RedirectResponse(destino + "-error")
+    resp = RedirectResponse(destino if "activity:read" in scope else destino + "-sin-permiso")
+    _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
+    resp.delete_cookie(strava.COOKIE_ESTADO)
+    return resp
+
+
+@app.get("/api/strava/estado")
+def strava_estado(request: Request) -> dict:
+    s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
+    return {"configurado": strava.configurado(), "conectado": s is not None,
+            "nombre": s.nombre if s else None,
+            "privadas": bool(s and "activity:read_all" in s.alcance)}
+
+
+@app.get("/api/strava/actividades")
+def strava_actividades(request: Request, pagina: int = 1, despues: int | None = None) -> Response:
+    s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
+    if s is None:
+        raise HTTPException(401, "Conecta tu cuenta de Strava.")
+    try:
+        s, renovada = strava.vigente(s)
+        lista, crudas = strava.carreras(s, max(1, pagina), despues)
+    except strava.StravaError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    resp = JSONResponse({"carreras": lista, "ultima": crudas < 100, "pagina": pagina})
+    if renovada:
+        _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
+    return resp
+
+
+@app.post("/api/strava/desconectar")
+def strava_desconectar(request: Request) -> Response:
+    s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
+    if s is not None:
+        strava.revocar(s)
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(strava.COOKIE)
+    return resp

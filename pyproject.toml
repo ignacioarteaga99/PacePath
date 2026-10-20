@@ -10,6 +10,7 @@ dependencies = [
   "raceengine @ git+https://github.com/ignacioarteaga99/RaceEngine@c6f45e287a0ed0d3eefb6104591f1d02f890c3ee",
   "numpy>=1.26",
   "scipy>=1.11",          # Dijkstra en C para los fondos de ida y vuelta
+  "cryptography>=42",     # cookie cifrada con el acceso a Strava
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "pydantic>=2.7",

@@ -149,6 +149,18 @@
     box-shadow: 0 1px 4px rgba(0,0,0,.4); }
   .pin.salida { width: 22px; height: 22px; background: var(--tinta); display: grid; place-items: center; }
   .pin.salida::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+
+  /* ── Mi ciudad ─────────────────────────────────────────────────────────── */
+  body.vista-ciudad #form, body.vista-ciudad .modos, body.vista-ciudad .chips,
+  body.vista-ciudad .plegado { display: none !important; }
+  body.vista-ciudad .titulo-ciudad { display: inline; }
+  .titulo-ciudad { display: none; font-weight: 800; font-size: 17px; }
+  .strava { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+    background: #fc4c02; color: #fff; font-weight: 700; border-radius: 10px; padding: 12px;
+    text-decoration: none; font-size: 16px; }
+  .strava svg { width: 18px; height: 18px; }
+  .credito { color: var(--suave); font-size: 12px; margin-top: 10px; text-align: center; }
+  .cifras.tres { grid-template-columns: repeat(3, 1fr); }
 </style>
 </head>
 <body>
@@ -159,7 +171,7 @@
     <svg viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="#f2541b"/>
       <path d="M6 18 L11 8 L14 14 L16.5 10 L20 18" fill="none" stroke="#fff" stroke-width="2.4"
             stroke-linecap="round" stroke-linejoin="round"/></svg>
-    PacePath <small id="comuna"></small>
+    PacePath <span class="titulo-ciudad">· Mi ciudad</span> <small id="comuna"></small>
   </div>
   <div class="modos" role="tablist">
     <button type="button" class="on" id="modo-sesion">Ruta para mi sesión</button>
@@ -214,9 +226,9 @@
 </div>
 
 <nav>
-  <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+  <a class="on" href="#" id="tab-hoy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
      stroke-linecap="round" stroke-linejoin="round"><path d="M4 18l5-10 3 6 2.5-4L20 18"/></svg>Hoy</a>
-  <a href="#" data-pronto="Mi ciudad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  <a href="#" id="tab-ciudad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
      stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Mi ciudad</a>
   <a href="#" data-pronto="Perfil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
      stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Perfil</a>
@@ -679,6 +691,177 @@ $("form").onsubmit = async (e) => {
   } finally { $("armar").disabled = false; }
 };
 revisarTipo();
+
+// ── Mi ciudad: tus carreras de Strava como mapa de calor ────────────────────
+// Las carreras se guardan en este navegador (IndexedDB) y sólo se piden las
+// nuevas. El servidor no guarda nada: el acceso a Strava va en una cookie
+// cifrada. Desconectar revoca el acceso en Strava y borra todo.
+const BD = (() => {
+  let db = null, memoria = new Map();
+  const abrir = () => new Promise((ok) => {
+    try {
+      const r = indexedDB.open("pacepath", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("carreras", { keyPath: "id" });
+      r.onsuccess = () => { db = r.result; ok(); };
+      r.onerror = () => ok();
+    } catch { ok(); }
+  });
+  const tx = (modo) => db.transaction("carreras", modo).objectStore("carreras");
+  return {
+    async todas() {
+      if (!db) await abrir();
+      if (!db) return [...memoria.values()];
+      return new Promise((ok) => { const r = tx("readonly").getAll(); r.onsuccess = () => ok(r.result); r.onerror = () => ok([]); });
+    },
+    async guardar(lista) {
+      if (!db) await abrir();
+      if (!db) { lista.forEach((c) => memoria.set(c.id, c)); return; }
+      await new Promise((ok) => { const t = db.transaction("carreras", "readwrite");
+        lista.forEach((c) => t.objectStore("carreras").put(c)); t.oncomplete = ok; t.onerror = ok; });
+    },
+    async borrar() {
+      memoria.clear();
+      if (!db) await abrir();
+      if (db) await new Promise((ok) => { const r = tx("readwrite").clear(); r.onsuccess = ok; r.onerror = ok; });
+    },
+  };
+})();
+
+// Polilínea codificada de Google (la que da Strava) → [[lat, lon], …]
+function decodificar(str) {
+  const out = []; let i = 0, lat = 0, lon = 0;
+  while (i < str.length) {
+    for (const k of [0, 1]) {
+      let b, shift = 0, res = 0;
+      do { b = str.charCodeAt(i++) - 63; res |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      const d = res & 1 ? ~(res >> 1) : res >> 1;
+      if (k === 0) lat += d; else lon += d;
+    }
+    out.push([lat / 1e5, lon / 1e5]);
+  }
+  return out;
+}
+
+const calor = L.layerGroup(), lienzoCalor = L.canvas({ padding: 0.3 });
+let vista = "hoy";
+
+function cambiarVista(v) {
+  vista = v;
+  document.body.classList.toggle("vista-ciudad", v === "ciudad");
+  $("tab-hoy").classList.toggle("on", v === "hoy");
+  $("tab-ciudad").classList.toggle("on", v === "ciudad");
+  if (v === "ciudad") {
+    capas.remove(); marcasPuntos.remove(); if (marcaSalida) marcaSalida.remove(); if (marcaMeta) marcaMeta.remove();
+    calor.addTo(mapa); abrirCiudad();
+  } else {
+    calor.remove(); capas.addTo(mapa); marcasPuntos.addTo(mapa);
+    if (marcaSalida) marcaSalida.addTo(mapa); if (marcaMeta) marcaMeta.addTo(mapa);
+    hoja('<p class="pista">Elige desde dónde sales y la sesión de hoy.</p>');
+  }
+}
+$("tab-hoy").onclick = (e) => { e.preventDefault(); cambiarVista("hoy"); };
+$("tab-ciudad").onclick = (e) => { e.preventDefault(); cambiarVista("ciudad"); };
+
+const LOGO_STRAVA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.4 17.9 13.3 13.7h-3l5.1 10 5.1-10h-3zM10.1 0 3.3 13.7h4l2.8-5.5 2.8 5.5h4z"/></svg>';
+
+async function abrirCiudad(aviso) {
+  hoja('<div class="cargando"><div class="rueda"></div>Revisando tu conexión con Strava…</div>');
+  const e = await fetch("/api/strava/estado").then((r) => r.json()).catch(() => ({}));
+  if (!e.conectado) {
+    calor.clearLayers();
+    hoja(`${aviso ? `<p class="aviso">${esc(aviso)}</p>` : ""}
+      <div class="tipo">Mi ciudad</div><h2>Las calles que ya corriste</h2>
+      <p class="pista">Conecta tu Strava y PacePath dibuja todas tus carreras como un mapa de calor:
+      lo que más repites se ve más intenso. Después vendrá «pinta tu ciudad»: qué calles te faltan.</p>
+      ${e.configurado === false ? '<p class="aviso">Strava no está configurado en el servidor.</p>'
+        : `<a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}Conectar con Strava</a>`}
+      <p class="credito">Se leen tus carreras sólo para mostrártelas a ti; quedan guardadas en este
+      teléfono. Al desconectar se borra todo y se revoca el acceso.</p>`);
+    return;
+  }
+  await dibujarCalor(e, aviso, true);
+  sincronizar(e);
+}
+
+async function dibujarCalor(e, aviso, encuadrar) {
+  const lista = await BD.todas();
+  calor.clearLayers();
+  for (const c of lista) {
+    if (!c.puntos) c.puntos = decodificar(c.polilinea);
+    // Muchas líneas finas semitransparentes: donde se superponen, el color se
+    // satura. Es el efecto de un mapa de calor sin calcular una rejilla.
+    L.polyline(c.puntos, { renderer: lienzoCalor, color: "#fc4c02", weight: 2.5, opacity: 0.35,
+                           interactive: false }).addTo(calor);
+  }
+  const km = lista.reduce((t, c) => t + c.distancia_m, 0) / 1000;
+  const desde = lista.length ? lista.map((c) => c.fecha).sort()[0].slice(0, 10).split("-").reverse().join("-") : "–";
+  hoja(`${aviso ? `<p class="aviso">${esc(aviso)}</p>` : ""}
+    <div class="tipo">Mi ciudad${e.nombre ? " · " + esc(e.nombre) : ""}</div>
+    <h2>Tus carreras</h2>
+    <div class="cifras tres">
+      <div class="cifra"><span>Carreras</span><b>${num(lista.length)}</b></div>
+      <div class="cifra"><span>Kilómetros</span><b>${num(km)}</b></div>
+      <div class="cifra"><span>Desde</span><b style="font-size:15px">${desde}</b></div></div>
+    <p class="pista" id="sync"></p>
+    ${e.privadas ? "" : '<p class="aviso">Sólo veo tus actividades públicas: al conectar no se dio permiso para las privadas.</p>'}
+    <div class="fila"><button class="sec" id="actualizar" type="button">Actualizar</button>
+      <button class="sec" id="desconectar" type="button">Desconectar</button></div>
+    <p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px"')} Con datos de Strava</p>`);
+  $("actualizar").onclick = () => sincronizar(e);
+  $("desconectar").onclick = async () => {
+    if (!confirm("¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso.")) return;
+    await fetch("/api/strava/desconectar", { method: "POST" });
+    await BD.borrar(); abrirCiudad("Strava desconectado: se borraron tus datos.");
+  };
+  if (encuadrar && lista.length) encuadrarCalor(lista);
+}
+
+function encuadrarCalor(lista) {
+  // Encuadrar donde corres de verdad: alrededor de la mediana de las salidas,
+  // sin que una carrera en otra ciudad aleje el mapa.
+  const ini = lista.map((c) => (c.puntos || (c.puntos = decodificar(c.polilinea)))[0]).filter(Boolean);
+  const med = (k) => ini.map((p) => p[k]).sort((a, b) => a - b)[ini.length >> 1];
+  const centro = [med(0), med(1)];
+  const cerca = lista.filter((c) => distM(c.puntos[0], centro) < 25000).flatMap((c) => c.puntos);
+  if (cerca.length) mapa.fitBounds(L.latLngBounds(cerca), { padding: [20, 20],
+    paddingBottomRight: [20, $("hoja").offsetHeight + 70], animate: false });
+}
+
+let sincronizando = false;
+async function sincronizar(e) {
+  if (sincronizando) return;
+  sincronizando = true;
+  try {
+    const lista = await BD.todas();
+    const ultima = lista.map((c) => c.fecha).sort().at(-1);
+    const despues = ultima ? Math.floor(Date.parse(ultima) / 1000) : null;
+    let pagina = 1, nuevas = 0;
+    for (;;) {
+      if ($("sync")) $("sync").textContent = `Trayendo carreras de Strava… (${nuevas} nuevas)`;
+      const r = await fetch(`/api/strava/actividades?pagina=${pagina}${despues ? "&despues=" + despues : ""}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.detail || "No pude leer Strava.");
+      await BD.guardar(j.carreras);
+      nuevas += j.carreras.length;
+      if (j.ultima) break;
+      pagina++;
+    }
+    await dibujarCalor(e, null, !lista.length && nuevas > 0);
+    if ($("sync")) $("sync").textContent = nuevas ? `${nuevas} carreras nuevas.` : "Al día.";
+  } catch (err) {
+    if ($("sync")) $("sync").textContent = err.message;
+  } finally { sincronizando = false; }
+}
+
+// Vuelta de Strava: /#ciudad, /#ciudad-cancelado, /#ciudad-error, /#ciudad-sin-permiso
+if (location.hash.startsWith("#ciudad")) {
+  const motivo = { "#ciudad-cancelado": "Cancelaste la conexión con Strava.",
+                   "#ciudad-error": "No se pudo completar la conexión con Strava. Intenta de nuevo.",
+                   "#ciudad-sin-permiso": "Strava quedó conectado, pero sin permiso para leer tus actividades: desconecta y vuelve a conectar marcando ese permiso." }[location.hash];
+  history.replaceState(null, "", location.pathname);
+  cambiarVista("ciudad");
+  if (motivo) setTimeout(() => abrirCiudad(motivo), 0);
+}
 </script>
 </body>
 </html>
