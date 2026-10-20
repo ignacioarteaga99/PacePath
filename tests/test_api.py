@@ -30,8 +30,15 @@ def test_ruta_demo_y_gpx():
     assert "<gpx" in g.text
 
 
-def test_tipos_aun_no_disponibles():
+def test_todos_los_tipos():
     d = REGIONS["demo"]
-    r = cli.post("/api/ruta", json={"lat": d.lat, "lon": d.lon, "texto": "fondo 18k",
-                                    "comuna": "demo"})
-    assert r.status_code == 501
+    for texto in ("tempo 5k", "fondo 10k", "regenerativo 5k", "cuestas 6x200 4%"):
+        r = cli.post("/api/ruta", json={"lat": d.lat, "lon": d.lon, "texto": texto,
+                                        "comuna": "demo"})
+        assert r.status_code in (200, 404), (texto, r.text)
+        if r.status_code == 200:
+            assert r.json()["explicacion"], texto
+
+
+def test_lugares_sin_datos_no_falla():
+    assert cli.get("/api/lugares", params={"q": "xx"}).json() == []

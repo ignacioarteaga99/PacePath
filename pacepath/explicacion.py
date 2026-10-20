@@ -116,7 +116,8 @@ def explicar_continuo(plan: dict) -> list[str]:
     r, s = plan["recorrido"], plan["sesion"]
     nombre = "Fondo" if s["tipo"] == "fondo" else "Regenerativo"
     por = f" por {lista(r['calles'][:5])}" if r.get("calles") else ""
-    lineas = [f"{nombre} de {metros(r['distancia_m'])} en circuito{por}.",
+    forma = "en ida y vuelta" if r.get("forma") == "ida y vuelta" else "en circuito"
+    lineas = [f"{nombre} de {metros(r['distancia_m'])} {forma}{por}.",
               f"En el camino: {_paradas(r)}; {num(r['subida_m'])} m de subida; "
               f"{r['parque_pct']} % por parque."]
     if s["tipo"] == "fondo":

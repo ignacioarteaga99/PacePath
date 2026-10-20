@@ -182,12 +182,18 @@ class Requisitos:
     sendas_de_parque: bool = True
     # ── Circuito ──
     distancia_m: float = 0.0
-    mult_semaforo: float = 1.0              # coste × esto al entrar a un semáforo
-    mult_cruce: float = 0.0                 # coste × (1 + esto × coste del cruce)
+    # Detenciones como metros EXTRA, no como multiplicador: las aristas del grafo
+    # miden ~10 m, así que «×1,35 al entrar a un semáforo» costaba 3 m y el
+    # circuito pasaba por cincuenta semáforos sin inmutarse.
+    penal_semaforo_m: float = 0.0           # metros extra al entrar a un semáforo
+    penal_cruce_m: float = 0.0              # metros extra × coste del cruce
     mult_parque: float = 1.0
     mult_subida: float = 0.0                # coste × (1 + esto × % de subida)
     mult_sin_pavimento: float = 1.0
     radio_agua_m: float = 0.0               # fondo: premiar pasar junto a fuentes
+    # Para elegir entre circuitos candidatos (puntos por km):
+    peso_detencion: float = 40.0            # por detención probable / km
+    peso_subida: float = 0.5                # por m de subida / km
     notas: tuple[str, ...] = field(default_factory=tuple)
 
 
@@ -233,8 +239,8 @@ def requisitos(s: Sesion) -> Requisitos:
             min_rectitud=0.6,
             peso_curvatura=10.0,
             # Para el circuito: cada detención rompe el ritmo umbral.
-            mult_semaforo=1.8, mult_cruce=0.35, mult_subida=0.06,
-            mult_parque=0.9,
+            penal_semaforo_m=400.0, penal_cruce_m=120.0, mult_subida=0.06,
+            mult_parque=0.9, peso_detencion=60.0,
             notas=("El bloque de tempo va por donde hay menos detenciones: "
                    "calienta y suelta fuera de él.",),
         )
@@ -242,9 +248,9 @@ def requisitos(s: Sesion) -> Requisitos:
         return Requisitos(
             tipo=t,
             distancia_m=float(s.distancia_m),
-            mult_semaforo=1.35, mult_cruce=0.20, mult_parque=0.75,
+            penal_semaforo_m=200.0, penal_cruce_m=50.0, mult_parque=0.75,
             mult_subida=0.02, mult_sin_pavimento=0.95,
-            radio_agua_m=60.0,
+            radio_agua_m=60.0, peso_detencion=40.0, peso_subida=0.4,
             notas=("Fondo largo: pocos cruces, parque cuando se puede y fuentes "
                    "de agua en el camino (las que figuran en OpenStreetMap).",),
         )
@@ -252,8 +258,9 @@ def requisitos(s: Sesion) -> Requisitos:
     return Requisitos(
         tipo=t,
         distancia_m=float(s.distancia_m),
-        mult_semaforo=1.15, mult_cruce=0.10, mult_parque=0.60,
+        penal_semaforo_m=100.0, penal_cruce_m=25.0, mult_parque=0.60,
         mult_subida=0.12, mult_sin_pavimento=0.9,
+        peso_detencion=15.0, peso_subida=3.0,
         notas=("Regenerativo: plano y por parques. No hay datos de sombra; los "
                "parques son la mejor aproximación.",),
     )

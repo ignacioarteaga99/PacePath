@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -26,6 +27,9 @@ from .series import SinTramo
 WEB = Path(__file__).resolve().parents[1] / "web"
 
 app = FastAPI(title="PacePath", version="0.1.0")
+# Una ruta a la vez: el A* de RaceEngine reutiliza buffers por grafo (no es
+# seguro entre hilos) y en 512 MB tampoco caben dos comunas cargando a la vez.
+_motor = threading.Lock()
 app.mount("/vendor", StaticFiles(directory=WEB / "vendor"), name="vendor")
 
 
@@ -86,8 +90,9 @@ def _plan(body: PedidoRuta) -> dict:
     if comuna is None:
         raise HTTPException(422, "Ese punto no está en ninguna comuna con mapa todavía.")
     try:
-        ctx = comunas.contexto(comuna)
-        return planificar(ctx, s, body.lat, body.lon)
+        with _motor:
+            ctx = comunas.contexto(comuna)
+            return planificar(ctx, s, body.lat, body.lon)
     except SinTramo as exc:
         raise HTTPException(404, str(exc)) from exc
 

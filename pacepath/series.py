@@ -34,6 +34,7 @@ from raceengine_routing import RoutingWeights
 from . import nombres as _nombres
 from .sesion import CRUCE_MAYOR, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
 from .explicacion import explicar_cuestas, explicar_series
+from .parques import en_parque
 from .tramos import CLASES_SENDA, Trazo, aristas_corribles, trazos
 
 MARGEN_EXTREMO_M = 8.0        # un cruce justo en el inicio o el fin no corta la serie
@@ -169,7 +170,7 @@ def _ventanas(ctx: GraphContext, t: Trazo, req: Requisitos, dist_casa: np.ndarra
     # Coste blando: sólo lo que queda por debajo de un cruce de calle (servicio).
     cmen = np.concatenate([[0.0], np.cumsum(np.where(t.cruce < CRUCE_MENOR, t.cruce, 0))])
     largo_e = g.elen[t.aristas].astype(np.float64)
-    parque = np.concatenate([[0.0], np.cumsum(largo_e * g.epark[t.aristas])])
+    parque = np.concatenate([[0.0], np.cumsum(largo_e * en_parque(ctx)[t.aristas])])
     tierra = np.concatenate([[0.0], np.cumsum(largo_e * ~g.epaved[t.aristas])])
 
     # Nodos interiores de la ventana [cum_i + margen, cum_i + L − margen).
@@ -263,7 +264,8 @@ def _niveles(req: Requisitos, holgura_m: float) -> list[tuple[Requisitos, float,
 
 
 def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: float,
-                  n: int = 3, solo_limpios: bool = False) -> tuple[list[Tramo], str | None]:
+                  n: int = 3, solo_limpios: bool = False,
+                  solo_cerca: bool = False) -> tuple[list[Tramo], str | None]:
     """Los `n` mejores tramos para la repetición, separados entre sí.
 
     Con `solo_limpios` no se relajan semáforos ni cruces (sí la distancia)."""
@@ -282,7 +284,11 @@ def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: fl
             cerca.append(t)
 
     niveles = _niveles(req, holgura_m)
-    for nivel, max_acerc, aviso in niveles[:2] if solo_limpios else niveles:
+    if solo_cerca:
+        niveles = niveles[:1]
+    elif solo_limpios:
+        niveles = niveles[:2]
+    for nivel, max_acerc, aviso in niveles:
         cand = [m for t in cerca
                 if (m := _ventanas(ctx, t, nivel, dist_casa, holgura_m, max_acerc))]
         if not cand:

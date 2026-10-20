@@ -14,6 +14,7 @@ from raceengine_engine.context import GraphContext
 from raceengine_geodata import ALL_CLASSES
 
 from . import nombres as _nombres
+from .parques import en_parque
 from .sesion import COSTE_CRUCE, CRUCE_MAYOR, CRUCE_MENOR
 from .tramos import semaforos_cercanos
 
@@ -111,7 +112,7 @@ def medir(ctx: GraphContext, aristas: list[int], radio_agua_m: float = 60.0) -> 
         k = 4                                         # 100 m
         if len(zi) > k:
             m.pendiente_max_pct = float(np.max(np.abs(zi[k:] - zi[:-k])) / (25.0 * k) * 100)
-    m.parque = float((largo * g.epark[a]).sum() / max(total, 1.0))
+    m.parque = float((largo * en_parque(ctx)[a]).sum() / max(total, 1.0))
     m.sin_pavimento = float((largo * ~g.epaved[a]).sum() / max(total, 1.0))
 
     clave = np.minimum(a, rev[a])

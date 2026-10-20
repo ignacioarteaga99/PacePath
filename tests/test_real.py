@@ -24,3 +24,12 @@ def test_series_sin_semaforos_en_providencia(texto):
     assert t["largo_m"] == interpretar(texto).distancia_rep_m
     assert p["avisos"][:-1] == [] or "calentamiento" in p["avisos"][0]
     assert t["acercamiento_m"] < 5000
+
+
+@pytest.mark.parametrize("texto", ["tempo 8k", "fondo 15k", "regenerativo 6k",
+                                   "cuestas 8x300 6%"])
+def test_otros_tipos_en_providencia(texto):
+    from pacepath.planificador import planificar
+    p = planificar(contexto("providencia"), interpretar(texto), *SALIDA)
+    assert p["explicacion"]
+    assert p["totales"]["distancia_m"] > 3000

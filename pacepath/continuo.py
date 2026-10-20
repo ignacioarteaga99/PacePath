@@ -35,6 +35,7 @@ from .series import (
     AVISO_SRTM, SinTramo, _calles_trote, _tramo_info, _tramo_trote, base_plan,
     buscar_tramos, nodo_salida, pesos_trote,
 )
+from .parques import en_parque
 from .tramos import semaforos_cercanos
 
 _COSTE = np.array([COSTE_CRUCE.get(c, 0.0) for c in ALL_CLASSES], dtype=np.float32)
@@ -65,20 +66,21 @@ def pesos_sesion(ctx: GraphContext, casa: int, radio_m: float,
     dst = g.indices
     mult = np.ones(g.n_edges, dtype=np.float32)
 
-    mult[semaforos_cercanos(ctx)[dst]] *= np.float32(req.mult_semaforo)
-    if req.mult_cruce:
+    extra = np.zeros(g.n_edges, dtype=np.float32)
+    extra[semaforos_cercanos(ctx)[dst]] += np.float32(req.penal_semaforo_m)
+    if req.penal_cruce_m:
         grado, maximo = _coste_cruce_nodo(ctx)
         en_coche = _COSTE[g.eclass] >= CRUCE_MENOR
         # Por la calle: es cruce si llega una tercera vía. Por una senda: basta
         # con que pase una calle.
         cruza = np.where(en_coche, grado[dst] >= 3, grado[dst] >= 2)
-        mult *= (1.0 + req.mult_cruce * np.where(cruza, maximo[dst], 0)).astype(np.float32)
-    mult[g.epark] *= np.float32(req.mult_parque)
+        extra += (req.penal_cruce_m * np.where(cruza, maximo[dst], 0)).astype(np.float32)
+    mult[en_parque(ctx)] *= np.float32(req.mult_parque)
     mult[~g.epaved] *= np.float32(req.mult_sin_pavimento)
     if req.mult_subida:
         mult *= (1.0 + req.mult_subida * np.maximum(g.egrad, 0)).astype(np.float32)
 
-    weight = (base.weight * mult).astype(np.float32)
+    weight = (base.weight * mult + extra).astype(np.float32)
     ok = base.allowed_edges & (g.elen > 0)
     ratio = weight[ok] / g.elen[ok]
     return RoutingWeights(allowed_edges=base.allowed_edges, weight=weight,
@@ -91,10 +93,11 @@ def pesos_sesion(ctx: GraphContext, casa: int, radio_m: float,
 def puntuar(med: Medida, req: Requisitos, objetivo_m: float) -> float:
     """Puntos de penalización por km (menos es mejor)."""
     km = max(med.distancia_m / 1000, 0.1)
-    p = 40.0 * med.detenciones() / km                     # ~1 detención/km = 40
-    p += 5.0 * req.mult_subida * med.subida_m / km        # regenerativo: 10 m/km = 6
+    p = req.peso_detencion * med.detenciones() / km
+    p += req.peso_subida * med.subida_m / km
     p -= 40.0 * (1.0 - req.mult_parque) * med.parque
-    p += 25.0 * med.repetido
+    # Repetir calle no es grave en un fondo (ida y vuelta es un clásico).
+    p += (8.0 if req.tipo is TipoSesion.FONDO else 25.0) * med.repetido
     if req.radio_agua_m and med.agua:
         p -= 8.0 + 2.0 * min(len(med.agua) - 1, 3)
     # Error de distancia: fuera del ±3 % se paga caro.
@@ -109,7 +112,8 @@ def _semilla(casa: int, distancia: float, tipo: str) -> np.random.Generator:
 
 
 def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
-             k: int = 10, afinar: int = 3) -> tuple[list[int], Medida, list[tuple]]:
+             k: int = 8, afinar: int = 2,
+             con_ida_y_vuelta: bool = True) -> tuple[list[int], Medida, list[tuple]]:
     """El mejor circuito desde `casa` de `distancia_m` para estos requisitos.
 
     Devuelve (aristas, medida, otros candidatos [(aristas, medida, puntos)])."""
@@ -124,7 +128,7 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     )
     reach = ctx.provider.reachable(casa, w, distancia_m * 0.6)
     rng = _semilla(casa, distancia_m, req.tipo.value)
-    loops = generate_loops(ctx, modelo, w, casa, reach, rng, k=k, budget_ms=3000)
+    loops = generate_loops(ctx, modelo, w, casa, reach, rng, k=k, budget_ms=2000)
     if not loops:
         raise SinTramo("No pude cerrar un circuito desde esa salida.")
 
@@ -136,12 +140,47 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     finos = []
     for lp, _, _ in crudos[:afinar]:
         ajustado, _ = adjust_distance(ctx, modelo, w, lp, casa, reach, {}, rng,
-                                      budget_ms=900)
+                                      budget_ms=600)
         finos.append(eval_(ajustado))
-    todos = sorted(finos + crudos[afinar:], key=lambda x: x[2])
-    mejor = todos[0]
-    otros = [(lp.edges, med, p) for lp, med, p in todos[1:]]
-    return mejor[0].edges, mejor[1], otros
+    todos = [(lp.edges, med, p) for lp, med, p in finos + crudos[afinar:]]
+    if con_ida_y_vuelta:
+        todos += ida_y_vuelta(ctx, casa, distancia_m, req, w)
+    todos.sort(key=lambda x: x[2])
+    return todos[0][0], todos[0][1], todos[1:]
+
+
+def ida_y_vuelta(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
+                 w: RoutingWeights, n: int = 16) -> list[tuple[list[int], Medida, float]]:
+    """Candidatos de ida y vuelta: hasta un punto a media distancia por el camino
+    más limpio, y de vuelta por el mismo. Es lo que hace cualquiera que sale a
+    hacer un fondo por la ribera del Mapocho, y en ciudad suele tener muchas
+    menos detenciones que un circuito."""
+    g = ctx.graph
+    mitad = distancia_m / 2
+    dist = ctx.provider.reachable(casa, w, mitad)
+    cand = np.nonzero((dist >= 0.55 * mitad) & (dist <= 0.95 * mitad) & (g.degree >= 3))[0]
+    if len(cand) == 0:
+        return []
+    # Repartidos por rumbo: uno por sector, el más lejano del sector.
+    ang = np.arctan2(g.y[cand] - g.y[casa], g.x[cand] - g.x[casa])
+    sector = ((ang + np.pi) / (2 * np.pi) * n).astype(int) % n
+    elegidos = []
+    for k in range(n):
+        en = cand[sector == k]
+        if len(en):
+            elegidos.append(int(en[np.argmax(dist[en])]))
+    rev = g.reverse
+    out = []
+    for destino in elegidos:
+        leg = ctx.provider.shortest_path(casa, destino, w)
+        if leg is None or not leg.ok:
+            continue
+        if not 0.85 * mitad <= leg.distance_m <= 1.10 * mitad:
+            continue
+        aristas = list(leg.edges) + [int(rev[e]) for e in reversed(leg.edges)]
+        med = medir(ctx, aristas, req.radio_agua_m)
+        out.append((aristas, med, puntuar(med, req, distancia_m)))
+    return out
 
 
 def _coords(ctx: GraphContext, aristas: list[int]) -> list[list[float]]:
@@ -206,7 +245,8 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
     casa = nodo_salida(ctx, lat, lon)
     aristas, med, otros = circuito(ctx, casa, req.distancia_m, req)
     tipo = sesion.tipo.value
-    info = _resumen_medida(med) | {"calles": _calles_trote(ctx, aristas)}
+    forma = "ida y vuelta" if med.repetido > 0.9 else "circuito"
+    info = _resumen_medida(med) | {"calles": _calles_trote(ctx, aristas), "forma": forma}
     avisos = []
     if abs(med.distancia_m - req.distancia_m) > 0.05 * req.distancia_m:
         avisos.append(f"El circuito mide {med.distancia_m / 1000:.1f} km: no encontré uno "
@@ -239,7 +279,7 @@ def _opcion_corredor(ctx: GraphContext, casa: int, sesion: Sesion, req: Requisit
         r = dataclasses.replace(req, largo_tramo_m=round(L))
         try:
             tramos, _ = buscar_tramos(ctx, casa, r, holgura_m=sesion.calentamiento_m,
-                                      n=1, solo_limpios=True)
+                                      n=1, solo_limpios=True, solo_cerca=True)
         except SinTramo:
             continue
         return tramos[0], round(X / L)
@@ -266,7 +306,8 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float) 
     cal, vc = sesion.calentamiento_m, sesion.vuelta_calma_m
 
     # Opción circuito
-    aristas, med, _ = circuito(ctx, casa, cal + X + vc, req, k=8, afinar=2)
+    aristas, med, _ = circuito(ctx, casa, cal + X + vc, req, k=8, afinar=2,
+                               con_ida_y_vuelta=False)
     ini, det_circ = _ventana_circuito(med, X, cal, vc)
 
     # Opción corredor

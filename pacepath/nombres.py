@@ -14,6 +14,7 @@ import gzip
 import json
 import os
 import threading
+import time
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,7 @@ NOMBRES_URL = os.environ.get(
 ).rstrip("/")
 _DIR = Path(os.environ["RACEENGINE_DATA"]) / "nombres"
 _lock = threading.Lock()
+REFRESCO_S = 24 * 3600     # el workflow puede haber publicado una versión nueva
 
 
 @dataclass
@@ -36,6 +38,7 @@ class TablaNombres:
     nombre: np.ndarray        # int32 índice en `nombres`
     nombres: list[str]
     puntos: list[tuple[str, float, float]]
+    parques: list[list[list[float]]]
     n_nodos: int
 
     def de_aristas(self, ctx: GraphContext, aristas) -> list[str | None]:
@@ -93,27 +96,28 @@ def _construir(ctx: GraphContext, data: dict) -> TablaNombres:
     else:
         claves, nombre = np.zeros(0, np.int64), np.zeros(0, np.int32)
     return TablaNombres(claves=claves, nombre=nombre, nombres=data["nombres"],
-                        puntos=[tuple(p) for p in data.get("puntos", [])], n_nodos=n)
+                        puntos=[tuple(p) for p in data.get("puntos", [])],
+                        parques=data.get("parques", []), n_nodos=n)
 
 
 def _descargar(comuna: str) -> Path | None:
     dest = _DIR / f"{comuna}.nombres.json.gz"
     if not NOMBRES_URL and not dest.exists():
         return None
-    if dest.exists():
+    if dest.exists() and time.time() - dest.stat().st_mtime < REFRESCO_S:
         return dest
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
         req = urllib.request.Request(f"{NOMBRES_URL}/{comuna}.nombres.json.gz",
                                      headers={"User-Agent": "PacePath/0.1"})
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310
             tmp = dest.with_suffix(".part")
             tmp.write_bytes(r.read())
             tmp.replace(dest)
         return dest
     except Exception as exc:  # noqa: BLE001 — sin nombres se sigue igual
         print(f"[nombres] sin nombres para «{comuna}»: {exc}")
-        return None
+        return dest if dest.exists() else None
 
 
 _CACHE: dict[str, TablaNombres | None] = {}

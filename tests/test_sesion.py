@@ -50,3 +50,16 @@ def test_requisitos_series():
     largo = requisitos(interpretar("3x2k"))
     assert largo.min_rectitud < r.min_rectitud
     assert largo.max_desnivel_tramo_m > r.max_desnivel_tramo_m
+
+
+def test_requisitos_por_tipo():
+    from pacepath.sesion import TipoSesion
+    c = requisitos(interpretar("cuestas 8x300 6%"))
+    assert c.pendiente_objetivo_pct == 6 and c.max_cruces_menores == 0
+    t = requisitos(interpretar("tempo 8k"))
+    f = requisitos(interpretar("fondo 18k"))
+    r = requisitos(interpretar("regenerativo 6k"))
+    # El tempo es el que más castiga detenerse; el regenerativo, subir.
+    assert t.penal_semaforo_m > f.penal_semaforo_m > r.penal_semaforo_m
+    assert r.peso_subida > f.peso_subida
+    assert f.radio_agua_m > 0 and f.tipo is TipoSesion.FONDO

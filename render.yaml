@@ -1,0 +1,28 @@
+# Blueprint de Render (plan gratis). En render.com: New → Blueprint → este repo.
+#
+# Lo mismo que se aprendió con RaceEngine:
+#   · 512 MB de RAM: una sola comuna en memoria a la vez (RACEENGINE_MAX_REGIONS).
+#   · El disco se borra al dormir (15 min sin uso): los grafos se bajan de la
+#     Release «graphs» de RaceEngine y los nombres de la Release «nombres» de
+#     PacePath la primera vez que se usan. Nada persistente en disco.
+services:
+  - type: web
+    name: pacepath
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/salud
+    autoDeploy: true
+    envVars:
+      - key: RACEENGINE_GRAPHS_URL
+        value: https://github.com/ignacioarteaga99/RaceEngine/releases/download/graphs
+      - key: PACEPATH_NOMBRES_URL
+        value: https://github.com/ignacioarteaga99/PacePath/releases/download/nombres
+      - key: RACEENGINE_MAX_REGIONS
+        value: "1"
+      # Strava (Fase 2). El Client ID es público; el secreto se pega en Render,
+      # nunca en el repositorio.
+      - key: STRAVA_CLIENT_ID
+        value: "289395"
+      - key: STRAVA_CLIENT_SECRET
+        sync: false

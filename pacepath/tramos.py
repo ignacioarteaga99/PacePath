@@ -49,7 +49,8 @@ def aristas_corribles(ctx: GraphContext, sendas_de_parque: bool = True) -> np.nd
     g = ctx.graph
     ok = np.isin(g.eclass, CLASES_CORRER)
     if sendas_de_parque:
-        ok |= np.isin(g.eclass, CLASES_SENDA) & g.epark
+        from .parques import en_parque   # evita import circular con nombres
+        ok |= np.isin(g.eclass, CLASES_SENDA) & en_parque(ctx)
     return ok & ~g.eprivate & ~g.etunnel & (g.elen > 0)
 
 
