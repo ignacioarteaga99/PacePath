@@ -11,6 +11,7 @@
   :root {
     --acento: #f2541b; --acento-osc: #c9410f; --tinta: #1d1d21; --suave: #6b6b75;
     --linea: #e6e6ea; --fondo: #ffffff; --gris: #f5f5f7; --ok: #1f9d55;
+    --panel: #ffffff; --sombra: rgba(0,0,0,.10);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--tinta);
@@ -18,7 +19,7 @@
   #mapa { position: fixed; inset: 0; background: #eef0ec; }
 
   /* Barra superior */
-  header { position: fixed; z-index: 1000; top: 0; left: 0; right: 0; background: #fff;
+  header { position: fixed; z-index: 1000; top: 0; left: 0; right: 0; background: var(--panel);
     padding: calc(env(safe-area-inset-top) + 10px) 16px 10px; border-bottom: 1px solid var(--linea); }
   .marca { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 19px;
     letter-spacing: -.3px; }
@@ -28,16 +29,16 @@
   .chips { display: flex; gap: 8px; overflow-x: auto; margin: 10px -16px 0; padding: 0 16px;
     scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
-  .chip { flex: none; border: 1px solid var(--linea); background: #fff; color: var(--tinta);
+  .chip { flex: none; border: 1px solid var(--linea); background: var(--panel); color: var(--tinta);
     border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
-  .chip.on { background: var(--tinta); border-color: var(--tinta); color: #fff; }
+  .chip.on { background: var(--tinta); border-color: var(--tinta); color: var(--panel); }
   .campo { position: relative; display: flex; gap: 8px; margin-top: 8px; }
   .campo label { position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
     font-size: 12px; font-weight: 700; color: var(--suave); pointer-events: none; }
   /* 16 px: con menos, Safari iOS hace zoom al enfocar. */
   .campo input { flex: 1; min-width: 0; font-size: 16px; padding: 11px 12px 11px 62px;
     border-radius: 12px; border: 1px solid var(--linea); background: var(--gris); color: var(--tinta); }
-  .campo input:focus { outline: 2px solid #f7c5b2; background: #fff; }
+  .campo input:focus { outline: 2px solid #f7c5b2; background: var(--panel); }
   button { font: inherit; font-size: 16px; border: 0; border-radius: 12px; padding: 11px 16px;
     font-weight: 700; background: var(--acento); color: #fff; cursor: pointer; white-space: nowrap; }
   button:active { background: var(--acento-osc); }
@@ -46,9 +47,9 @@
   button.icono svg { width: 18px; height: 18px; }
   button:disabled { opacity: .55; }
   .sugerencias { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; margin-top: 4px;
-    background: #fff; border: 1px solid var(--linea); border-radius: 12px; overflow: hidden;
+    background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; overflow: hidden;
     box-shadow: 0 8px 24px rgba(0,0,0,.12); display: none; }
-  .sugerencias button { display: block; width: 100%; text-align: left; background: #fff;
+  .sugerencias button { display: block; width: 100%; text-align: left; background: var(--panel);
     color: var(--tinta); border-radius: 0; font-weight: 500; font-size: 15px; padding: 11px 14px;
     border-bottom: 1px solid var(--linea); }
   .sugerencias button small { color: var(--suave); margin-left: 6px; text-transform: capitalize; }
@@ -57,7 +58,7 @@
   .modos { display: grid; grid-template-columns: 1fr 1fr; background: var(--gris); border-radius: 10px;
     padding: 3px; margin-top: 10px; }
   .modos button { background: transparent; color: var(--suave); font-size: 14px; padding: 7px; border-radius: 8px; }
-  .modos button.on { background: #fff; color: var(--tinta); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .modos button.on { background: var(--panel); color: var(--tinta); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
   .trazar { display: none; gap: 8px; margin-top: 8px; align-items: center; }
   body.modo-trazar .trazar { display: flex; }
   body.modo-trazar .solo-sesion { display: none; }
@@ -77,7 +78,7 @@
   .num { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 2px solid var(--acento);
     color: var(--acento); font: 700 11px/18px -apple-system, sans-serif; text-align: center;
     box-shadow: 0 1px 3px rgba(0,0,0,.3); }
-  .num.primero { background: var(--tinta); border-color: #fff; color: #fff; }
+  .num.primero { background: #1d1d21; border-color: #fff; color: #fff; }
 
   /* Con una ruta en pantalla el formulario se pliega: el mapa manda. */
   .plegado { display: none; align-items: center; gap: 10px; margin-top: 10px; }
@@ -90,8 +91,8 @@
 
   /* Hoja inferior */
   #hoja { position: fixed; z-index: 1000; left: 0; right: 0;
-    bottom: calc(env(safe-area-inset-bottom) + 58px); background: #fff;
-    border-radius: 18px 18px 0 0; box-shadow: 0 -6px 24px rgba(0,0,0,.10);
+    bottom: calc(env(safe-area-inset-bottom) + 58px); background: var(--panel);
+    border-radius: 18px 18px 0 0; box-shadow: 0 -6px 24px var(--sombra);
     padding: 8px 16px 14px; max-height: 36vh; overflow-y: auto; }
   /* Asa de la hoja: tocar o arrastrar para plegar/desplegar. Zona de toque amplia. */
   .asa { display: block; width: 100%; height: 22px; margin: -8px 0 4px; padding: 0; background: none;
@@ -136,7 +137,7 @@
   @keyframes g { to { transform: rotate(360deg); } }
 
   /* Barra de pestañas */
-  nav { position: fixed; z-index: 1001; left: 0; right: 0; bottom: 0; background: #fff;
+  nav { position: fixed; z-index: 1001; left: 0; right: 0; bottom: 0; background: var(--panel);
     border-top: 1px solid var(--linea); display: flex;
     padding: 6px 0 calc(env(safe-area-inset-bottom) + 6px); }
   nav a { flex: 1; text-align: center; color: var(--suave); font-size: 11px; font-weight: 600;
@@ -147,7 +148,7 @@
   .leaflet-control-attribution { font-size: 10px; }
   .pin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff;
     box-shadow: 0 1px 4px rgba(0,0,0,.4); }
-  .pin.salida { width: 22px; height: 22px; background: var(--tinta); display: grid; place-items: center; }
+  .pin.salida { width: 22px; height: 22px; background: #1d1d21; display: grid; place-items: center; }
   .pin.salida::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
 
   /* ── Cabecera compacta: el mapa es lo importante ───────────────────────── */
@@ -183,16 +184,17 @@
   .prefs { margin-top: 12px; }
   /* Escala del mapa de calor, en el costado */
   #escalaCalor { position: fixed; z-index: 900; right: 10px; top: calc(env(safe-area-inset-top) + 64px);
-    background: rgba(18,18,22,.78); backdrop-filter: blur(8px); border-radius: 12px;
-    padding: 8px 8px 10px; color: #c9c9d2; font-size: 11px; text-align: center; }
-  #escalaCalor b { display: block; font-weight: 700; margin-bottom: 6px; color: #f4f4f6; }
+    background: var(--panel); backdrop-filter: blur(8px); border-radius: 12px; border: 1px solid var(--linea);
+    box-shadow: 0 2px 10px var(--sombra); padding: 8px 8px 10px; color: var(--suave); font-size: 11px;
+    text-align: center; }
+  #escalaCalor b { display: block; font-weight: 700; margin-bottom: 6px; color: var(--tinta); }
   #escalaCalor .barra { position: relative; height: 170px; width: 40px; }
   #escalaCalor .barra i { position: absolute; left: 4px; top: 0; bottom: 0; width: 8px; border-radius: 4px;
     background: linear-gradient(0deg, #4a0a14 0%, #9c1424 15%, #f2401b 40%, #ff8a1f 62%, #ffd166 82%, #fff8e1 100%); }
   #escalaCalor .marcas span { position: absolute; left: 16px; transform: translateY(50%);
     font-variant-numeric: tabular-nums; white-space: nowrap; }
   #escalaCalor .marcas span::before { content: ""; position: absolute; left: -6px; top: 50%;
-    width: 4px; height: 1px; background: #c9c9d2; }
+    width: 4px; height: 1px; background: var(--suave); }
   .fav { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0;
     border-bottom: 1px solid var(--linea); font-size: 14px; }
   .fav small { color: var(--suave); }
@@ -200,25 +202,67 @@
   .leyenda { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--suave); margin: 10px 0 2px; }
   .leyenda i { flex: 1; height: 6px; border-radius: 3px;
     background: linear-gradient(90deg, #4a0a14, #9c1424, #f2401b, #ff8a1f, #ffd166, #fff8e1); }
-  /* «Mi ciudad» en oscuro, como de noche: el calor manda. */
-  body.vista-ciudad { --tinta: #f4f4f6; --suave: #9a9aa6; --linea: #2a2a31; --gris: #22222a; }
-  body.vista-ciudad #mapa { background: #141418; }
-  body.vista-ciudad header, body.vista-ciudad #hoja, body.vista-ciudad nav {
-    background: rgba(18,18,22,.94); backdrop-filter: blur(10px); color: var(--tinta); border-color: #2a2a31; }
-  body.vista-ciudad #hoja { box-shadow: 0 -10px 30px rgba(0,0,0,.5); }
-  body.vista-ciudad .asa::before { background: #3a3a44; }
-  body.vista-ciudad .cifra b { color: #fff; }
-  body.vista-ciudad .aviso { background: #3a2a10; color: #ffd28a; }
-  body.vista-ciudad nav a.on { color: #ff6a2b; }
-  body.vista-ciudad .leaflet-control-attribution { background: rgba(0,0,0,.5); color: #888; }
-  body.vista-ciudad .leaflet-control-attribution a { color: #aaa; }
+  /* ── Modo noche (botón día/noche; por defecto, el del teléfono) ──────── */
+  body.noche { --tinta: #f4f4f6; --suave: #9a9aa6; --linea: #2a2a31; --gris: #22222a;
+    --fondo: #141418; --panel: rgba(18,18,22,.96); --sombra: rgba(0,0,0,.5); }
+  body.noche #mapa { background: #141418; }
+  body.noche header, body.noche #hoja, body.noche nav { backdrop-filter: blur(10px); color: var(--tinta);
+    border-color: #2a2a31; }
+  body.noche .asa::before { background: #3a3a44; }
+  body.noche .aviso { background: #3a2a10; color: #ffd28a; }
+  body.noche nav a.on { color: #ff6a2b; }
+  body.noche .campo input { color: var(--tinta); }
+  body.noche .perfil path[fill] { fill: #4a2416; }
+  body.noche .leaflet-control-attribution { background: rgba(0,0,0,.5); color: #888; }
+  body.noche .leaflet-control-attribution a { color: #aaa; }
   .popup-calor .leaflet-popup-content-wrapper, .popup-calor .leaflet-popup-tip {
     background: #1d1d23; color: #f4f4f6; }
   .popup-calor b { color: #ff8a1f; font-size: 16px; }
+
+  /* ── Controles flotantes del mapa ───────────────────────────────────────── */
+  #controles { position: fixed; z-index: 950; right: 10px; top: calc(var(--cab, 120px) + 10px);
+    display: flex; flex-direction: column; gap: 8px; }
+  #controles > button { width: 44px; height: 44px; padding: 0; display: grid; place-items: center;
+    background: var(--panel); color: var(--tinta); border: 1px solid var(--linea);
+    box-shadow: 0 2px 10px var(--sombra); border-radius: 12px; }
+  #controles svg { width: 22px; height: 22px; }
+  #menuCapas { position: absolute; right: 52px; top: 0; background: var(--panel); border: 1px solid var(--linea);
+    border-radius: 12px; box-shadow: 0 6px 20px var(--sombra); padding: 6px; display: none; min-width: 150px; }
+  #menuCapas.abierto { display: block; }
+  #menuCapas button { display: flex; align-items: center; gap: 10px; width: 100%; background: transparent;
+    color: var(--tinta); font-weight: 600; font-size: 14px; padding: 8px 10px; border-radius: 8px; text-align: left; }
+  #menuCapas button.on { background: var(--gris); color: var(--acento); }
+  #menuCapas i { width: 30px; height: 30px; border-radius: 6px; flex: none; background-size: cover; }
+  #escalaCalor { top: calc(var(--cab, 120px) + 118px) !important; }
+
+  /* ── Computador: panel lateral fijo y el mapa al lado ───────────────────── */
+  @media (min-width: 900px) {
+    :root { --lateral: 400px; }
+    #mapa { left: var(--lateral); }
+    header { right: auto; width: var(--lateral); border-right: 1px solid var(--linea); }
+    #hoja { right: auto; width: var(--lateral); top: var(--cab, 160px);
+      bottom: calc(env(safe-area-inset-bottom) + 58px); max-height: none !important;
+      border-radius: 0; box-shadow: none; border-right: 1px solid var(--linea); padding-top: 14px; }
+    #hoja.plegada { max-height: none !important; }
+    .asa { display: none; }
+    nav { right: auto; width: var(--lateral); border-right: 1px solid var(--linea); }
+    .marca { gap: 12px; }
+  }
 </style>
 </head>
 <body>
 <div id="mapa"></div>
+<div id="controles">
+  <button type="button" id="botonCapas" aria-label="Capas del mapa" title="Capas del mapa">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+      <path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg></button>
+  <div id="menuCapas" role="menu">
+    <button type="button" data-capa="mapa"><i style="background:#e9e5dc"></i>Mapa</button>
+    <button type="button" data-capa="hibrido"><i style="background:linear-gradient(135deg,#3f5a3a,#7a6f55)"></i>Híbrido</button>
+    <button type="button" data-capa="satelite"><i style="background:linear-gradient(135deg,#2f4a2b,#5b5240)"></i>Satélite</button>
+  </div>
+  <button type="button" id="botonNoche" aria-label="Modo noche" title="Modo día / noche"></button>
+</div>
 <div id="escalaCalor" hidden aria-label="Escala: veces que corriste por ahí">
   <b>veces</b><div class="barra"><i></i><div class="marcas"></div></div>
 </div>
@@ -302,9 +346,12 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const mapa = L.map("mapa", { zoomControl: false, zoomSnap: 0.25 }).setView([-33.4258, -70.61], 14);
+// ── Capas del mapa y modo día/noche ─────────────────────────────────────────
+// Mapa (OSM de día, Esri oscuro de noche), Híbrido y Satélite (Esri, sin clave;
+// CARTO pide clave fuera de localhost).
 const baseClara = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19, attribution: "© OpenStreetMap",
-}).addTo(mapa);
+});
 // «Mi ciudad» va sobre un mapa oscuro: el calor brilla. Esri no pide clave
 // (CARTO sí, fuera de localhost).
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/";
@@ -315,6 +362,48 @@ const baseOscura = L.layerGroup([
   L.tileLayer(ESRI + "World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19,
     opacity: 0.7 }),
 ]);
+const ESRI_SERV = "https://server.arcgisonline.com/ArcGIS/rest/services/";
+const satelite = () => L.tileLayer(ESRI_SERV + "World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+  maxNativeZoom: 19, maxZoom: 19, attribution: "Esri, Maxar, Earthstar Geographics" });
+const capaSatelite = satelite();
+const capaHibrido = L.layerGroup([satelite(),
+  L.tileLayer(ESRI_SERV + "Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, opacity: 0.9 }),
+  L.tileLayer(ESRI_SERV + "Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 })]);
+const pref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
+const guardarPref = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+let capaActual = null, nombreCapa = pref("pp_capa", "mapa");
+let noche = pref("pp_noche", window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
+
+function ponerCapa(nombre) {
+  nombreCapa = nombre; guardarPref("pp_capa", nombre);
+  if (capaActual) mapa.removeLayer(capaActual);
+  capaActual = nombre === "satelite" ? capaSatelite : nombre === "hibrido" ? capaHibrido
+             : (noche ? baseOscura : baseClara);
+  capaActual.addTo(mapa);
+  capaActual.bringToBack?.();
+  document.querySelectorAll("#menuCapas [data-capa]").forEach((b) => b.classList.toggle("on", b.dataset.capa === nombre));
+}
+const SOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+const LUNA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+function ponerNoche(v) {
+  noche = v; guardarPref("pp_noche", v);
+  document.body.classList.toggle("noche", v);
+  document.querySelector('meta[name="theme-color"]').content = v ? "#121216" : "#ffffff";
+  $("botonNoche").innerHTML = v ? SOL : LUNA;
+  $("botonNoche").setAttribute("aria-label", v ? "Modo día" : "Modo noche");
+  ponerCapa(nombreCapa);
+}
+$("botonNoche").onclick = () => ponerNoche(!noche);
+$("botonCapas").onclick = (e) => { e.stopPropagation(); $("menuCapas").classList.toggle("abierto"); };
+document.querySelectorAll("#menuCapas [data-capa]").forEach((b) => b.onclick = () => {
+  ponerCapa(b.dataset.capa); $("menuCapas").classList.remove("abierto"); });
+document.addEventListener("click", (e) => { if (!e.target.closest("#controles")) $("menuCapas").classList.remove("abierto"); });
+
+// Altura real de la cabecera: los controles flotantes van justo debajo.
+const medirCabecera = () => document.documentElement.style.setProperty(
+  "--cab", document.querySelector("header").offsetHeight + "px");
+new ResizeObserver(medirCabecera).observe(document.querySelector("header"));
+const esEscritorio = () => window.matchMedia("(min-width: 900px)").matches;
 
 let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), animacion = null;
 const hoja = (html) => {
@@ -633,8 +722,8 @@ function marcas(plan) {
 function encuadrar(plan) {
   const pts = plan.partes.flatMap((p) => (p.coordenadas || []).map((c) => [c[0], c[1]]));
   if (!pts.length) return;
-  const arriba = document.querySelector("header").offsetHeight + 16;
-  const abajo = $("hoja").offsetHeight + document.querySelector("nav").offsetHeight + 16;
+  const arriba = esEscritorio() ? 24 : document.querySelector("header").offsetHeight + 16;
+  const abajo = esEscritorio() ? 24 : $("hoja").offsetHeight + document.querySelector("nav").offsetHeight + 16;
   mapa.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [24, arriba], paddingBottomRight: [24, abajo], animate: false });
 }
 
@@ -1029,10 +1118,9 @@ function cambiarVista(v) {
   $("tab-ciudad").classList.toggle("on", v === "ciudad");
   if (v === "ciudad") {
     capas.remove(); marcasPuntos.remove(); if (marcaSalida) marcaSalida.remove(); if (marcaMeta) marcaMeta.remove();
-    baseClara.remove(); baseOscura.addTo(mapa);
     calor.addTo(mapa); abrirCiudad();
   } else {
-    calor.remove(); baseOscura.remove(); baseClara.addTo(mapa);
+    calor.remove();
     capas.addTo(mapa); marcasPuntos.addTo(mapa);
     if (marcaSalida) marcaSalida.addTo(mapa); if (marcaMeta) marcaMeta.addTo(mapa);
     hoja('<p class="pista">Elige desde dónde sales y la sesión de hoy.</p>');
@@ -1107,7 +1195,7 @@ function encuadrarCalor(lista) {
   const centro = [med(0), med(1)];
   const cerca = lista.filter((c) => distM(c.puntos[0], centro) < 25000).flatMap((c) => c.puntos);
   if (cerca.length) mapa.fitBounds(L.latLngBounds(cerca), { padding: [20, 20],
-    paddingBottomRight: [20, $("hoja").offsetHeight + 70], animate: false });
+    paddingBottomRight: [70, esEscritorio() ? 20 : $("hoja").offsetHeight + 70], animate: false });
 }
 
 let sincronizando = false;
@@ -1145,6 +1233,10 @@ if (location.hash.startsWith("#ciudad")) {
   cambiarVista("ciudad");
   if (motivo) setTimeout(() => abrirCiudad(motivo), 0);
 }
+
+// Tema y capa iniciales (lo último: usa todo lo de arriba).
+ponerNoche(noche);
+medirCabecera();
 </script>
 </body>
 </html>
