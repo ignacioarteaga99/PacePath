@@ -161,6 +161,21 @@
   .strava svg { width: 18px; height: 18px; }
   .credito { color: var(--suave); font-size: 12px; margin-top: 10px; text-align: center; }
   .cifras.tres { grid-template-columns: repeat(3, 1fr); }
+  .leyenda { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--suave); margin: 10px 0 2px; }
+  .leyenda i { flex: 1; height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, #4a0a14, #9c1424, #f2401b, #ff8a1f, #ffd166, #fff8e1); }
+  /* «Mi ciudad» en oscuro, como de noche: el calor manda. */
+  body.vista-ciudad { --tinta: #f4f4f6; --suave: #9a9aa6; --linea: #2a2a31; --gris: #22222a; }
+  body.vista-ciudad #mapa { background: #141418; }
+  body.vista-ciudad header, body.vista-ciudad #hoja, body.vista-ciudad nav {
+    background: rgba(18,18,22,.94); backdrop-filter: blur(10px); color: var(--tinta); border-color: #2a2a31; }
+  body.vista-ciudad #hoja { box-shadow: 0 -10px 30px rgba(0,0,0,.5); }
+  body.vista-ciudad .asa::before { background: #3a3a44; }
+  body.vista-ciudad .cifra b { color: #fff; }
+  body.vista-ciudad .aviso { background: #3a2a10; color: #ffd28a; }
+  body.vista-ciudad nav a.on { color: #ff6a2b; }
+  body.vista-ciudad .leaflet-control-attribution { background: rgba(0,0,0,.5); color: #888; }
+  body.vista-ciudad .leaflet-control-attribution a { color: #aaa; }
 </style>
 </head>
 <body>
@@ -238,9 +253,17 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const mapa = L.map("mapa", { zoomControl: false, zoomSnap: 0.25 }).setView([-33.4258, -70.61], 14);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+const baseClara = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19, attribution: "© OpenStreetMap",
 }).addTo(mapa);
+// «Mi ciudad» va sobre un mapa oscuro: el calor brilla. Esri no pide clave
+// (CARTO sí, fuera de localhost).
+const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/";
+const baseOscura = L.layerGroup([
+  L.tileLayer(ESRI + "World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16,
+    attribution: "Esri, HERE, Garmin, © OpenStreetMap" }),
+  L.tileLayer(ESRI + "World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16, opacity: 0.7 }),
+]);
 
 let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), animacion = null;
 const hoja = (html) => {
@@ -742,7 +765,80 @@ function decodificar(str) {
   return out;
 }
 
-const calor = L.layerGroup(), lienzoCalor = L.canvas({ padding: 0.3 });
+// ── Capa de calor ───────────────────────────────────────────────────────────
+// 1) Densidad: cada carrera se traza en un lienzo fuera de pantalla con poca
+//    opacidad; donde pasan muchas, el alfa se acumula (una carrera cuenta una
+//    vez aunque repita calle, porque es un solo trazo).
+// 2) Color: el alfa de cada píxel se lleva a una rampa propia: rojo profundo →
+//    naranjo → ámbar → casi blanco donde más corres.
+// 3) Brillo: el resultado se pega con una sombra difusa del mismo tono.
+const RAMPA = (() => {
+  const c = document.createElement("canvas"); c.width = 256; c.height = 1;
+  const x = c.getContext("2d"), gr = x.createLinearGradient(0, 0, 256, 0);
+  [[0, "#4a0a14"], [0.18, "#9c1424"], [0.4, "#f2401b"], [0.62, "#ff8a1f"],
+   [0.82, "#ffd166"], [1, "#fff8e1"]].forEach(([o, col]) => gr.addColorStop(o, col));
+  x.fillStyle = gr; x.fillRect(0, 0, 256, 1);
+  return x.getImageData(0, 0, 256, 1).data;
+})();
+
+const CapaCalor = L.Layer.extend({
+  initialize() { this.rutas = []; },
+  onAdd(m) {
+    this._c = L.DomUtil.create("canvas", "leaflet-zoom-hide");
+    this._c.style.pointerEvents = "none";
+    m.getPanes().overlayPane.appendChild(this._c);
+    m.on("moveend zoomend resize", this._dibujar, this);
+    this._dibujar();
+  },
+  onRemove(m) { L.DomUtil.remove(this._c); m.off("moveend zoomend resize", this._dibujar, this); },
+  setRutas(r) { this.rutas = r; if (this._map) this._dibujar(); },
+  _dibujar() {
+    const m = this._map, t = m.getSize(), r = Math.min(window.devicePixelRatio || 1, 2);
+    const c = this._c;
+    c.width = t.x * r; c.height = t.y * r; c.style.width = t.x + "px"; c.style.height = t.y + "px";
+    L.DomUtil.setPosition(c, m.containerPointToLayerPoint([0, 0]));
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, c.width, c.height);
+    if (!this.rutas.length) return;
+    // 1) densidad
+    const dens = document.createElement("canvas"); dens.width = c.width; dens.height = c.height;
+    const d = dens.getContext("2d");
+    const z = m.getZoom();
+    d.lineWidth = Math.max(1.2, Math.min(5, 0.55 * (z - 9))) * r;
+    d.lineCap = d.lineJoin = "round";
+    d.strokeStyle = "rgba(0,0,0,0.2)";
+    const caja = m.getBounds().pad(0.1);
+    for (const ruta of this.rutas) {
+      if (!caja.intersects(ruta.caja)) continue;
+      d.beginPath();
+      ruta.puntos.forEach((p, i) => {
+        const q = m.latLngToContainerPoint(p);
+        if (i) d.lineTo(q.x * r, q.y * r); else d.moveTo(q.x * r, q.y * r);
+      });
+      d.stroke();
+    }
+    // 2) color
+    const img = d.getImageData(0, 0, dens.width, dens.height), px = img.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const a = px[i + 3];
+      if (!a) continue;
+      const k = Math.min(255, Math.round(a * 1.15)) * 4;
+      px[i] = RAMPA[k]; px[i + 1] = RAMPA[k + 1]; px[i + 2] = RAMPA[k + 2];
+      px[i + 3] = Math.min(255, 110 + a * 1.4);
+    }
+    d.putImageData(img, 0, 0);
+    // 3) brillo
+    ctx.shadowColor = "rgba(255,90,30,0.85)";
+    ctx.shadowBlur = 10 * r;
+    ctx.drawImage(dens, 0, 0);
+    ctx.shadowBlur = 0;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.35;
+    ctx.drawImage(dens, 0, 0);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  },
+});
+const calor = new CapaCalor();
 let vista = "hoy";
 
 function cambiarVista(v) {
@@ -752,9 +848,11 @@ function cambiarVista(v) {
   $("tab-ciudad").classList.toggle("on", v === "ciudad");
   if (v === "ciudad") {
     capas.remove(); marcasPuntos.remove(); if (marcaSalida) marcaSalida.remove(); if (marcaMeta) marcaMeta.remove();
+    baseClara.remove(); baseOscura.addTo(mapa);
     calor.addTo(mapa); abrirCiudad();
   } else {
-    calor.remove(); capas.addTo(mapa); marcasPuntos.addTo(mapa);
+    calor.remove(); baseOscura.remove(); baseClara.addTo(mapa);
+    capas.addTo(mapa); marcasPuntos.addTo(mapa);
     if (marcaSalida) marcaSalida.addTo(mapa); if (marcaMeta) marcaMeta.addTo(mapa);
     hoja('<p class="pista">Elige desde dónde sales y la sesión de hoy.</p>');
   }
@@ -768,7 +866,7 @@ async function abrirCiudad(aviso) {
   hoja('<div class="cargando"><div class="rueda"></div>Revisando tu conexión con Strava…</div>');
   const e = await fetch("/api/strava/estado").then((r) => r.json()).catch(() => ({}));
   if (!e.conectado) {
-    calor.clearLayers();
+    calor.setRutas([]);
     hoja(`${aviso ? `<p class="aviso">${esc(aviso)}</p>` : ""}
       <div class="tipo">Mi ciudad</div><h2>Las calles que ya corriste</h2>
       <p class="pista">Conecta tu Strava y PacePath dibuja todas tus carreras como un mapa de calor:
@@ -785,14 +883,11 @@ async function abrirCiudad(aviso) {
 
 async function dibujarCalor(e, aviso, encuadrar) {
   const lista = await BD.todas();
-  calor.clearLayers();
   for (const c of lista) {
     if (!c.puntos) c.puntos = decodificar(c.polilinea);
-    // Muchas líneas finas semitransparentes: donde se superponen, el color se
-    // satura. Es el efecto de un mapa de calor sin calcular una rejilla.
-    L.polyline(c.puntos, { renderer: lienzoCalor, color: "#fc4c02", weight: 2.5, opacity: 0.35,
-                           interactive: false }).addTo(calor);
+    if (!c.caja) c.caja = L.latLngBounds(c.puntos);
   }
+  calor.setRutas(lista.filter((c) => c.puntos.length > 1));
   const km = lista.reduce((t, c) => t + c.distancia_m, 0) / 1000;
   const desde = lista.length ? lista.map((c) => c.fecha).sort()[0].slice(0, 10).split("-").reverse().join("-") : "–";
   hoja(`${aviso ? `<p class="aviso">${esc(aviso)}</p>` : ""}
@@ -802,6 +897,7 @@ async function dibujarCalor(e, aviso, encuadrar) {
       <div class="cifra"><span>Carreras</span><b>${num(lista.length)}</b></div>
       <div class="cifra"><span>Kilómetros</span><b>${num(km)}</b></div>
       <div class="cifra"><span>Desde</span><b style="font-size:15px">${desde}</b></div></div>
+    <div class="leyenda"><span>1 vez</span><i></i><span>muchas veces</span></div>
     <p class="pista" id="sync"></p>
     ${e.privadas ? "" : '<p class="aviso">Sólo veo tus actividades públicas: al conectar no se dio permiso para las privadas.</p>'}
     <div class="fila"><button class="sec" id="actualizar" type="button">Actualizar</button>
