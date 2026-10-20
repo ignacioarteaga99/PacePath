@@ -249,8 +249,8 @@ def requisitos(s: Sesion) -> Requisitos:
             tipo=t,
             distancia_m=float(s.distancia_m),
             penal_semaforo_m=200.0, penal_cruce_m=50.0, mult_parque=0.75,
-            mult_subida=0.02, mult_sin_pavimento=0.95,
-            radio_agua_m=60.0, peso_detencion=40.0, peso_subida=0.4,
+            mult_subida=0.04, mult_sin_pavimento=0.95,
+            radio_agua_m=60.0, peso_detencion=40.0, peso_subida=1.5,
             notas=("Fondo largo: pocos cruces, parque cuando se puede y fuentes "
                    "de agua en el camino (las que figuran en OpenStreetMap).",),
         )

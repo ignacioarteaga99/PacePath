@@ -27,6 +27,8 @@ from raceengine_engine.context import GraphContext
 from raceengine_engine.generate import generate_loops
 from raceengine_engine.repair import adjust_distance
 from raceengine_routing import RoutingWeights
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import dijkstra
 
 from .explicacion import explicar_continuo, explicar_tempo
 from .metricas import Medida, medir
@@ -44,6 +46,7 @@ _COSTE = np.array([COSTE_CRUCE.get(c, 0.0) for c in ALL_CLASSES], dtype=np.float
 # girar, volver a coger el ritmo.
 DETENCION_VUELTA_U = 0.2
 CORREDOR_MIN_M = 800.0
+RODEO = 0.82           # largo real ≈ largo del anillo / RODEO con estos pesos
 
 
 # ── Pesos ───────────────────────────────────────────────────────────────────
@@ -112,7 +115,7 @@ def _semilla(casa: int, distancia: float, tipo: str) -> np.random.Generator:
 
 
 def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
-             k: int = 8, afinar: int = 2,
+             k: int = 4, afinar: int = 2,
              con_ida_y_vuelta: bool = True) -> tuple[list[int], Medida, list[tuple]]:
     """El mejor circuito desde `casa` de `distancia_m` para estos requisitos.
 
@@ -128,7 +131,13 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     )
     reach = ctx.provider.reachable(casa, w, distancia_m * 0.6)
     rng = _semilla(casa, distancia_m, req.tipo.value)
-    loops = generate_loops(ctx, modelo, w, casa, reach, rng, k=k, budget_ms=2000)
+    # Con detenciones caras los tramos dan rodeos y el circuito sale más largo
+    # que el anillo de anclas: se genera para un objetivo menor y el ajuste de
+    # distancia lo lleva al real. Sin esto el motor descartaba casi todos los
+    # circuitos por largos y agotaba los intentos (13 s en un fondo de 18 km).
+    gen = modelo.model_copy(update={"distance": DistanceLayer(
+        target_m=distancia_m * RODEO, tolerance_pct=2.0)})
+    loops = generate_loops(ctx, gen, w, casa, reach, rng, k=k, budget_ms=1500)
     if not loops:
         raise SinTramo("No pude cerrar un circuito desde esa salida.")
 
@@ -149,35 +158,64 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     return todos[0][0], todos[0][1], todos[1:]
 
 
+def _arbol(ctx: GraphContext, w: RoutingWeights, origen: int, limite: float):
+    """Caminos de coste mínimo desde `origen` a todos los nodos, de una vez
+    (Dijkstra de scipy, en C). Devuelve (coste, predecesor)."""
+    g = ctx.graph
+    ok = w.allowed_edges & (g.elen > 0)
+    cuenta = np.bincount(ctx.esrc[ok], minlength=g.n_nodes)
+    indptr = np.concatenate([[0], np.cumsum(cuenta)])
+    m = csr_matrix((w.weight[ok].astype(np.float64), g.indices[ok], indptr),
+                   shape=(g.n_nodes, g.n_nodes))
+    coste, pred = dijkstra(m, indices=origen, return_predecessors=True, limit=limite)
+    return coste, pred
+
+
+def _arista(ctx: GraphContext, w: RoutingWeights, u: int, v: int) -> int:
+    """La arista u→v permitida más barata."""
+    g = ctx.graph
+    es = np.arange(g.indptr[u], g.indptr[u + 1])
+    es = es[(g.indices[es] == v) & w.allowed_edges[es]]
+    return int(es[np.argmin(w.weight[es])])
+
+
 def ida_y_vuelta(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
-                 w: RoutingWeights, n: int = 16) -> list[tuple[list[int], Medida, float]]:
+                 w: RoutingWeights, n: int = 24) -> list[tuple[list[int], Medida, float]]:
     """Candidatos de ida y vuelta: hasta un punto a media distancia por el camino
     más limpio, y de vuelta por el mismo. Es lo que hace cualquiera que sale a
     hacer un fondo por la ribera del Mapocho, y en ciudad suele tener muchas
     menos detenciones que un circuito."""
     g = ctx.graph
     mitad = distancia_m / 2
-    dist = ctx.provider.reachable(casa, w, mitad)
-    cand = np.nonzero((dist >= 0.55 * mitad) & (dist <= 0.95 * mitad) & (g.degree >= 3))[0]
+    coste, pred = _arbol(ctx, w, casa, mitad * 6)
+    # Metros reales por el árbol de coste mínimo (no por el camino más corto).
+    orden = np.argsort(coste)
+    orden = orden[np.isfinite(coste[orden])]
+    metros = np.full(g.n_nodes, np.inf)
+    metros[casa] = 0.0
+    for v in orden[1:]:
+        u = pred[v]
+        if u >= 0 and np.isfinite(metros[u]):
+            dx, dy = g.x[v] - g.x[u], g.y[v] - g.y[u]
+            metros[v] = metros[u] + float(np.hypot(dx, dy))
+    cand = np.nonzero((metros >= 0.94 * mitad) & (metros <= 1.06 * mitad))[0]
     if len(cand) == 0:
         return []
-    # Repartidos por rumbo: uno por sector, el más lejano del sector.
     ang = np.arctan2(g.y[cand] - g.y[casa], g.x[cand] - g.x[casa])
     sector = ((ang + np.pi) / (2 * np.pi) * n).astype(int) % n
-    elegidos = []
-    for k in range(n):
-        en = cand[sector == k]
-        if len(en):
-            elegidos.append(int(en[np.argmax(dist[en])]))
     rev = g.reverse
     out = []
-    for destino in elegidos:
-        leg = ctx.provider.shortest_path(casa, destino, w)
-        if leg is None or not leg.ok:
+    for k in range(n):
+        en = cand[sector == k]
+        if not len(en):
             continue
-        if not 0.85 * mitad <= leg.distance_m <= 1.10 * mitad:
-            continue
-        aristas = list(leg.edges) + [int(rev[e]) for e in reversed(leg.edges)]
+        destino = int(en[np.argmin(coste[en])])         # el más barato del sector
+        nodos = [destino]
+        while nodos[-1] != casa:
+            nodos.append(int(pred[nodos[-1]]))
+        nodos.reverse()
+        ida = [_arista(ctx, w, a, b) for a, b in zip(nodos, nodos[1:])]
+        aristas = ida + [int(rev[e]) for e in reversed(ida)]
         med = medir(ctx, aristas, req.radio_agua_m)
         out.append((aristas, med, puntuar(med, req, distancia_m)))
     return out

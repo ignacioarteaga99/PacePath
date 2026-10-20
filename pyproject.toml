@@ -9,6 +9,7 @@ dependencies = [
   # actualización del motor no cambie las rutas sin que lo sepamos.
   "raceengine @ git+https://github.com/ignacioarteaga99/RaceEngine@c6f45e287a0ed0d3eefb6104591f1d02f890c3ee",
   "numpy>=1.26",
+  "scipy>=1.11",          # Dijkstra en C para los fondos de ida y vuelta
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "pydantic>=2.7",
