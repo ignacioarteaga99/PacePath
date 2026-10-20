@@ -220,6 +220,11 @@ class Requisitos:
     subida_tolerada_m_km: float = 1e9
     peso_exceso_subida: float = 8.0         # por m/km por encima de lo tolerado
     peso_parque: float = 10.0               # puntos menos por ir 100 % por parque
+    # Preferencias del corredor: float32[E] (1 = neutro, <1 = preferida) con sus
+    # calles de siempre (Strava) y sus tramos favoritos. Lo arma la API por
+    # petición; no se guarda.
+    preferidas: object = None
+    peso_preferida: float = 40.0            # puntos menos por ir 100 % por ellas
     notas: tuple[str, ...] = field(default_factory=tuple)
 
 

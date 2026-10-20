@@ -14,6 +14,7 @@
     GET  /api/strava/vuelta      ← strava.com (código → tokens)
     GET  /api/strava/estado
     GET  /api/strava/actividades?pagina=&despues=
+    POST /api/strava/frecuencia  tus carreras → calles de siempre (no se guarda)
     POST /api/strava/desconectar revoca el acceso en Strava y borra la cookie
 """
 from __future__ import annotations
@@ -27,7 +28,9 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
-from . import comunas, lugares, strava
+import numpy as np
+
+from . import comunas, frecuencia, lugares, strava
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
 from .planificador import planificar
@@ -57,6 +60,13 @@ class TextoSesion(BaseModel):
     texto: str = Field(min_length=1, max_length=120)
 
 
+class Frecuentes(BaseModel):
+    """Calles de siempre que el teléfono calculó antes con /api/strava/frecuencia."""
+    version: str
+    aristas: list[int] = Field(max_length=frecuencia.MAX_ARISTAS)
+    veces: list[int] = Field(max_length=frecuencia.MAX_ARISTAS)
+
+
 class PedidoRuta(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
@@ -69,6 +79,9 @@ class PedidoRuta(BaseModel):
     meta: Punto | None = None
     # Tempo, fondo y regenerativo: desnivel positivo máximo de toda la sesión.
     max_subida_m: float | None = Field(default=None, ge=0, le=5000)
+    # Preferencias del corredor (vienen de su teléfono; no se guardan).
+    frecuentes: Frecuentes | None = None
+    favoritos: list[list[tuple[float, float]]] | None = Field(default=None, max_length=20)
 
     @model_validator(mode="after")
     def _una_sesion(self) -> "PedidoRuta":
@@ -121,9 +134,62 @@ def _plan(body: PedidoRuta) -> dict:
         with _motor:
             ctx = comunas.contexto(comuna)
             meta = (body.meta.lat, body.meta.lon) if body.meta else None
-            return planificar(ctx, s, body.lat, body.lon, volver=body.volver, meta=meta)
+            pref, info = _preferidas(ctx, body)
+            plan = planificar(ctx, s, body.lat, body.lon, volver=body.volver, meta=meta,
+                              preferidas=pref)
+            plan["preferencias"] = info
+            return plan
     except SinTramo as exc:
         raise HTTPException(404, str(exc)) from exc
+
+
+def _preferidas(ctx, body: PedidoRuta) -> tuple[np.ndarray | None, dict]:
+    """float32[E]: 1 neutro; calles de siempre más baratas según cuántas veces
+    pasaste (0,85 → 0,65); tramos favoritos aún más (0,45)."""
+    info = {"frecuentes": 0, "favoritos": 0, "version_ok": True}
+    if not body.frecuentes and not body.favoritos:
+        return None, info
+    pref = np.ones(ctx.graph.n_edges, dtype=np.float32)
+    f = body.frecuentes
+    if f and f.version != ctx.version:
+        info["version_ok"] = False          # el mapa cambió: el teléfono debe recalcular
+    elif f:
+        a = np.asarray(f.aristas, dtype=np.int64)
+        v = np.asarray(f.veces[:len(a)], dtype=np.int64)
+        for minimo, factor in ((2, 0.85), (4, 0.75), (10, 0.65)):
+            m = frecuencia.mascara(ctx, a[v >= minimo])
+            pref[m] = np.minimum(pref[m], factor)
+        info["frecuentes"] = int((v >= 2).sum())
+    for trazado in (body.favoritos or [])[:20]:
+        m = frecuencia.mascara(ctx, frecuencia.aristas_de(ctx, trazado[:5000]))
+        pref[m] = np.minimum(pref[m], 0.45)
+        info["favoritos"] += 1
+    return (pref if (pref < 1).any() else None), info
+
+
+class PedidoFrecuencia(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    polilineas: list[str] = Field(max_length=3000)
+
+
+@app.post("/api/strava/frecuencia")
+def strava_frecuencia(body: PedidoFrecuencia) -> dict:
+    """Tus carreras (polilíneas de Strava que manda tu teléfono) → por qué
+    calles de esta comuna pasas seguido. No se guarda nada: la respuesta vuelve
+    al teléfono, que la adjunta al pedir rutas."""
+    comuna = comunas.comuna_para(body.lat, body.lon)
+    if comuna is None:
+        raise HTTPException(422, "Ese punto no está en ninguna comuna con mapa todavía.")
+    with _motor:
+        ctx = comunas.contexto(comuna)
+        trazados = [frecuencia.decodificar(p) for p in body.polilineas if p]
+        a, v = frecuencia.frecuencia(ctx, trazados)
+        version = ctx.version
+    orden = np.argsort(-v)[:frecuencia.MAX_ARISTAS]
+    orden = orden[v[orden] >= 2]
+    return {"comuna": comuna, "version": version, "carreras": len(trazados),
+            "aristas": a[orden].tolist(), "veces": v[orden].tolist()}
 
 
 @app.post("/api/ruta")

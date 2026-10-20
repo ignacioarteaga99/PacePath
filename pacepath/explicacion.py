@@ -119,19 +119,24 @@ def explicar_continuo(plan: dict) -> list[str]:
     r, s = plan["recorrido"], plan["sesion"]
     nombre = "Fondo" if s["tipo"] == "fondo" else "Regenerativo"
     por = f" por {lista(r['calles'][:5])}" if r.get("calles") else ""
-    if r.get("forma") == "corredor" and (r.get("corredor") or {}).get("calles"):
+    if r.get("forma") in ("corredor", "favoritos") and (r.get("corredor") or {}).get("calles"):
         por = f": {lista(r['corredor']['calles'][:4])}"
     forma = {"ida y vuelta": "en ida y vuelta", "solo ida": "de solo ida",
              "hasta la meta": "hasta tu meta",
-             "corredor": "por un corredor de parques"}.get(r.get("forma"), "en circuito")
+             "corredor": "por un corredor de parques",
+             "favoritos": "por tus tramos favoritos y calles de siempre"
+             }.get(r.get("forma"), "en circuito")
     lineas = [f"{nombre} de {metros(r['distancia_m'])} {forma}{por}.",
               f"En el camino: {_paradas(r)}; {num(r['subida_m'])} m de subida; "
               f"{r['parque_pct']} % por parque."]
+    if r.get("preferidas_pct"):
+        lineas.append(f"Va un {r['preferidas_pct']} % por tus calles de siempre y tramos "
+                      "favoritos.")
     tope = plan["totales"].get("max_subida_m")
     if tope is not None:
         lineas.append(f"Desnivel positivo: {num(r['subida_m'])} m (pediste como máximo "
                       f"{num(tope)} m).")
-    if r.get("forma") == "corredor" and r.get("corredor"):
+    if r.get("forma") in ("corredor", "favoritos") and r.get("corredor"):
         c = r["corredor"]
         llegada = f" por {lista(c['llegada'][:3])}" if c.get("llegada") else ""
         lineas.append(f"Llegas trotando {metros(c['acercamiento_m'])}{llegada}; el corredor "

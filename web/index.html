@@ -180,6 +180,11 @@
   .strava svg { width: 18px; height: 18px; }
   .credito { color: var(--suave); font-size: 12px; margin-top: 10px; text-align: center; }
   .cifras.tres { grid-template-columns: repeat(3, 1fr); }
+  .prefs { margin-top: 12px; }
+  .fav { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0;
+    border-bottom: 1px solid var(--linea); font-size: 14px; }
+  .fav small { color: var(--suave); }
+  .fav button { padding: 4px 10px; font-size: 13px; }
   .leyenda { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--suave); margin: 10px 0 2px; }
   .leyenda i { flex: 1; height: 6px; border-radius: 3px;
     background: linear-gradient(90deg, #4a0a14, #9c1424, #f2401b, #ff8a1f, #ffd166, #fff8e1); }
@@ -286,9 +291,11 @@ const baseClara = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.pn
 // (CARTO sí, fuera de localhost).
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/";
 const baseOscura = L.layerGroup([
-  L.tileLayer(ESRI + "World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16,
+  // Esri sirve hasta el nivel 16: más cerca, Leaflet estira esas teselas.
+  L.tileLayer(ESRI + "World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19,
     attribution: "Esri, HERE, Garmin, © OpenStreetMap" }),
-  L.tileLayer(ESRI + "World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16, opacity: 0.7 }),
+  L.tileLayer(ESRI + "World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19,
+    opacity: 0.7 }),
 ]);
 
 let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), animacion = null;
@@ -462,7 +469,17 @@ function mostrarTrazado(j) {
       [r.cruces_menores + r.cruces_mayores, "Cruces"], [num(r.subida_m) + " m", "Subida"]].map(([v, e]) =>
       `<div class="cifra"><span>${e}</span><b class="${v === 0 ? "cero" : ""}">${v}</b></div>`).join("")}</div>
     ${perfilSvg(j)}
-    <div class="fila"><button id="gpx" type="button">Descargar GPX</button></div>`);
+    <div class="fila"><button id="gpx" type="button">Descargar GPX</button>
+      <button class="sec" id="favorito" type="button">☆ Guardar como favorito</button></div>`);
+  $("favorito").onclick = () => {
+    const nombre = prompt("Nombre del tramo favorito (por ejemplo, «Ribera Balmaceda–Forestal»):");
+    if (!nombre) return;
+    const todos = j.partes.flatMap((x) => x.coordenadas.map((c) => [c[0], c[1]]));
+    const paso = Math.max(1, Math.ceil(todos.length / 1500));
+    guardarFavoritos([...favoritos(), { id: Date.now(), nombre: nombre.slice(0, 60),
+      km: j.recorrido.distancia_m / 1000, puntos: todos.filter((_, i) => i % paso === 0) }]);
+    $("favorito").textContent = "★ Guardado"; $("favorito").disabled = true;
+  };
   $("gpx").onclick = async () => {
     const r2 = await fetch("/api/trazar.gpx", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ puntos: puntos.map(([lat, lon]) => ({ lat, lon })), volver: $("volver").checked }) });
@@ -702,17 +719,24 @@ function mostrar(plan) {
     hoja('<p class="pista">Escribe otra calle, usa «Cerca de mí» o toca el mapa.</p>'); };
 }
 
-function pedido() {
+async function pedido() {
   const p = { lat: salida.lat, lon: salida.lon, texto: $("texto").value };
   if (CONTINUA.test(p.texto) && !$("volverSesion").checked) { p.volver = false; if (meta) p.meta = meta; }
   const tope = parseFloat($("tope").value);
   if (CON_TOPE.test(p.texto) && Number.isFinite(tope) && tope >= 0) p.max_subida_m = tope;
+  // Preferencias del corredor: viajan con cada pedido; el servidor no las guarda.
+  const favs = favoritos();
+  if (favs.length) p.favoritos = favs.map((f) => f.puntos);
+  try {
+    const f = await frecuentesPara(p.lat, p.lon);
+    if (f) p.frecuentes = { version: f.version, aristas: f.aristas, veces: f.veces };
+  } catch { /* sin calles de siempre: la ruta sale igual */ }
   return p;
 }
 
 async function descargarGpx() {
   const r = await fetch("/api/ruta.gpx", { method: "POST", headers: { "Content-Type": "application/json" },
-                                           body: JSON.stringify(pedido()) });
+                                           body: JSON.stringify(await pedido()) });
   if (!r.ok) return;
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await r.blob()),
                                                          download: "pacepath.gpx" });
@@ -727,9 +751,10 @@ $("form").onsubmit = async (e) => {
   hoja('<div class="cargando"><div class="rueda"></div>Buscando la mejor ruta para tu sesión…</div>');
   try {
     const r = await fetch("/api/ruta", { method: "POST", headers: { "Content-Type": "application/json" },
-                                         body: JSON.stringify(pedido()) });
+                                         body: JSON.stringify(await pedido()) });
     const j = await r.json();
     if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : "No pude armar la ruta.");
+    if (j.preferencias && !j.preferencias.version_ok) olvidarFrecuentes(j.comuna);
     $("comuna").textContent = j.comuna.replace("_", " ");
     $("resumenForm").innerHTML = `${esc(j.sesion.resumen)} <small>· desde ${esc($("desde").value || "el mapa")}</small>`;
     document.body.classList.add("con-ruta");
@@ -741,6 +766,72 @@ $("form").onsubmit = async (e) => {
   } finally { $("armar").disabled = false; }
 };
 revisarTipo();
+
+// ── Preferencias: tramos favoritos y calles de siempre ──────────────────────
+// Todo vive en este teléfono. Los favoritos son rutas trazadas a mano; las
+// calles de siempre las calcula el servidor a partir de tus carreras de Strava
+// (una vez por comuna, sin guardarlas) y quedan aquí para adjuntarlas.
+const leer = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const favoritos = () => leer("pp_favoritos", []);
+const guardarFavoritos = (l) => escribir("pp_favoritos", l);
+const usarFrecuentes = () => leer("pp_usar_frec", true);
+let listaComunas = null;
+
+async function comunaDe(lat, lon) {
+  listaComunas ??= await fetch("/api/comunas").then((r) => r.json()).catch(() => []);
+  let mejor = null, d0 = Infinity;
+  for (const c of listaComunas) {
+    const d = distM([lat, lon], [c.lat, c.lon]);
+    if (d <= c.radio_m && d < d0) { mejor = c; d0 = d; }
+  }
+  return mejor;
+}
+
+function olvidarFrecuentes(comuna) { try { localStorage.removeItem("pp_frec_" + comuna); } catch {} }
+
+async function frecuentesPara(lat, lon) {
+  if (!usarFrecuentes()) return null;
+  const carreras = await BD.todas();
+  if (!carreras.length) return null;
+  const c = await comunaDe(lat, lon);
+  if (!c) return null;
+  const guardado = leer("pp_frec_" + c.id, null);
+  if (guardado && guardado.n === carreras.length) return guardado;
+  // Sólo las carreras que empiezan en esta comuna o cerca.
+  const cerca = carreras.filter((x) => {
+    const p = (x.puntos ||= decodificar(x.polilinea))[0];
+    return p && distM(p, [c.lat, c.lon]) <= c.radio_m + 3000;
+  }).slice(-3000);
+  if (!cerca.length) return null;
+  const r = await fetch("/api/strava/frecuencia", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lat, lon, polilineas: cerca.map((x) => x.polilinea) }) });
+  if (!r.ok) return null;
+  const j = await r.json();
+  const f = { version: j.version, n: carreras.length, aristas: j.aristas, veces: j.veces };
+  escribir("pp_frec_" + c.id, f);
+  return f;
+}
+
+function seccionPreferencias(conectado) {
+  const favs = favoritos();
+  return `<div class="prefs">
+    ${conectado ? `<label class="interruptor"><input type="checkbox" id="usarFrec" ${usarFrecuentes() ? "checked" : ""}>
+      Preferir mis calles de siempre al crear rutas</label>` : ""}
+    <div class="tipo" style="margin-top:12px">Tramos favoritos</div>
+    ${favs.length ? favs.map((f) => `<div class="fav"><span>★ ${esc(f.nombre)} <small>${num(f.km, 1)} km</small></span>
+        <button class="sec" type="button" data-borrar="${f.id}" aria-label="Borrar ${esc(f.nombre)}">✕</button></div>`).join("")
+      : '<p class="pista">Traza a mano un tramo que te guste (en «Trazar a mano») y guárdalo: los fondos y regenerativos lo van a preferir.</p>'}
+  </div>`;
+}
+
+function activarPreferencias() {
+  $("usarFrec")?.addEventListener("change", (e) => escribir("pp_usar_frec", e.target.checked));
+  document.querySelectorAll("[data-borrar]").forEach((b) => b.onclick = () => {
+    guardarFavoritos(favoritos().filter((f) => String(f.id) !== b.dataset.borrar));
+    b.closest(".fav").remove();
+  });
+}
 
 // ── Mi ciudad: tus carreras de Strava como mapa de calor ────────────────────
 // Las carreras se guardan en este navegador (IndexedDB) y sólo se piden las
@@ -901,7 +992,9 @@ async function abrirCiudad(aviso) {
       ${e.configurado === false ? '<p class="aviso">Strava no está configurado en el servidor.</p>'
         : `<a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}Conectar con Strava</a>`}
       <p class="credito">Se leen tus carreras sólo para mostrártelas a ti; quedan guardadas en este
-      teléfono. Al desconectar se borra todo y se revoca el acceso.</p>`);
+      teléfono. Al desconectar se borra todo y se revoca el acceso.</p>
+      ${seccionPreferencias(false)}`);
+    activarPreferencias();
     return;
   }
   await dibujarCalor(e, aviso, true);
@@ -927,14 +1020,18 @@ async function dibujarCalor(e, aviso, encuadrar) {
     <div class="leyenda"><span>1 vez</span><i></i><span>muchas veces</span></div>
     <p class="pista" id="sync"></p>
     ${e.privadas ? "" : '<p class="aviso">Sólo veo tus actividades públicas: al conectar no se dio permiso para las privadas.</p>'}
+    ${seccionPreferencias(true)}
     <div class="fila"><button class="sec" id="actualizar" type="button">Actualizar</button>
       <button class="sec" id="desconectar" type="button">Desconectar</button></div>
     <p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px"')} Con datos de Strava</p>`);
+  activarPreferencias();
   $("actualizar").onclick = () => sincronizar(e);
   $("desconectar").onclick = async () => {
     if (!confirm("¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso.")) return;
     await fetch("/api/strava/desconectar", { method: "POST" });
-    await BD.borrar(); abrirCiudad("Strava desconectado: se borraron tus datos.");
+    await BD.borrar();
+    Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_")).forEach((k) => localStorage.removeItem(k));
+    abrirCiudad("Strava desconectado: se borraron tus datos.");
   };
   if (encuadrar && lista.length) encuadrarCalor(lista);
 }

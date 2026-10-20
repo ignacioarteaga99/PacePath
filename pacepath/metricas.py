@@ -59,6 +59,7 @@ class Medida:
     repetido: float = 0.0                   # fracción de metros que se repiten
     vueltas_en_u: int = 0
     agua: list[tuple[float, str]] = field(default_factory=list)  # (pos, tipo)
+    aristas: np.ndarray | None = None
 
     @property
     def cruces_mayores(self) -> int:
@@ -96,7 +97,7 @@ def medir(ctx: GraphContext, aristas: list[int], radio_agua_m: float = 60.0) -> 
     largo = g.elen[a].astype(np.float64)
     cum = np.concatenate([[0.0], np.cumsum(largo)])
     total = float(cum[-1])
-    m = Medida(distancia_m=total, cum=cum)
+    m = Medida(distancia_m=total, cum=cum, aristas=a)
 
     sem = semaforos_cercanos(ctx)
     m.semaforos = _agrupar([float(cum[i]) for i in np.nonzero(sem[nodos])[0]])

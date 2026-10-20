@@ -76,7 +76,13 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
       para ese usuario, borrado al desconectar, sin usarlos para entrenar modelos.
 
 ## Fase 3 — Calles nuevas
-- [ ] **Map-matching:** proyectar cada traza GPS al grafo y marcar aristas
+- [x] Calles de siempre: tus carreras → aristas (KD-tree sobre las aristas,
+      trazado densificado cada 8 m, 20 m de tolerancia). El teléfono las pide
+      una vez por comuna y las adjunta a cada ruta; pesan en pesos, corredores
+      y puntuación de tempo, fondo y regenerativo.
+- [x] Tramos favoritos: se trazan a mano y se guardan en el teléfono; pesan
+      más que las calles de siempre.
+- [ ] **Map-matching con continuidad** (para pintar calles): proyectar cada traza GPS al grafo y marcar aristas
       recorridas (tolerancia ~20–25 m, exigir continuidad para no marcar
       calles paralelas por ruido GPS).
 - [ ] Cobertura por usuario: aristas recorridas (bitset por región) y % por

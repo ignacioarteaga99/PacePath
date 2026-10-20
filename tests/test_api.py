@@ -65,3 +65,45 @@ def test_trazar_a_mano():
     finally:
         c.comuna_para = original
     assert cli.post("/api/trazar", json={"puntos": pts[:1]}).status_code == 422
+
+
+def test_calles_de_siempre_y_favoritos():
+    """Una ruta trazada a mano como favorito y como «carreras» repetidas debe
+    terminar pesando en el fondo."""
+    import pacepath.comunas as c
+    from pacepath.frecuencia import decodificar
+    d = REGIONS["demo"]
+    original = c.comuna_para
+    c.comuna_para = lambda lat, lon: "demo"
+    try:
+        pts = [{"lat": d.lat, "lon": d.lon}, {"lat": d.lat + 0.01, "lon": d.lon},
+               {"lat": d.lat + 0.01, "lon": d.lon + 0.012}]
+        traz = cli.post("/api/trazar", json={"puntos": pts, "volver": True}).json()
+        coords = [[p[0], p[1]] for parte in traz["partes"] for p in parte["coordenadas"]]
+
+        def codificar(puntos):
+            out, pl, pn = [], 0, 0
+            for la, lo in puntos:
+                a, b = round(la * 1e5), round(lo * 1e5)
+                for dd in (a - pl, b - pn):
+                    dd = ~(dd << 1) if dd < 0 else dd << 1
+                    while dd >= 0x20:
+                        out.append(chr((0x20 | (dd & 0x1f)) + 63)); dd >>= 5
+                    out.append(chr(dd + 63))
+                pl, pn = a, b
+            return "".join(out)
+
+        poli = codificar(coords)
+        assert len(decodificar(poli)) == len(coords)
+        f = cli.post("/api/strava/frecuencia",
+                     json={"lat": d.lat, "lon": d.lon, "polilineas": [poli] * 3}).json()
+        assert f["carreras"] == 3 and len(f["aristas"]) > 50 and min(f["veces"]) == 3
+        base = {"lat": d.lat, "lon": d.lon, "texto": "fondo 8k", "comuna": "demo"}
+        r = cli.post("/api/ruta", json=base | {"frecuentes": {k: f[k] for k in ("version", "aristas", "veces")},
+                                                "favoritos": [coords]}).json()
+        assert r["preferencias"] == {"frecuentes": len(f["aristas"]), "favoritos": 1, "version_ok": True}
+        assert r["recorrido"]["preferidas_pct"] > 0
+        vieja = cli.post("/api/ruta", json=base | {"frecuentes": {"version": "otra", "aristas": [1], "veces": [5]}}).json()
+        assert vieja["preferencias"]["version_ok"] is False
+    finally:
+        c.comuna_para = original

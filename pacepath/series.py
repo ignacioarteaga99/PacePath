@@ -409,7 +409,7 @@ def base_plan(ctx: GraphContext, sesion: Sesion, req: Requisitos, casa: int) -> 
         "comuna": ctx.region_id,
         "salida": [round(float(g.lat[casa]), 6), round(float(g.lon[casa]), 6)],
         "requisitos": {k: v for k, v in dataclasses.asdict(req).items()
-                       if k not in ("tipo", "notas")},
+                       if k not in ("tipo", "notas", "preferidas")},
         "notas": list(req.notas),
     }
 

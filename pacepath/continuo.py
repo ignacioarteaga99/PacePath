@@ -84,6 +84,8 @@ def pesos_sesion(ctx: GraphContext, casa: int, radio_m: float,
         extra += (req.penal_subida_m_por_m * subida).astype(np.float32)
     mult[en_parque(ctx)] *= np.float32(req.mult_parque)
     mult[~g.epaved] *= np.float32(req.mult_sin_pavimento)
+    if req.preferidas is not None:
+        mult *= req.preferidas
     if req.mult_subida:
         mult *= (1.0 + req.mult_subida * np.maximum(g.egrad, 0)).astype(np.float32)
 
@@ -97,6 +99,16 @@ def pesos_sesion(ctx: GraphContext, casa: int, radio_m: float,
 
 # ── Circuitos ───────────────────────────────────────────────────────────────
 
+def fraccion_preferida(med: Medida, req: Requisitos) -> float:
+    """Qué parte del recorrido va por calles de siempre o tramos favoritos."""
+    if req.preferidas is None or med.aristas is None or not len(med.aristas):
+        return 0.0
+    total = float(med.cum[-1])
+    if total <= 0:
+        return 0.0
+    return float((np.diff(med.cum) * (req.preferidas[med.aristas] < 1)).sum() / total)
+
+
 def puntuar(med: Medida, req: Requisitos, objetivo_m: float) -> float:
     """Puntos de penalización por km (menos es mejor)."""
     km = max(med.distancia_m / 1000, 0.1)
@@ -108,6 +120,7 @@ def puntuar(med: Medida, req: Requisitos, objetivo_m: float) -> float:
         # Tope duro: cualquier candidato que lo cumpla gana a uno que no.
         p += 1000.0 + 20.0 * (med.subida_m - req.max_subida_m)
     p -= req.peso_parque * med.parque
+    p -= req.peso_preferida * fraccion_preferida(med, req)
     # Repetir calle no es grave en un fondo (ida y vuelta es un clásico).
     p += (8.0 if req.tipo is TipoSesion.FONDO else 25.0) * med.repetido
     if req.radio_agua_m and med.agua:
@@ -281,18 +294,23 @@ PUENTE_MAX_M = 40.0         # cruces de calle cortos que unen un parque con el s
 _CORREDORES: dict[str, tuple] = {}
 
 
-def corredores(ctx: GraphContext) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def corredores(ctx: GraphContext, extra: np.ndarray | None = None
+               ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """(máscara de aristas de corredor, componente por nodo, metros por componente).
 
     Un corredor es lo que se corre sin coches: sendas de parque y paseos
     peatonales, más los cruces de calle cortos que unen un parque con el
     siguiente (la ribera del Mapocho está partida por puentes y avenidas)."""
-    if ctx.version in _CORREDORES:
+    if extra is None and ctx.version in _CORREDORES:
         return _CORREDORES[ctx.version]
     g = ctx.graph
     n = g.n_nodes
     corr = aristas_corribles(ctx)
     M = corr & (en_parque(ctx) | (g.eclass == _IDX_PEATONAL))
+    if extra is not None:
+        # Las calles de siempre y los tramos favoritos también son corredor,
+        # aunque OSM no los marque como parque (la ribera de Providencia).
+        M |= corr & extra
     for _ in range(2):
         tocado = np.zeros(n, dtype=bool)
         tocado[ctx.esrc[M]] = True
@@ -300,6 +318,8 @@ def corredores(ctx: GraphContext) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     A = csr_matrix((np.ones(int(M.sum())), (ctx.esrc[M], g.indices[M])), shape=(n, n))
     _, comp = connected_components(A, directed=False)
     metros = np.bincount(comp[ctx.esrc[M]], weights=g.elen[M].astype(np.float64)) / 2
+    if extra is not None:
+        return M, comp, metros
     _CORREDORES.clear()
     _CORREDORES[ctx.version] = (M, comp, metros)
     return _CORREDORES[ctx.version]
@@ -315,7 +335,8 @@ def por_corredor(ctx: GraphContext, casa: int, distancia_m: float, req: Requisit
     giro, en distintas direcciones). Si es más corto, se repite de punta a punta
     y la última pasada gira a mitad de camino para cuadrar la distancia."""
     g = ctx.graph
-    M, comp, metros = corredores(ctx)
+    M, comp, metros = corredores(
+        ctx, None if req.preferidas is None else req.preferidas < 1)
     coste, pred = _arbol(ctx, w, casa, distancia_m * 6)
     llegada = _metros_arbol(ctx, coste, pred, casa)
     tope_acerc = max(3000.0, 0.3 * distancia_m)
@@ -328,8 +349,12 @@ def por_corredor(ctx: GraphContext, casa: int, distancia_m: float, req: Requisit
     cands = [int(c) for c in cands[np.argsort(-metros[cands])] if metros[c] >= CORREDOR_MIN_M]
     # Dentro del corredor también cuesta subir (el Parque Metropolitano es parque).
     sube = np.maximum(g.egrad, 0) * g.elen / 100.0
-    wc = RoutingWeights(allowed_edges=M, weight=(g.elen + 8.0 * sube).astype(np.float32),
-                        min_ratio=1.0, max_ratio=1.0)
+    peso_c = g.elen + 8.0 * sube
+    if req.preferidas is not None:
+        peso_c = peso_c * req.preferidas
+    wc = RoutingWeights(allowed_edges=M, weight=peso_c.astype(np.float32),
+                        min_ratio=float(min(1.0, peso_c[M].min() / max(g.elen[M].min(), 0.01)))
+                        if M.any() else 1.0, max_ratio=1.0)
     rev = g.reverse
     out = []
     for c in cands[:max_corredores]:
@@ -405,6 +430,13 @@ def ida_y_vuelta(ctx: GraphContext, casa: int, distancia_m: float, req: Requisit
     return out
 
 
+def con_preferidas(req: Requisitos, preferidas: np.ndarray | None) -> Requisitos:
+    if preferidas is None:
+        return req
+    peso = {TipoSesion.FONDO: 50.0, TipoSesion.REGENERATIVO: 40.0}.get(req.tipo, 20.0)
+    return dataclasses.replace(req, preferidas=preferidas, peso_preferida=peso)
+
+
 def subida_partes(partes: list[dict]) -> float:
     """Desnivel positivo de toda la sesión, sumando las partes en orden."""
     return desnivel([c[2] for p in partes for c in (p.get("coordenadas") or [])])[0]
@@ -474,7 +506,8 @@ def _marcas(ctx: GraphContext, aristas: list[int], med: Medida,
 
 def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                         volver: bool = True,
-                        meta: tuple[float, float] | None = None) -> dict:
+                        meta: tuple[float, float] | None = None,
+                        preferidas: np.ndarray | None = None) -> dict:
     """Fondo o regenerativo.
 
     · `volver` (lo habitual): circuito o ida y vuelta desde la salida.
@@ -482,7 +515,7 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
     · sin volver y sin meta: termina donde se cumplen los km."""
     if sesion.tipo not in (TipoSesion.FONDO, TipoSesion.REGENERATIVO):
         raise ValueError("planificar_circuito arma fondos y regenerativos")
-    req = requisitos(sesion)
+    req = con_preferidas(requisitos(sesion), preferidas)
     casa = nodo_salida(ctx, lat, lon)
     D = req.distancia_m
     if volver:
@@ -504,7 +537,10 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
         cands.sort(key=lambda c: c[2])
         (aristas, med, _), otros = cands[0], cands[1:]
     tipo = sesion.tipo.value
+    if forma == "corredor" and fraccion_preferida(med, req) >= 0.5:
+        forma = "favoritos"
     info = _resumen_medida(med) | {"calles": _calles_trote(ctx, aristas), "forma": forma,
+                                   "preferidas_pct": round(100 * fraccion_preferida(med, req)),
                                    "corredor": getattr(med, "detalle", None)}
     avisos = []
     if abs(med.distancia_m - D) > 0.05 * D:
@@ -562,8 +598,9 @@ def _ventana_circuito(med: Medida, X: float, cal: float, vc: float) -> tuple[flo
     return mejor
 
 
-def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float) -> dict:
-    req = requisitos(sesion)
+def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
+                     preferidas: np.ndarray | None = None) -> dict:
+    req = con_preferidas(requisitos(sesion), preferidas)
     casa = nodo_salida(ctx, lat, lon)
     X = req.distancia_m
     cal, vc = sesion.calentamiento_m, sesion.vuelta_calma_m
