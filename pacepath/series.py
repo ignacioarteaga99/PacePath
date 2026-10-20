@@ -36,6 +36,7 @@ from .sesion import CRUCE_MAYOR, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, re
 from .explicacion import explicar_cuestas, explicar_series
 from .metricas import desnivel
 from .parques import en_parque
+from .tramos import nodos_en_red
 from .tramos import CLASES_SENDA, Trazo, aristas_corribles, trazos
 
 MARGEN_EXTREMO_M = 8.0        # un cruce justo en el inicio o el fin no corta la serie
@@ -397,11 +398,8 @@ def _tramo_trote(ctx: GraphContext, w: RoutingWeights, a: int, b: int) -> dict |
 
 
 def nodo_salida(ctx: GraphContext, lat: float, lon: float) -> int:
-    """Nodo corrible más cercano al punto de salida."""
-    g = ctx.graph
-    corrible = np.zeros(g.n_nodes, dtype=bool)
-    corrible[ctx.esrc[aristas_corribles(ctx)]] = True
-    return int(g.nearest_node(lat, lon, mask=corrible))
+    """Nodo de la red corrible principal más cercano al punto de salida."""
+    return int(ctx.graph.nearest_node(lat, lon, mask=nodos_en_red(ctx)))
 
 
 def base_plan(ctx: GraphContext, sesion: Sesion, req: Requisitos, casa: int) -> dict:

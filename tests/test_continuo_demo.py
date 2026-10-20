@@ -85,3 +85,16 @@ def test_tope_de_desnivel_se_respeta_o_se_avisa(ctx):
     if p["totales"]["subida_m"] > 31:
         assert any("suba menos de 30 m" in a for a in p["avisos"])
     assert any("pediste como máximo 30 m" in l for l in p["explicacion"])
+
+
+def test_corredores_no_fallan(ctx):
+    from pacepath.continuo import pesos_sesion, por_corredor
+    from pacepath.series import nodo_salida
+    from pacepath.tramos import nodos_en_red
+    req = requisitos(interpretar("fondo 10k"))
+    casa = nodo_salida(ctx, D.lat, D.lon)
+    assert nodos_en_red(ctx)[casa]                    # la salida está en la red principal
+    for aristas, med, p in por_corredor(ctx, casa, 10_000, req, pesos_sesion(ctx, casa, 7500, req)):
+        assert med.forma == "corredor"
+        assert med.distancia_m == pytest.approx(10_000, rel=0.1)
+        assert med.detalle["largo_m"] >= 1500

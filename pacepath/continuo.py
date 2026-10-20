@@ -28,7 +28,7 @@ from raceengine_engine.generate import generate_loops, generate_open_routes
 from raceengine_engine.repair import adjust_distance
 from raceengine_routing import RoutingWeights
 from scipy.sparse import csr_matrix
-from scipy.sparse.csgraph import dijkstra
+from scipy.sparse.csgraph import connected_components, dijkstra
 
 from .explicacion import explicar_continuo, explicar_tempo
 from .metricas import Medida, desnivel, medir
@@ -38,8 +38,9 @@ from .series import (
     buscar_tramos, nodo_salida, pesos_trote,
 )
 from .parques import en_parque
-from .tramos import semaforos_cercanos
+from .tramos import aristas_corribles, semaforos_cercanos
 
+_IDX_PEATONAL = ALL_CLASSES.index("pedestrian")
 _COSTE = np.array([COSTE_CRUCE.get(c, 0.0) for c in ALL_CLASSES], dtype=np.float32)
 
 # Una vuelta en U en el corredor cuesta como un cruce residencial: frenar,
@@ -99,7 +100,8 @@ def pesos_sesion(ctx: GraphContext, casa: int, radio_m: float,
 def puntuar(med: Medida, req: Requisitos, objetivo_m: float) -> float:
     """Puntos de penalización por km (menos es mejor)."""
     km = max(med.distancia_m / 1000, 0.1)
-    p = req.peso_detencion * med.detenciones() / km
+    # Cada vuelta en U (ida y vuelta, idas por un corredor) frena como un cruce.
+    p = req.peso_detencion * (med.detenciones() + DETENCION_VUELTA_U * med.vueltas_en_u) / km
     p += req.peso_subida * med.subida_m / km
     p += req.peso_exceso_subida * max(0.0, med.subida_m / km - req.subida_tolerada_m_km)
     if req.max_subida_m is not None and med.subida_m > req.max_subida_m:
@@ -145,8 +147,6 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     gen = modelo.model_copy(update={"distance": DistanceLayer(
         target_m=distancia_m * RODEO, tolerance_pct=2.0)})
     loops = generate_loops(ctx, gen, w, casa, reach, rng, k=k, budget_ms=1500)
-    if not loops:
-        raise SinTramo("No pude cerrar un circuito desde esa salida.")
 
     def eval_(lp) -> tuple:
         med = medir(ctx, lp.edges, req.radio_agua_m)
@@ -161,6 +161,9 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     todos = [(lp.edges, med, p) for lp, med, p in finos + crudos[afinar:]]
     if con_ida_y_vuelta:
         todos += ida_y_vuelta(ctx, casa, distancia_m, req, w)
+        todos += por_corredor(ctx, casa, distancia_m, req, w)
+    if not todos:
+        raise SinTramo("No encontré ningún recorrido desde esa salida.")
     todos.sort(key=lambda x: x[2])
     return todos[0][0], todos[0][1], todos[1:]
 
@@ -271,6 +274,116 @@ def hasta_meta(ctx: GraphContext, casa: int, meta: int, distancia_m: float,
     return out
 
 
+# ── Corredores: parques y paseos peatonales seguidos ───────────────────────
+
+CORREDOR_MIN_M = 2000.0     # sendas totales mínimas para que valga la pena
+PUENTE_MAX_M = 40.0         # cruces de calle cortos que unen un parque con el siguiente
+_CORREDORES: dict[str, tuple] = {}
+
+
+def corredores(ctx: GraphContext) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(máscara de aristas de corredor, componente por nodo, metros por componente).
+
+    Un corredor es lo que se corre sin coches: sendas de parque y paseos
+    peatonales, más los cruces de calle cortos que unen un parque con el
+    siguiente (la ribera del Mapocho está partida por puentes y avenidas)."""
+    if ctx.version in _CORREDORES:
+        return _CORREDORES[ctx.version]
+    g = ctx.graph
+    n = g.n_nodes
+    corr = aristas_corribles(ctx)
+    M = corr & (en_parque(ctx) | (g.eclass == _IDX_PEATONAL))
+    for _ in range(2):
+        tocado = np.zeros(n, dtype=bool)
+        tocado[ctx.esrc[M]] = True
+        M = M | (corr & (g.elen <= PUENTE_MAX_M) & (tocado[ctx.esrc] | tocado[g.indices]))
+    A = csr_matrix((np.ones(int(M.sum())), (ctx.esrc[M], g.indices[M])), shape=(n, n))
+    _, comp = connected_components(A, directed=False)
+    metros = np.bincount(comp[ctx.esrc[M]], weights=g.elen[M].astype(np.float64)) / 2
+    _CORREDORES.clear()
+    _CORREDORES[ctx.version] = (M, comp, metros)
+    return _CORREDORES[ctx.version]
+
+
+def por_corredor(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
+                 w: RoutingWeights, max_corredores: int = 6,
+                 giros: int = 8) -> list[tuple[list[int], Medida, float]]:
+    """Fondos sobre corredores: trote hasta la entrada más cercana, idas y
+    vueltas por el corredor hasta completar los km y vuelta a casa.
+
+    Si el corredor alcanza, es una ida y vuelta entera por él (varios puntos de
+    giro, en distintas direcciones). Si es más corto, se repite de punta a punta
+    y la última pasada gira a mitad de camino para cuadrar la distancia."""
+    g = ctx.graph
+    M, comp, metros = corredores(ctx)
+    coste, pred = _arbol(ctx, w, casa, distancia_m * 6)
+    llegada = _metros_arbol(ctx, coste, pred, casa)
+    tope_acerc = max(3000.0, 0.3 * distancia_m)
+
+    nodos_m = np.unique(ctx.esrc[M])
+    alcanzables = nodos_m[llegada[nodos_m] <= tope_acerc]
+    if not len(alcanzables):
+        return []
+    cands = np.unique(comp[alcanzables])
+    cands = [int(c) for c in cands[np.argsort(-metros[cands])] if metros[c] >= CORREDOR_MIN_M]
+    # Dentro del corredor también cuesta subir (el Parque Metropolitano es parque).
+    sube = np.maximum(g.egrad, 0) * g.elen / 100.0
+    wc = RoutingWeights(allowed_edges=M, weight=(g.elen + 8.0 * sube).astype(np.float32),
+                        min_ratio=1.0, max_ratio=1.0)
+    rev = g.reverse
+    out = []
+    for c in cands[:max_corredores]:
+        en_c = alcanzables[comp[alcanzables] == c]
+        E = int(en_c[np.argmin(coste[en_c])])                 # entrada más barata
+        acerc = _camino(ctx, w, pred, casa, E)
+        resto = distancia_m - 2 * llegada[E]
+        if resto < 2000:
+            continue
+        cc, pc = _arbol(ctx, wc, E, resto * 6)
+        mc = _metros_arbol(ctx, cc, pc, E)
+        nodos_c = np.nonzero(np.isfinite(mc))[0]
+        if len(nodos_c) < 2:
+            continue
+        # En cada dirección, el punto de giro más lejano que quepa en lo que
+        # queda (a lo más la mitad: hay que volver). Si no alcanza, ese tramo se
+        # repite y la última pasada gira a mitad de camino para cuadrar.
+        cabe = nodos_c[mc[nodos_c] <= resto / 2 * 1.06]
+        ang = np.arctan2(g.y[cabe] - g.y[E], g.x[cabe] - g.x[E])
+        sector = ((ang + np.pi) / (2 * np.pi) * giros).astype(int) % giros
+        for k_s in range(giros):
+            en_s = cabe[sector == k_s]
+            if not len(en_s):
+                continue
+            T = int(en_s[np.argmax(mc[en_s])])
+            largo = float(mc[T])
+            # Ir y volver quince veces por un parque de 400 m no es un fondo.
+            if largo < max(1500.0, distancia_m / 10):
+                continue
+            ida = _camino(ctx, wc, pc, E, T)
+            vuelta = [int(rev[e]) for e in reversed(ida)]
+            k = max(1, int(resto // (2 * largo)))
+            falta = max(0.0, resto - 2 * k * largo)
+            parcial, acum = [], 0.0
+            for e in ida:
+                if acum >= falta / 2:
+                    break
+                parcial.append(e)
+                acum += float(g.elen[e])
+            tramo = (ida + vuelta) * k + parcial + [int(rev[e]) for e in reversed(parcial)]
+            aristas = acerc + tramo + [int(rev[e]) for e in reversed(acerc)]
+            out.append(_cand_corredor(ctx, aristas, req, distancia_m, largo, k, ida, acerc))
+    return out
+
+
+def _cand_corredor(ctx, aristas, req, distancia_m, largo, vueltas, corredor, acerc):
+    med = medir(ctx, aristas, req.radio_agua_m)
+    med.forma = "corredor"
+    med.detalle = {"largo_m": round(largo), "vueltas": vueltas,
+                   "acercamiento_m": round(float(ctx.graph.elen[acerc].sum())) if acerc else 0,
+                   "calles": _calles_trote(ctx, corredor), "llegada": _calles_trote(ctx, acerc)}
+    return (aristas, med, puntuar(med, req, distancia_m))
+
+
 def ida_y_vuelta(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
                  w: RoutingWeights, n: int = 24) -> list[tuple[list[int], Medida, float]]:
     """Candidatos de ida y vuelta: hasta un punto a media distancia por el camino
@@ -374,7 +487,8 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
     D = req.distancia_m
     if volver:
         aristas, med, otros = circuito(ctx, casa, D, req)
-        forma = "ida y vuelta" if med.repetido > 0.9 else "circuito"
+        forma = getattr(med, "forma", None) or (
+            "ida y vuelta" if med.repetido > 0.9 else "circuito")
     else:
         w = pesos_sesion(ctx, casa, D + 1500, req)
         if meta is not None:
@@ -390,7 +504,8 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
         cands.sort(key=lambda c: c[2])
         (aristas, med, _), otros = cands[0], cands[1:]
     tipo = sesion.tipo.value
-    info = _resumen_medida(med) | {"calles": _calles_trote(ctx, aristas), "forma": forma}
+    info = _resumen_medida(med) | {"calles": _calles_trote(ctx, aristas), "forma": forma,
+                                   "corredor": getattr(med, "detalle", None)}
     avisos = []
     if abs(med.distancia_m - D) > 0.05 * D:
         avisos.append(f"El recorrido mide {med.distancia_m / 1000:.1f} km: no encontré uno "

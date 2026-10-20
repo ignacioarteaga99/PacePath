@@ -198,6 +198,30 @@ def construir_trazos(ctx: GraphContext, sendas_de_parque: bool = True) -> list[T
     return trazos
 
 
+_RED: dict[str, np.ndarray] = {}
+
+
+def nodos_en_red(ctx: GraphContext) -> np.ndarray:
+    """bool[N] — nodos corribles de la red principal (la componente conexa más
+    grande). Sirve para enganchar la salida: con los parques, muchas sendas
+    sueltas son corribles pero no llevan a ninguna parte (una salida en un
+    trozo de 4 nodos dejaba al generador sin ningún recorrido)."""
+    if ctx.version not in _RED:
+        from scipy.sparse import csr_matrix
+        from scipy.sparse.csgraph import connected_components
+        g = ctx.graph
+        ok = aristas_corribles(ctx)
+        A = csr_matrix((np.ones(int(ok.sum())), (ctx.esrc[ok], g.indices[ok])),
+                       shape=(g.n_nodes, g.n_nodes))
+        _, comp = connected_components(A, directed=False)
+        con_arista = np.zeros(g.n_nodes, dtype=bool)
+        con_arista[ctx.esrc[ok]] = True
+        mayor = np.bincount(comp[con_arista]).argmax()
+        _RED.clear()
+        _RED[ctx.version] = con_arista & (comp == mayor)
+    return _RED[ctx.version]
+
+
 _CACHE: dict[tuple[str, bool], list[Trazo]] = {}
 
 

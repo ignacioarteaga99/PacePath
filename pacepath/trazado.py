@@ -18,7 +18,7 @@ from raceengine_routing import RoutingWeights
 from .continuo import _coords, _marcas, _resumen_medida
 from .metricas import medir
 from .series import AVISO_SRTM, _calles_trote
-from .tramos import aristas_corribles
+from .tramos import aristas_corribles, nodos_en_red
 
 MAX_PUNTOS = 60
 MAX_SALTO_M = 8000.0     # más que esto entre dos clics, casi seguro es un error
@@ -42,9 +42,8 @@ def trazar(ctx: GraphContext, puntos: list[tuple[float, float]], volver: bool) -
         raise TrazadoInvalido(f"Como máximo {MAX_PUNTOS} puntos.")
     g = ctx.graph
     w = _pesos(ctx)
-    corrible = np.zeros(g.n_nodes, dtype=bool)
-    corrible[ctx.esrc[w.allowed_edges]] = True
-    nodos = [int(g.nearest_node(la, lo, mask=corrible)) for la, lo in puntos]
+    red = nodos_en_red(ctx)
+    nodos = [int(g.nearest_node(la, lo, mask=red)) for la, lo in puntos]
     for (la, lo), n in zip(puntos, nodos):
         x, y = g.project(la, lo)
         if np.hypot(g.x[n] - x, g.y[n] - y) > 300:

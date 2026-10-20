@@ -119,8 +119,11 @@ def explicar_continuo(plan: dict) -> list[str]:
     r, s = plan["recorrido"], plan["sesion"]
     nombre = "Fondo" if s["tipo"] == "fondo" else "Regenerativo"
     por = f" por {lista(r['calles'][:5])}" if r.get("calles") else ""
+    if r.get("forma") == "corredor" and (r.get("corredor") or {}).get("calles"):
+        por = f": {lista(r['corredor']['calles'][:4])}"
     forma = {"ida y vuelta": "en ida y vuelta", "solo ida": "de solo ida",
-             "hasta la meta": "hasta tu meta"}.get(r.get("forma"), "en circuito")
+             "hasta la meta": "hasta tu meta",
+             "corredor": "por un corredor de parques"}.get(r.get("forma"), "en circuito")
     lineas = [f"{nombre} de {metros(r['distancia_m'])} {forma}{por}.",
               f"En el camino: {_paradas(r)}; {num(r['subida_m'])} m de subida; "
               f"{r['parque_pct']} % por parque."]
@@ -128,6 +131,14 @@ def explicar_continuo(plan: dict) -> list[str]:
     if tope is not None:
         lineas.append(f"Desnivel positivo: {num(r['subida_m'])} m (pediste como máximo "
                       f"{num(tope)} m).")
+    if r.get("forma") == "corredor" and r.get("corredor"):
+        c = r["corredor"]
+        llegada = f" por {lista(c['llegada'][:3])}" if c.get("llegada") else ""
+        lineas.append(f"Llegas trotando {metros(c['acercamiento_m'])}{llegada}; el corredor "
+                      f"mide {metros(c['largo_m'])} y "
+                      + ("lo recorres en ida y vuelta" if c["vueltas"] <= 1 else
+                         f"lo recorres de punta a punta {c['vueltas']} veces")
+                      + "; después vuelves a casa.")
     if r.get("forma") == "solo ida" and r.get("calles"):
         lineas.append(f"Terminas en {r['calles'][-1]}: revisa cómo volver (metro, micro "
                       "o que te pasen a buscar).")

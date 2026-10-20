@@ -295,7 +295,7 @@ def _requisitos_base(s: Sesion) -> Requisitos:
             mult_subida=0.0, penal_subida_m_por_m=8.0,
             mult_sin_pavimento=0.95, peso_parque=60.0,
             radio_agua_m=60.0, peso_detencion=40.0, peso_subida=1.5,
-            subida_tolerada_m_km=12.0,
+            subida_tolerada_m_km=12.0, peso_exceso_subida=15.0,
             notas=("Fondo largo: pocos cruces, parque cuando se puede y fuentes "
                    "de agua en el camino (las que figuran en OpenStreetMap).",),
         )
