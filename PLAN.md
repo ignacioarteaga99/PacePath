@@ -63,6 +63,11 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
       `latlng` cuando haga falta precisión). Respetar límites de la API
       (reintentos con espera; importación incremental por fecha).
 - [ ] Webhook de Strava para importar actividades nuevas solas.
+- [ ] Segmentos de Strava (`segments/explore`, tipo running) con el token del
+      usuario, al armar SU ruta: bonificar tramos que son segmentos populares
+      (señal de que se corren y tienen buena vereda) y usar los de subida como
+      candidatos de cuestas. Sólo 10 por consulta y sin capa global compartida
+      (términos de la API): complementan a OSM, no lo reemplazan.
 - [ ] Cumplir los términos de la API de Strava: los datos de cada usuario sólo
       para ese usuario, borrado al desconectar, sin usarlos para entrenar modelos.
 

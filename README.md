@@ -55,3 +55,11 @@ Los nombres de calle, desde la Release `nombres` de este repo
 curl -X POST localhost:8000/api/ruta -H 'Content-Type: application/json' \
      -d '{"lat": -33.4258, "lon": -70.61, "texto": "6x1k"}'
 ```
+
+## Despliegue en Render (gratis)
+
+`render.yaml` es un Blueprint: en render.com → **New → Blueprint** → este repo.
+Imagen Docker (`Dockerfile`), salud en `/api/salud`, una comuna en memoria
+(~200 MB de 512). El disco se borra al dormir: grafos y nombres se vuelven a
+bajar solos de las Releases. La única variable secreta es `STRAVA_CLIENT_SECRET`
+(Render la pide al crear el servicio).
