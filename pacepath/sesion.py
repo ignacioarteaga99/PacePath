@@ -187,6 +187,10 @@ class Requisitos:
     # circuito pasaba por cincuenta semáforos sin inmutarse.
     penal_semaforo_m: float = 0.0           # metros extra al entrar a un semáforo
     penal_cruce_m: float = 0.0              # metros extra × coste del cruce
+    # Subir también como metros extra: regla de Naismith, 1 m de desnivel
+    # positivo ≈ 8 m en plano. Con multiplicadores, el descuento de parque
+    # dejaba barato cruzar el San Cristóbal (566 m de subida en un fondo).
+    penal_subida_m_por_m: float = 0.0
     mult_parque: float = 1.0
     mult_subida: float = 0.0                # coste × (1 + esto × % de subida)
     mult_sin_pavimento: float = 1.0
@@ -200,6 +204,7 @@ class Requisitos:
     # hacia la cordillera ya suma ~10 m/km sin que haya ningún cerro.
     subida_tolerada_m_km: float = 1e9
     peso_exceso_subida: float = 8.0         # por m/km por encima de lo tolerado
+    peso_parque: float = 10.0               # puntos menos por ir 100 % por parque
     notas: tuple[str, ...] = field(default_factory=tuple)
 
 
@@ -255,7 +260,10 @@ def requisitos(s: Sesion) -> Requisitos:
             tipo=t,
             distancia_m=float(s.distancia_m),
             penal_semaforo_m=200.0, penal_cruce_m=50.0, mult_parque=0.75,
-            mult_subida=0.04, mult_sin_pavimento=0.95,
+            # Subida cara al buscar: el Cerro San Cristóbal es parque, y con el
+            # descuento de parque un camino por el cerro salía «barato».
+            mult_subida=0.0, penal_subida_m_por_m=8.0,
+            mult_sin_pavimento=0.95, peso_parque=60.0,
             radio_agua_m=60.0, peso_detencion=40.0, peso_subida=1.5,
             subida_tolerada_m_km=12.0,
             notas=("Fondo largo: pocos cruces, parque cuando se puede y fuentes "
@@ -266,7 +274,8 @@ def requisitos(s: Sesion) -> Requisitos:
         tipo=t,
         distancia_m=float(s.distancia_m),
         penal_semaforo_m=100.0, penal_cruce_m=25.0, mult_parque=0.60,
-        mult_subida=0.12, mult_sin_pavimento=0.9,
+        mult_subida=0.0, penal_subida_m_por_m=15.0,
+        mult_sin_pavimento=0.9, peso_parque=60.0,
         peso_detencion=15.0, peso_subida=3.0, subida_tolerada_m_km=6.0,
         notas=("Regenerativo: plano y por parques. No hay datos de sombra; los "
                "parques son la mejor aproximación.",),

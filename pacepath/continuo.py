@@ -78,6 +78,9 @@ def pesos_sesion(ctx: GraphContext, casa: int, radio_m: float,
         # con que pase una calle.
         cruza = np.where(en_coche, grado[dst] >= 3, grado[dst] >= 2)
         extra += (req.penal_cruce_m * np.where(cruza, maximo[dst], 0)).astype(np.float32)
+    if req.penal_subida_m_por_m:
+        subida = np.maximum(g.egrad, 0) * g.elen / 100.0           # metros que se suben
+        extra += (req.penal_subida_m_por_m * subida).astype(np.float32)
     mult[en_parque(ctx)] *= np.float32(req.mult_parque)
     mult[~g.epaved] *= np.float32(req.mult_sin_pavimento)
     if req.mult_subida:
@@ -99,7 +102,7 @@ def puntuar(med: Medida, req: Requisitos, objetivo_m: float) -> float:
     p = req.peso_detencion * med.detenciones() / km
     p += req.peso_subida * med.subida_m / km
     p += req.peso_exceso_subida * max(0.0, med.subida_m / km - req.subida_tolerada_m_km)
-    p -= 40.0 * (1.0 - req.mult_parque) * med.parque
+    p -= req.peso_parque * med.parque
     # Repetir calle no es grave en un fondo (ida y vuelta es un clásico).
     p += (8.0 if req.tipo is TipoSesion.FONDO else 25.0) * med.repetido
     if req.radio_agua_m and med.agua:
