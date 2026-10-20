@@ -139,7 +139,11 @@ COSTE_CRUCE = {
     "residential": 1.0, "unclassified": 1.0, "living_street": 0.6,
     "service": 0.3,
 }
-CRUCE_MAYOR = 2.0       # desde aquí, un cruce rompe la repetición
+CRUCE_MAYOR = 2.0       # colectora o avenida
+# Desde aquí cuenta como cruce de calle (y Ignacio no acepta ninguno dentro de
+# una repetición). Por debajo quedan las entradas de servicio —estacionamientos,
+# accesos a edificios— que sólo restan puntos.
+CRUCE_MENOR = 0.6
 
 
 @dataclass(frozen=True)
@@ -149,33 +153,51 @@ class Requisitos:
     Los campos `max_*` son restricciones duras (un tramo que las viola no se
     ofrece, salvo como último recurso y avisando). Los `peso_*` son blandos:
     puntos de penalización para ordenar los tramos que sí cumplen.
+
+    Hay dos familias de sesión:
+      · De TRAMO (series, cuestas, y el corredor de un tempo): se busca un tramo
+        de `largo_tramo_m` y se repite. Usan los campos de tramo.
+      · De CIRCUITO (fondo, regenerativo, y el circuito de un tempo): se genera
+        un circuito de `distancia_m` con el motor de RaceEngine. Usan los
+        multiplicadores `mult_*`, que se aplican al coste de cada arista.
     """
 
     tipo: TipoSesion
+    # ── Tramo ──
     largo_tramo_m: float = 0.0
-    # Duras
     max_semaforos: int = 0
     max_cruces_mayores: int = 0
+    max_cruces_menores: int = 0
     max_desnivel_tramo_m: float = 12.0      # máx − mín dentro de la repetición
     min_rectitud: float = 0.85              # cuerda / largo
-    # Blandas (puntos)
-    peso_cruce: float = 25.0                # por cruce menor (× coste de la vía)
+    pendiente_objetivo_pct: float | None = None   # cuestas: subida media buscada
+    tolerancia_pendiente_pct: float = 1.5
+    peso_cruce: float = 25.0                # por cruce de servicio (× coste)
     peso_desnivel_m: float = 4.0            # por metro de máx − mín
+    peso_pendiente: float = 30.0            # por punto de % lejos del objetivo
     peso_curvatura: float = 100.0           # × (1 − rectitud)
     peso_lejania_100m: float = 4.0          # por cada 100 m de acercamiento extra
     bonus_parque: float = 10.0
     peso_sin_pavimento: float = 5.0
-    # Vías por las que puede ir la repetición además de las de correr
     sendas_de_parque: bool = True
+    # ── Circuito ──
+    distancia_m: float = 0.0
+    mult_semaforo: float = 1.0              # coste × esto al entrar a un semáforo
+    mult_cruce: float = 0.0                 # coste × (1 + esto × coste del cruce)
+    mult_parque: float = 1.0
+    mult_subida: float = 0.0                # coste × (1 + esto × % de subida)
+    mult_sin_pavimento: float = 1.0
+    radio_agua_m: float = 0.0               # fondo: premiar pasar junto a fuentes
     notas: tuple[str, ...] = field(default_factory=tuple)
 
 
 def requisitos(s: Sesion) -> Requisitos:
     """Traduce la sesión a lo que se busca en la calle."""
-    if s.tipo is TipoSesion.SERIES:
+    t = s.tipo
+    if t is TipoSesion.SERIES:
         largo = float(s.distancia_rep_m)
         return Requisitos(
-            tipo=s.tipo,
+            tipo=t,
             largo_tramo_m=largo,
             # Plano: en 1 km, más de ~1 % de desnivel ya cambia el ritmo. Para
             # repeticiones cortas se tolera algo más en proporción (el GPS y el
@@ -187,11 +209,51 @@ def requisitos(s: Sesion) -> Requisitos:
             notas=("Las repeticiones van en ida y vuelta por el mismo tramo: "
                    "la pendiente que quede se compensa.",),
         )
-    # El resto de tipos aún no tiene generador propio (siguiente paso de la
-    # Fase 1). Sus requisitos quedan escritos para discutirlos.
-    if s.tipo is TipoSesion.CUESTAS:
-        return Requisitos(tipo=s.tipo, largo_tramo_m=float(s.distancia_rep_m),
-                          max_desnivel_tramo_m=1e9, min_rectitud=0.6,
-                          max_cruces_mayores=0, peso_desnivel_m=0.0)
-    return Requisitos(tipo=s.tipo, largo_tramo_m=0.0, max_semaforos=99,
-                      max_cruces_mayores=99)
+    if t is TipoSesion.CUESTAS:
+        return Requisitos(
+            tipo=t,
+            largo_tramo_m=float(s.distancia_rep_m),
+            pendiente_objetivo_pct=float(s.pendiente_pct),
+            # Una cuesta puede curvar; lo que no puede es tener cruces ni
+            # semáforos a mitad de subida.
+            min_rectitud=0.55,
+            max_desnivel_tramo_m=1e9,
+            peso_desnivel_m=0.0,
+            peso_curvatura=20.0,
+            notas=("Cada repetición es de subida; la bajada es la recuperación, "
+                   "trotando suave.",),
+        )
+    if t is TipoSesion.TEMPO:
+        return Requisitos(
+            tipo=t,
+            distancia_m=float(s.distancia_m),
+            # Para el corredor de ida y vuelta: el tramo más largo posible sin
+            # detenciones; `largo_tramo_m` lo fija el generador.
+            max_desnivel_tramo_m=15.0,
+            min_rectitud=0.6,
+            peso_curvatura=10.0,
+            # Para el circuito: cada detención rompe el ritmo umbral.
+            mult_semaforo=1.8, mult_cruce=0.35, mult_subida=0.06,
+            mult_parque=0.9,
+            notas=("El bloque de tempo va por donde hay menos detenciones: "
+                   "calienta y suelta fuera de él.",),
+        )
+    if t is TipoSesion.FONDO:
+        return Requisitos(
+            tipo=t,
+            distancia_m=float(s.distancia_m),
+            mult_semaforo=1.35, mult_cruce=0.20, mult_parque=0.75,
+            mult_subida=0.02, mult_sin_pavimento=0.95,
+            radio_agua_m=60.0,
+            notas=("Fondo largo: pocos cruces, parque cuando se puede y fuentes "
+                   "de agua en el camino (las que figuran en OpenStreetMap).",),
+        )
+    # Regenerativo
+    return Requisitos(
+        tipo=t,
+        distancia_m=float(s.distancia_m),
+        mult_semaforo=1.15, mult_cruce=0.10, mult_parque=0.60,
+        mult_subida=0.12, mult_sin_pavimento=0.9,
+        notas=("Regenerativo: plano y por parques. No hay datos de sombra; los "
+               "parques son la mejor aproximación.",),
+    )

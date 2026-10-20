@@ -8,8 +8,13 @@ el grafo (propuesta para RaceEngine: un `ename` por arista), se publica aparte:
         "comuna", "fecha", "nombres": [str],
         "vias":   [[indice_nombre, highway, [id_nodo_osm, ...]], ...],
         "puntos": [[tipo, lat, lon], ...],      # drinking_water, toilets
-        "lugares": [[nombre, lat, lon, tipo], ...]   # calle, esquina, parque
+        "lugares": [[nombre, lat, lon, tipo], ...],  # calle, esquina, parque
+        "parques": [[[lat, lon], ...], ...]          # polígonos de parques y jardines
     }
+
+`parques` existe porque el grafo marca muy pocas aristas como «en parque»
+(814 de 140.000 sendas en Providencia): con los polígonos, PacePath marca
+las sendas de Parque Balmaceda, Bustamante, etc.
 
 `lugares` sirve para buscar desde dónde sale el corredor sin depender de un
 geocodificador externo: cada calle (punto medio de su tramo más largo), cada
@@ -71,20 +76,24 @@ def main(comuna: str, salida: Path) -> None:
 );
 out body geom;
 way["leisure"="park"]["name"](around:{r},{lat},{lon});
-out center tags;"""
+out center tags;
+way["leisure"~"^(park|garden)$"](around:{r},{lat},{lon});
+out geom;"""
     data = overpass(q)
     nombres: list[str] = []
     idx: dict[str, int] = {}
-    vias, puntos, lugares = [], [], []
+    vias, puntos, lugares, parques = [], [], [], []
     mitad: dict[str, tuple[float, float, float]] = {}      # nombre → (largo, lat, lon)
     nombres_nodo: dict[int, set[str]] = {}
     coord_nodo: dict[int, tuple[float, float]] = {}
     for el in data.get("elements", []):
         tags = el.get("tags", {})
-        if el["type"] == "way" and tags.get("leisure") == "park":
+        if el["type"] == "way" and tags.get("leisure") in ("park", "garden"):
             c = el.get("center")
             if c:
                 lugares.append([tags["name"], round(c["lat"], 6), round(c["lon"], 6), "parque"])
+            elif el.get("geometry") and len(el["geometry"]) >= 4:
+                parques.append([[round(p["lat"], 5), round(p["lon"], 5)] for p in el["geometry"]])
             continue
         if el["type"] == "way":
             n = tags["name"]
@@ -122,6 +131,7 @@ out center tags;"""
         "fecha": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "grafo": e.get("version", ""),
         "nombres": nombres, "vias": vias, "puntos": puntos, "lugares": lugares,
+        "parques": parques,
     }
     salida.mkdir(parents=True, exist_ok=True)
     f = salida / f"{comuna}.nombres.json.gz"

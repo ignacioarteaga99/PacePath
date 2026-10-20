@@ -32,12 +32,15 @@ from raceengine_geodata import ALL_CLASSES
 from raceengine_routing import RoutingWeights
 
 from . import nombres as _nombres
-from .sesion import CRUCE_MAYOR, Requisitos, Sesion, TipoSesion, requisitos
-from .explicacion import explicar_series
+from .sesion import CRUCE_MAYOR, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
+from .explicacion import explicar_cuestas, explicar_series
 from .tramos import CLASES_SENDA, Trazo, aristas_corribles, trazos
 
 MARGEN_EXTREMO_M = 8.0        # un cruce justo en el inicio o el fin no corta la serie
-LEJANIA_EXTRA_MAX_M = 3000.0  # más allá del calentamiento, cuánto se acepta ir
+LEJANIA_EXTRA_M = 3000.0      # más allá del calentamiento, cuánto se busca primero
+# Ignacio prefiere ir más lejos antes que aceptar un cruce: si no hay tramo
+# limpio cerca, se busca hasta aquí antes de relajar nada.
+LEJANIA_EXTRA_MAX_M = 6000.0
 SEPARACION_ALTERNATIVAS_M = 300.0
 
 
@@ -89,6 +92,7 @@ class Tramo:
     sin_pavimento: float
     acercamiento_m: float      # por calle desde la salida hasta el extremo más cercano
     puntos: float = 0.0
+    pendiente_pct: float = 0.0  # media, con signo, en el sentido del trazo
 
     # Geometría y perfil exactos (el final se interpola a mitad de arista).
     def perfil(self, ctx: GraphContext, paso_m: float = 10.0):
@@ -146,7 +150,7 @@ class Tramo:
 
 
 def _ventanas(ctx: GraphContext, t: Trazo, req: Requisitos, dist_casa: np.ndarray,
-              holgura_m: float) -> Tramo | None:
+              holgura_m: float, max_acerc_m: float = math.inf) -> Tramo | None:
     """La mejor ventana de largo `req.largo_tramo_m` dentro del trazo."""
     L = req.largo_tramo_m
     if t.largo_m < L:
@@ -161,8 +165,9 @@ def _ventanas(ctx: GraphContext, t: Trazo, req: Requisitos, dist_casa: np.ndarra
     # Prefijos para contar en O(1) por ventana.
     sem = np.concatenate([[0], np.cumsum(t.semaforo)])
     may = np.concatenate([[0], np.cumsum(t.cruce >= CRUCE_MAYOR)])
-    men = np.concatenate([[0], np.cumsum((t.cruce > 0) & (t.cruce < CRUCE_MAYOR))])
-    cmen = np.concatenate([[0.0], np.cumsum(np.where(t.cruce < CRUCE_MAYOR, t.cruce, 0))])
+    men = np.concatenate([[0], np.cumsum((t.cruce >= CRUCE_MENOR) & (t.cruce < CRUCE_MAYOR))])
+    # Coste blando: sólo lo que queda por debajo de un cruce de calle (servicio).
+    cmen = np.concatenate([[0.0], np.cumsum(np.where(t.cruce < CRUCE_MENOR, t.cruce, 0))])
     largo_e = g.elen[t.aristas].astype(np.float64)
     parque = np.concatenate([[0.0], np.cumsum(largo_e * g.epark[t.aristas])])
     tierra = np.concatenate([[0.0], np.cumsum(largo_e * ~g.epaved[t.aristas])])
@@ -172,7 +177,9 @@ def _ventanas(ctx: GraphContext, t: Trazo, req: Requisitos, dist_casa: np.ndarra
     b = np.searchsorted(cum, cum[inicios] + L - MARGEN_EXTREMO_M, side="left")
     n_sem = sem[b] - sem[a]
     n_may = may[b] - may[a]
-    ok = (n_sem <= req.max_semaforos) & (n_may <= req.max_cruces_mayores)
+    n_men = men[b] - men[a]
+    ok = ((n_sem <= req.max_semaforos) & (n_may <= req.max_cruces_mayores)
+          & (n_men <= req.max_cruces_menores))
     if not ok.any():
         return None
 
@@ -184,18 +191,26 @@ def _ventanas(ctx: GraphContext, t: Trazo, req: Requisitos, dist_casa: np.ndarra
     rect = np.hypot(xf - g.x[nodos[inicios]], yf - g.y[nodos[inicios]]) / L
     ok &= rect >= req.min_rectitud
     acerc_v = np.minimum(acerc[inicios], acerc[j])
-    ok &= np.isfinite(acerc_v)
+    ok &= np.isfinite(acerc_v) & (acerc_v <= max_acerc_m)
     if not ok.any():
         return None
 
     elev = g.elev[nodos].astype(np.float64)
+    zf = np.interp(fin, cum, elev)
+    pend = (zf - elev[inicios]) / L * 100.0
+    objetivo = req.pendiente_objetivo_pct
+    if objetivo is not None:
+        # Cuestas: vale en cualquiera de los dos sentidos (se sube por donde sube).
+        ok &= np.abs(np.abs(pend) - objetivo) <= req.tolerancia_pendiente_pct
     mejor: Tramo | None = None
     for k in np.nonzero(ok)[0]:
         i = int(inicios[k])
-        tramo_e = elev[i:int(j[k]) + 1]
+        tramo_e = np.append(elev[i:int(j[k])], zf[k])
         desn = float(tramo_e.max() - tramo_e.min())
         if desn > req.max_desnivel_tramo_m:
             continue
+        if objetivo is not None and desn > abs(zf[k] - elev[i]) * 1.25 + 3.0:
+            continue        # sube y baja: no es una cuesta, es un serrucho
         # Fracciones por parque/tierra, aproximadas a las aristas completas.
         p = (parque[j[k]] - parque[i]) / max(cum[j[k]] - cum[i], 1.0)
         s = (tierra[j[k]] - tierra[i]) / max(cum[j[k]] - cum[i], 1.0)
@@ -203,41 +218,55 @@ def _ventanas(ctx: GraphContext, t: Trazo, req: Requisitos, dist_casa: np.ndarra
         lejos = max(0.0, float(acerc_v[k]) - holgura_m)
         puntos = (req.peso_cruce * coste
                   + req.peso_desnivel_m * desn
+                  + (req.peso_pendiente * abs(abs(float(pend[k])) - objetivo)
+                     if objetivo is not None else 0.0)
                   + req.peso_curvatura * (1.0 - float(rect[k]))
                   + req.peso_lejania_100m * lejos / 100.0
                   + req.peso_sin_pavimento * s
                   - req.bonus_parque * p
                   # Penalización fuerte, no descarte: sólo existe en los niveles
                   # relajados, y ahí un semáforo debe pesar más que todo lo demás.
-                  + 200.0 * float(n_sem[k]) + 120.0 * float(n_may[k]))
+                  + 200.0 * float(n_sem[k]) + 120.0 * float(n_may[k])
+                  + 60.0 * float(n_men[k]))
         if mejor is None or puntos < mejor.puntos:
             mejor = Tramo(
                 trazo=t, i=i, largo_m=L, semaforos=int(n_sem[k]),
-                cruces_mayores=int(n_may[k]), cruces_menores=int(men[b[k]] - men[a[k]]),
+                cruces_mayores=int(n_may[k]), cruces_menores=int(n_men[k]),
                 coste_cruces=coste, desnivel_m=desn, rectitud=float(rect[k]),
                 parque=float(p), sin_pavimento=float(s),
                 acercamiento_m=float(acerc_v[k]), puntos=puntos,
+                pendiente_pct=float(pend[k]),
             )
     return mejor
 
 
-def _niveles(req: Requisitos) -> list[tuple[Requisitos, str | None]]:
+def _niveles(req: Requisitos, holgura_m: float) -> list[tuple[Requisitos, float, str | None]]:
+    """(requisitos, distancia máxima de acercamiento, aviso) de más a menos estricto.
+
+    Primero se va más lejos; sólo después se acepta un cruce, y lo último que se
+    acepta es un semáforo."""
     r = dataclasses.replace
+    cerca = holgura_m + LEJANIA_EXTRA_M
+    lejos = holgura_m + LEJANIA_EXTRA_MAX_M
     return [
-        (req, None),
-        (r(req, max_cruces_mayores=1),
-         "No hay un tramo sin cruces de avenida cerca: éste tiene uno."),
-        (r(req, max_semaforos=1, max_cruces_mayores=2,
+        (req, cerca, None),
+        (req, lejos, "No hay un tramo sin cruces más cerca: éste es el más próximo."),
+        (r(req, max_cruces_menores=2), lejos,
+         "No hay ningún tramo sin cruces a menos de "
+         f"{lejos / 1000:.0f} km: éste tiene como mucho dos cruces de calle residencial."),
+        (r(req, max_cruces_menores=4, max_cruces_mayores=1, max_semaforos=1,
            max_desnivel_tramo_m=req.max_desnivel_tramo_m * 1.5,
-           min_rectitud=req.min_rectitud - 0.1),
-         "No hay un tramo sin semáforos cerca: éste tiene como mucho uno. "
-         "Si te toca en rojo, alarga esa pausa."),
+           min_rectitud=req.min_rectitud - 0.1), lejos,
+         "No hay un tramo limpio cerca: éste tiene algún cruce y como mucho un "
+         "semáforo. Si te toca en rojo, alarga esa pausa."),
     ]
 
 
 def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: float,
-                  n: int = 3) -> tuple[list[Tramo], str | None]:
-    """Los `n` mejores tramos para la repetición, separados entre sí."""
+                  n: int = 3, solo_limpios: bool = False) -> tuple[list[Tramo], str | None]:
+    """Los `n` mejores tramos para la repetición, separados entre sí.
+
+    Con `solo_limpios` no se relajan semáforos ni cruces (sí la distancia)."""
     radio = holgura_m + LEJANIA_EXTRA_MAX_M
     w = pesos_trote(ctx, inicio, radio + req.largo_tramo_m)
     dist_casa = ctx.provider.reachable(inicio, w, radio)
@@ -252,8 +281,10 @@ def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: fl
         if d2.min() <= radio * radio:
             cerca.append(t)
 
-    for nivel, aviso in _niveles(req):
-        cand = [m for t in cerca if (m := _ventanas(ctx, t, nivel, dist_casa, holgura_m))]
+    niveles = _niveles(req, holgura_m)
+    for nivel, max_acerc, aviso in niveles[:2] if solo_limpios else niveles:
+        cand = [m for t in cerca
+                if (m := _ventanas(ctx, t, nivel, dist_casa, holgura_m, max_acerc))]
         if not cand:
             continue
         cand.sort(key=lambda m: m.puntos)
@@ -266,8 +297,10 @@ def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: fl
             if len(elegidos) == n:
                 break
         return elegidos, aviso
+    que = (f"con {req.pendiente_objetivo_pct:g} % de pendiente"
+           if req.pendiente_objetivo_pct is not None else "sin semáforos")
     raise SinTramo(
-        f"No encontré ningún tramo de {req.largo_tramo_m:.0f} m sin semáforos a menos "
+        f"No encontré ningún tramo de {req.largo_tramo_m:.0f} m {que} a menos "
         f"de {radio / 1000:.1f} km de la salida.")
 
 
@@ -356,15 +389,40 @@ def _tramo_trote(ctx: GraphContext, w: RoutingWeights, a: int, b: int) -> dict |
     }
 
 
-def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
-                      alternativas: int = 3) -> dict:
-    if sesion.tipo is not TipoSesion.SERIES:
-        raise ValueError("planificar_series sólo arma sesiones de series")
-    req = requisitos(sesion)
+def nodo_salida(ctx: GraphContext, lat: float, lon: float) -> int:
+    """Nodo corrible más cercano al punto de salida."""
     g = ctx.graph
     corrible = np.zeros(g.n_nodes, dtype=bool)
     corrible[ctx.esrc[aristas_corribles(ctx)]] = True
-    casa = g.nearest_node(lat, lon, mask=corrible)
+    return int(g.nearest_node(lat, lon, mask=corrible))
+
+
+def base_plan(ctx: GraphContext, sesion: Sesion, req: Requisitos, casa: int) -> dict:
+    g = ctx.graph
+    return {
+        "sesion": sesion.model_dump(mode="json") | {"resumen": sesion.resumen},
+        "comuna": ctx.region_id,
+        "salida": [round(float(g.lat[casa]), 6), round(float(g.lon[casa]), 6)],
+        "requisitos": {k: v for k, v in dataclasses.asdict(req).items()
+                       if k not in ("tipo", "notas")},
+        "notas": list(req.notas),
+    }
+
+
+AVISO_SRTM = "Elevación del modelo SRTM (±2–3 m): el desnivel es orientativo."
+
+
+def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
+                      alternativas: int = 3) -> dict:
+    """Series y cuestas: un tramo que se repite.
+
+    Series: ida y vuelta (la 1.ª de ida, la 2.ª de vuelta…).
+    Cuestas: siempre de subida; la bajada trotando es la recuperación."""
+    if sesion.tipo not in (TipoSesion.SERIES, TipoSesion.CUESTAS):
+        raise ValueError("planificar_series arma series y cuestas")
+    cuestas = sesion.tipo is TipoSesion.CUESTAS
+    req = requisitos(sesion)
+    casa = nodo_salida(ctx, lat, lon)
 
     tramos, aviso = buscar_tramos(ctx, casa, req, holgura_m=sesion.calentamiento_m,
                                   n=alternativas)
@@ -374,11 +432,16 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     a, b = m.nodo_inicio(), m.nodo_fin()
     n = int(sesion.repeticiones)
 
-    # Orientación: empezar por el extremo que deja menos trote total. Con un
-    # número impar de repeticiones se termina en el extremo contrario.
+    if cuestas:
+        # Se empieza y se termina abajo.
+        abajo = a if m.pendiente_pct >= 0 else b
+        candidatos = [(abajo, abajo)]
+    else:
+        # Empezar por el extremo que deja menos trote total. Con un número impar
+        # de repeticiones se termina en el extremo contrario.
+        candidatos = [(a, a if n % 2 == 0 else b), (b, b if n % 2 == 0 else a)]
     opciones = []
-    for ini, otro in ((a, b), (b, a)):
-        fin = ini if n % 2 == 0 else otro
+    for ini, fin in candidatos:
         ida = _tramo_trote(ctx, w, casa, ini)
         vuelta = _tramo_trote(ctx, w, fin, casa)
         if ida and vuelta:
@@ -391,27 +454,36 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     coords = info["coordenadas"]
     if ini != a:
         coords = coords[::-1]
+        info["inicio"], info["fin"] = info["fin"], info["inicio"]
+    info["coordenadas"] = coords
+    info["pendiente_pct"] = round(m.pendiente_pct * (1 if ini == a else -1), 1)
+
     partes = [{"tipo": "calentamiento", **ida}]
     for k in range(n):
-        partes.append({
-            "tipo": "serie", "numero": k + 1, "distancia_m": round(m.largo_m),
-            "pausa_s": sesion.pausa_s if k < n - 1 else 0,
-            "coordenadas": coords if k % 2 == 0 else coords[::-1],
-        })
+        if cuestas:
+            partes.append({"tipo": "serie", "numero": k + 1, "distancia_m": round(m.largo_m),
+                           "pausa_s": 0, "coordenadas": coords})
+            partes.append({"tipo": "recuperacion", "numero": k + 1,
+                           "distancia_m": round(m.largo_m), "coordenadas": coords[::-1]})
+        else:
+            partes.append({
+                "tipo": "serie", "numero": k + 1, "distancia_m": round(m.largo_m),
+                "pausa_s": sesion.pausa_s if k < n - 1 else 0,
+                "coordenadas": coords if k % 2 == 0 else coords[::-1],
+            })
     partes.append({"tipo": "vuelta_calma", **vuelta})
 
+    recuperacion = n * m.largo_m if cuestas else 0.0
     calentamiento_extra = max(0, round(sesion.calentamiento_m - ida["distancia_m"]))
-    total = ida["distancia_m"] + n * m.largo_m + vuelta["distancia_m"] + calentamiento_extra
+    total = (ida["distancia_m"] + n * m.largo_m + recuperacion + vuelta["distancia_m"]
+             + calentamiento_extra)
     avisos = [aviso] if aviso else []
     if calentamiento_extra >= 200:
         avisos.append(f"El tramo está a {ida['distancia_m']} m: completa el calentamiento "
                       f"con {calentamiento_extra} m suaves por el mismo tramo.")
-    avisos.append("Elevación del modelo SRTM (±2–3 m): el desnivel es orientativo.")
+    avisos.append(AVISO_SRTM)
 
-    plan = {
-        "sesion": sesion.model_dump(mode="json") | {"resumen": sesion.resumen},
-        "comuna": ctx.region_id,
-        "salida": [round(float(g.lat[casa]), 6), round(float(g.lon[casa]), 6)],
+    plan = base_plan(ctx, sesion, req, casa) | {
         "tramo": info,
         "alternativas": [_tramo_info(ctx, t) for t in tramos[1:]],
         "partes": partes,
@@ -419,13 +491,11 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
             "distancia_m": round(total),
             "calentamiento_m": ida["distancia_m"] + calentamiento_extra,
             "series_m": round(n * m.largo_m),
+            "recuperacion_m": round(recuperacion),
             "vuelta_calma_m": vuelta["distancia_m"],
             "semaforos_trote": ida["semaforos"] + vuelta["semaforos"],
         },
         "avisos": avisos,
-        "requisitos": {k: v for k, v in dataclasses.asdict(req).items()
-                       if k not in ("tipo", "notas")},
-        "notas": list(req.notas),
     }
-    plan["explicacion"] = explicar_series(plan)
+    plan["explicacion"] = explicar_cuestas(plan) if cuestas else explicar_series(plan)
     return plan

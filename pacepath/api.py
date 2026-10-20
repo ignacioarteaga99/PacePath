@@ -3,6 +3,7 @@
     GET  /                       interfaz móvil
     GET  /api/salud
     GET  /api/comunas            comunas con grafo en la Release «graphs»
+    GET  /api/lugares?q=         buscar desde dónde salir (calle, esquina, parque)
     POST /api/sesion             «6x1k» → sesión estructurada
     POST /api/ruta               sesión + salida → plan completo
     POST /api/ruta.gpx           lo mismo, en GPX
@@ -16,10 +17,11 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
-from . import comunas
+from . import comunas, lugares
 from .gpx import plan_a_gpx
-from .sesion import Sesion, TipoSesion, interpretar
-from .series import SinTramo, planificar_series
+from .sesion import Sesion, interpretar
+from .planificador import planificar
+from .series import SinTramo
 
 WEB = Path(__file__).resolve().parents[1] / "web"
 
@@ -60,6 +62,12 @@ def lista_comunas() -> list[dict]:
     return comunas.disponibles()
 
 
+@app.get("/api/lugares")
+def buscar_lugares(q: str, limite: int = 8) -> list[dict]:
+    """Calles, esquinas («Pocuro con Tobalaba») y parques para elegir la salida."""
+    return lugares.buscar(q, min(max(limite, 1), 20))
+
+
 @app.post("/api/sesion")
 def sesion(body: TextoSesion) -> dict:
     try:
@@ -74,15 +82,12 @@ def _plan(body: PedidoRuta) -> dict:
         s = body.sesion or interpretar(body.texto or "")
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    if s.tipo is not TipoSesion.SERIES:
-        raise HTTPException(501, f"Las rutas de {s.tipo.value} vienen en el siguiente paso; "
-                                 "por ahora PacePath arma series.")
     comuna = body.comuna or comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
         raise HTTPException(422, "Ese punto no está en ninguna comuna con mapa todavía.")
     try:
         ctx = comunas.contexto(comuna)
-        return planificar_series(ctx, s, body.lat, body.lon)
+        return planificar(ctx, s, body.lat, body.lon)
     except SinTramo as exc:
         raise HTTPException(404, str(exc)) from exc
 

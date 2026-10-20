@@ -115,6 +115,17 @@ def _emparejar(ctx: GraphContext, ok: np.ndarray, rumbo: np.ndarray) -> np.ndarr
     return pareja
 
 
+_SEMAFOROS: dict[str, np.ndarray] = {}
+
+
+def semaforos_cercanos(ctx: GraphContext) -> np.ndarray:
+    """bool[N] — semáforo en el nodo, o cruce a menos de 25 m de uno."""
+    if ctx.version not in _SEMAFOROS:
+        _SEMAFOROS.clear()
+        _SEMAFOROS[ctx.version] = _semaforos_cercanos(ctx)
+    return _SEMAFOROS[ctx.version]
+
+
 def _semaforos_cercanos(ctx: GraphContext) -> np.ndarray:
     g = ctx.graph
     sem = g.is_signal.copy()
@@ -143,7 +154,7 @@ def construir_trazos(ctx: GraphContext, sendas_de_parque: bool = True) -> list[T
     rumbo = _rumbo(ctx)
     pareja = _emparejar(ctx, ok, rumbo)
     rev = g.reverse
-    semaforo = _semaforos_cercanos(ctx)
+    semaforo = semaforos_cercanos(ctx)
     grado = g.degree
 
     visto = np.zeros(g.n_edges, dtype=bool)

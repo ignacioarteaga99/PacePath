@@ -3,53 +3,150 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>PacePath</title>
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <style>
   :root {
-    --fondo: #0f172a; --panel: rgba(15, 23, 42, .94); --texto: #f1f5f9; --suave: #94a3b8;
-    --serie: #f97316; --trote: #38bdf8; --borde: rgba(148, 163, 184, .25);
+    --acento: #f2541b; --acento-osc: #c9410f; --tinta: #1d1d21; --suave: #6b6b75;
+    --linea: #e6e6ea; --fondo: #ffffff; --gris: #f5f5f7; --ok: #1f9d55;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--texto);
-    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  #mapa { position: fixed; inset: 0; background: #1e293b; }
-  .flota { position: fixed; left: 12px; right: 12px; z-index: 1000; background: var(--panel);
-    border: 1px solid var(--borde); border-radius: 14px; backdrop-filter: blur(8px); }
-  #arriba { top: calc(env(safe-area-inset-top) + 12px); padding: 10px; display: flex; gap: 8px; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--tinta);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+  #mapa { position: fixed; inset: 0; background: #eef0ec; }
+
+  /* Barra superior */
+  header { position: fixed; z-index: 1000; top: 0; left: 0; right: 0; background: #fff;
+    padding: calc(env(safe-area-inset-top) + 10px) 16px 10px; border-bottom: 1px solid var(--linea); }
+  .marca { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 19px;
+    letter-spacing: -.3px; }
+  .marca svg { width: 26px; height: 26px; }
+  .marca small { margin-left: auto; font-weight: 600; font-size: 13px; color: var(--suave);
+    text-transform: capitalize; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; margin: 10px -16px 0; padding: 0 16px;
+    scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; border: 1px solid var(--linea); background: #fff; color: var(--tinta);
+    border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .chip.on { background: var(--tinta); border-color: var(--tinta); color: #fff; }
+  .campo { position: relative; display: flex; gap: 8px; margin-top: 8px; }
+  .campo label { position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; font-weight: 700; color: var(--suave); pointer-events: none; }
   /* 16 px: con menos, Safari iOS hace zoom al enfocar. */
-  #texto { flex: 1; min-width: 0; font-size: 16px; padding: 10px 12px; border-radius: 10px;
-    border: 1px solid var(--borde); background: #0b1220; color: var(--texto); }
-  button { font-size: 16px; border: 0; border-radius: 10px; padding: 10px 14px; font-weight: 600;
-    background: var(--serie); color: #111; cursor: pointer; }
-  button.sec { background: #1e293b; color: var(--texto); border: 1px solid var(--borde); }
-  button:disabled { opacity: .5; }
-  #abajo { bottom: calc(env(safe-area-inset-bottom) + 12px); padding: 12px 14px; max-height: 42vh;
-    overflow-y: auto; }
-  #abajo h2 { margin: 0 0 6px; font-size: 17px; }
-  #abajo p { margin: 6px 0; }
-  .cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0; }
-  .cifra { background: #0b1220; border-radius: 10px; padding: 6px; text-align: center; }
-  .cifra b { display: block; font-size: 17px; }
-  .cifra span { color: var(--suave); font-size: 12px; }
-  .aviso { color: #fbbf24; font-size: 13px; }
-  .pista { color: var(--suave); font-size: 13px; }
-  .fila { display: flex; gap: 8px; margin-top: 8px; }
+  .campo input { flex: 1; min-width: 0; font-size: 16px; padding: 11px 12px 11px 62px;
+    border-radius: 12px; border: 1px solid var(--linea); background: var(--gris); color: var(--tinta); }
+  .campo input:focus { outline: 2px solid #f7c5b2; background: #fff; }
+  button { font: inherit; font-size: 16px; border: 0; border-radius: 12px; padding: 11px 16px;
+    font-weight: 700; background: var(--acento); color: #fff; cursor: pointer; white-space: nowrap; }
+  button:active { background: var(--acento-osc); }
+  button.sec { background: var(--gris); color: var(--tinta); }
+  button.icono { display: flex; align-items: center; gap: 6px; padding: 11px 12px; font-size: 14px; }
+  button.icono svg { width: 18px; height: 18px; }
+  button:disabled { opacity: .55; }
+  #sugerencias { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; margin-top: 4px;
+    background: #fff; border: 1px solid var(--linea); border-radius: 12px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12); display: none; }
+  #sugerencias button { display: block; width: 100%; text-align: left; background: #fff;
+    color: var(--tinta); border-radius: 0; font-weight: 500; font-size: 15px; padding: 11px 14px;
+    border-bottom: 1px solid var(--linea); }
+  #sugerencias button small { color: var(--suave); margin-left: 6px; text-transform: capitalize; }
+  #sugerencias button:last-child { border-bottom: 0; }
+
+  /* Hoja inferior */
+  #hoja { position: fixed; z-index: 1000; left: 0; right: 0;
+    bottom: calc(env(safe-area-inset-bottom) + 58px); background: #fff;
+    border-radius: 18px 18px 0 0; box-shadow: 0 -6px 24px rgba(0,0,0,.10);
+    padding: 8px 16px 14px; max-height: 44vh; overflow-y: auto; }
+  .asa { width: 38px; height: 5px; border-radius: 3px; background: #d5d5db; margin: 0 auto 10px; }
+  .tipo { color: var(--acento); font-weight: 800; font-size: 12px; letter-spacing: .6px;
+    text-transform: uppercase; }
+  h2 { margin: 2px 0 2px; font-size: 20px; letter-spacing: -.3px; }
+  .donde { color: var(--suave); font-size: 14px; margin-bottom: 10px; }
+  .cifras { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--linea);
+    border-bottom: 1px solid var(--linea); padding: 10px 0; }
+  .cifra span { display: block; color: var(--suave); font-size: 12px; }
+  .cifra b { font-size: 20px; letter-spacing: -.3px; }
+  .cifra b.cero { color: var(--ok); }
+  .perfil { margin: 10px 0 2px; }
+  .perfil svg { width: 100%; height: 56px; display: block; }
+  .perfil small { color: var(--suave); font-size: 12px; }
+  .texto p { margin: 8px 0; font-size: 14px; }
+  .aviso { background: #fff6e5; border-radius: 10px; padding: 8px 10px; color: #8a5a00; font-size: 13px; }
+  .fila { display: flex; gap: 8px; margin-top: 12px; }
   .fila button { flex: 1; }
+  .pista { color: var(--suave); margin: 4px 0; }
+  .cargando { display: flex; align-items: center; gap: 10px; color: var(--suave); padding: 6px 0; }
+  .rueda { width: 18px; height: 18px; border-radius: 50%; border: 3px solid #f7c5b2;
+    border-top-color: var(--acento); animation: g .8s linear infinite; }
+  @keyframes g { to { transform: rotate(360deg); } }
+
+  /* Barra de pestañas */
+  nav { position: fixed; z-index: 1001; left: 0; right: 0; bottom: 0; background: #fff;
+    border-top: 1px solid var(--linea); display: flex;
+    padding: 6px 0 calc(env(safe-area-inset-bottom) + 6px); }
+  nav a { flex: 1; text-align: center; color: var(--suave); font-size: 11px; font-weight: 600;
+    text-decoration: none; }
+  nav a svg { width: 24px; height: 24px; display: block; margin: 0 auto 2px; }
+  nav a.on { color: var(--acento); }
+
+  .leaflet-control-attribution { font-size: 10px; }
+  .pin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  .pin.salida { width: 22px; height: 22px; background: var(--tinta); display: grid; place-items: center; }
+  .pin.salida::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
 </style>
 </head>
 <body>
 <div id="mapa"></div>
-<form id="arriba" class="flota" autocomplete="off">
-  <input id="texto" value="6x1k" aria-label="Sesión de hoy" placeholder="6x1k, 8x400 r60…">
-  <button id="armar" type="submit">Armar</button>
-</form>
-<div id="abajo" class="flota">
-  <p class="pista" id="estado">Toca el mapa para marcar tu salida (o usa tu ubicación) y escribe la sesión de hoy.</p>
-  <div class="fila"><button class="sec" id="ubicacion" type="button">Usar mi ubicación</button></div>
+
+<header>
+  <div class="marca">
+    <svg viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="#f2541b"/>
+      <path d="M6 18 L11 8 L14 14 L16.5 10 L20 18" fill="none" stroke="#fff" stroke-width="2.4"
+            stroke-linecap="round" stroke-linejoin="round"/></svg>
+    PacePath <small id="comuna"></small>
+  </div>
+  <div class="chips" id="chips">
+    <button class="chip on" type="button" data-t="6x1k">Series</button>
+    <button class="chip" type="button" data-t="tempo 8k">Tempo</button>
+    <button class="chip" type="button" data-t="fondo 18k">Fondo largo</button>
+    <button class="chip" type="button" data-t="cuestas 8x300 6%">Cuestas</button>
+    <button class="chip" type="button" data-t="regenerativo 6k">Regenerativo</button>
+  </div>
+  <form id="form" autocomplete="off">
+    <div class="campo">
+      <label for="desde">Desde</label>
+      <input id="desde" placeholder="Calle, esquina o lugar" aria-label="Desde dónde sales">
+      <button class="sec icono" id="cerca" type="button" aria-label="Cerca de mí">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+        Cerca de mí</button>
+      <div id="sugerencias"></div>
+    </div>
+    <div class="campo">
+      <label for="texto">Sesión</label>
+      <input id="texto" value="6x1k" aria-label="Sesión de hoy" placeholder="6x1k · tempo 8k · fondo 18k">
+      <button id="armar" type="submit">Crear ruta</button>
+    </div>
+  </form>
+</header>
+
+<div id="hoja">
+  <div class="asa"></div>
+  <p class="pista">Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.</p>
 </div>
+
+<nav>
+  <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round"><path d="M4 18l5-10 3 6 2.5-4L20 18"/></svg>Hoy</a>
+  <a href="#" data-pronto="Mi ciudad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Mi ciudad</a>
+  <a href="#" data-pronto="Perfil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Perfil</a>
+</nav>
+
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -58,58 +155,199 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19, attribution: "© OpenStreetMap",
 }).addTo(mapa);
 
-let salida = null, marca = null, capas = L.layerGroup().addTo(mapa), ultimo = null;
+let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), animacion = null;
+const hoja = (html) => { $("hoja").innerHTML = '<div class="asa"></div>' + html; };
+const pin = (clase, color) => L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11],
+  html: `<div class="pin ${clase}" style="${color ? "background:" + color : ""}"></div>` });
 
-function fijarSalida(lat, lon) {
+// ── Desde dónde se sale ─────────────────────────────────────────────────────
+function fijarSalida(lat, lon, nombre, centrar = false) {
   salida = { lat, lon };
-  if (marca) marca.setLatLng([lat, lon]);
-  else marca = L.circleMarker([lat, lon], { radius: 8, color: "#fff", fillColor: "#22c55e",
-                                            fillOpacity: 1, weight: 3 }).addTo(mapa);
-  $("estado").textContent = "Salida marcada. Pulsa «Armar».";
-}
-mapa.on("click", (e) => fijarSalida(e.latlng.lat, e.latlng.lng));
-$("ubicacion").onclick = () => navigator.geolocation?.getCurrentPosition(
-  (p) => { fijarSalida(p.coords.latitude, p.coords.longitude); mapa.setView([p.coords.latitude, p.coords.longitude], 15); },
-  () => { $("estado").textContent = "No pude leer tu ubicación: toca el mapa."; });
-
-const km = (m) => m >= 1000 ? (m / 1000).toFixed(2).replace(".", ",") + " km" : Math.round(m) + " m";
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-function dibujar(plan) {
+  $("desde").value = nombre || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  if (marcaSalida) marcaSalida.setLatLng([lat, lon]);
+  else {
+    marcaSalida = L.marker([lat, lon], { icon: pin("salida"), draggable: true, zIndexOffset: 1000 }).addTo(mapa);
+    marcaSalida.on("dragend", () => { const p = marcaSalida.getLatLng(); fijarSalida(p.lat, p.lng, "Punto en el mapa"); });
+  }
+  if (centrar) mapa.setView([lat, lon], 15);
   capas.clearLayers();
-  const ll = (c) => c.map((p) => [p[0], p[1]]);
-  for (const parte of plan.partes) {
-    if (!parte.coordenadas?.length || parte.tipo === "serie") continue;
-    L.polyline(ll(parte.coordenadas), { color: "#38bdf8", weight: 4, dashArray: "6 8", opacity: .9 }).addTo(capas);
+  hoja('<p class="pista">Salida lista. Elige la sesión y pulsa «Crear ruta». Puedes arrastrar el punto.</p>');
+}
+mapa.on("click", (e) => fijarSalida(e.latlng.lat, e.latlng.lng, "Punto en el mapa"));
+
+$("cerca").onclick = () => {
+  if (!navigator.geolocation) return hoja('<p class="aviso">Este navegador no da la ubicación: escribe una calle o toca el mapa.</p>');
+  hoja('<div class="cargando"><div class="rueda"></div>Buscando tu ubicación…</div>');
+  navigator.geolocation.getCurrentPosition(
+    (p) => fijarSalida(p.coords.latitude, p.coords.longitude, "Mi ubicación", true),
+    () => hoja('<p class="aviso">No pude leer tu ubicación (revisa el permiso). Escribe una calle o toca el mapa.</p>'),
+    { enableHighAccuracy: true, timeout: 10000 });
+};
+
+let busqueda = 0;
+$("desde").addEventListener("input", () => {
+  const q = $("desde").value.trim(), yo = ++busqueda;
+  if (q.length < 3) { $("sugerencias").style.display = "none"; return; }
+  setTimeout(async () => {
+    if (yo !== busqueda) return;
+    const r = await fetch("/api/lugares?q=" + encodeURIComponent(q)).then((x) => x.json()).catch(() => []);
+    if (yo !== busqueda) return;
+    $("sugerencias").innerHTML = r.length
+      ? r.map((l, i) => `<button type="button" data-i="${i}">${esc(l.nombre)}<small>${esc(l.comuna.replace("_", " "))}</small></button>`).join("")
+      : '<button type="button" disabled>Sin resultados: prueba «Pocuro con Tobalaba» o toca el mapa</button>';
+    $("sugerencias").style.display = "block";
+    for (const b of $("sugerencias").querySelectorAll("button[data-i]")) {
+      b.onclick = () => { const l = r[+b.dataset.i]; $("sugerencias").style.display = "none";
+                          fijarSalida(l.lat, l.lon, l.nombre, true); };
+    }
+  }, 200);
+});
+$("desde").addEventListener("blur", () => setTimeout(() => { $("sugerencias").style.display = "none"; }, 200));
+
+for (const c of document.querySelectorAll(".chip")) {
+  c.onclick = () => {
+    document.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
+    $("texto").value = c.dataset.t;
+  };
+}
+for (const a of document.querySelectorAll("nav a[data-pronto]")) {
+  a.onclick = (e) => { e.preventDefault();
+    hoja(`<p class="pista">${a.dataset.pronto}: llega al conectar Strava (las calles que ya corriste y las que te faltan).</p>`); };
+}
+
+const num = (x, d = 0) => x.toLocaleString("es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
+const km = (m) => m >= 1000 ? num(m / 1000, m < 10000 ? 2 : 1) + " km" : num(m) + " m";
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const TIPOS = { series: "Series", cuestas: "Cuestas", tempo: "Tempo", fondo: "Fondo largo", regenerativo: "Regenerativo" };
+
+// ── Estilo de cada parte ────────────────────────────────────────────────────
+const TROTE = { color: "#3d5a80", weight: 4, opacity: .85, dashArray: "1 8", lineCap: "round" };
+const FUERTE = { color: "#f2541b", weight: 7, opacity: 1, lineCap: "round" };
+const ESTILO = { calentamiento: TROTE, vuelta_calma: TROTE,
+                 recuperacion: { color: "#3d5a80", weight: 3, opacity: .6 } };
+const estilo = (tipo) => ESTILO[tipo] || FUERTE;
+
+// ── Dibujar la ruta como si se trazara ──────────────────────────────────────
+// Las partes se recorren en orden de carrera a velocidad constante, con un
+// punto a la cabeza. Las repeticiones sobre el mismo tramo se trazan una sola
+// vez: repetirlas sólo alargaría la espera.
+function partesParaDibujar(plan) {
+  const vistas = new Set(), out = [];
+  for (const p of plan.partes) {
+    const c = p.coordenadas;
+    if (!c?.length) continue;
+    if (["serie", "tempo", "recuperacion"].includes(p.tipo)) {
+      const clave = [c[0], c.at(-1)].map((x) => x[0].toFixed(4) + "," + x[1].toFixed(4)).sort().join("|");
+      if (vistas.has(clave)) continue;
+      vistas.add(clave);
+    }
+    out.push(p);
   }
+  return out;
+}
+
+function distM(a, b) {
+  const k = Math.cos(a[0] * Math.PI / 180);
+  return Math.hypot((b[0] - a[0]) * 111195, (b[1] - a[1]) * 111195 * k);
+}
+
+function dibujarAnimado(plan, alTerminar) {
+  if (animacion) cancelAnimationFrame(animacion);
+  capas.clearLayers();
+  const partes = partesParaDibujar(plan);
+  if (!partes.length) return alTerminar?.();
+  const largo = (c) => c.reduce((t, p, i) => i ? t + distM(c[i - 1], p) : 0, 0);
+  const total = partes.reduce((s, p) => s + largo(p.coordenadas), 0);
+  const duracion = Math.min(3500, 1400 + total / 6);       // ms
+  const cabeza = L.circleMarker(partes[0].coordenadas[0], { radius: 7, color: "#fff", weight: 3,
+                                fillColor: "#f2541b", fillOpacity: 1 }).addTo(capas);
+  let i = 0, j = 1, recorrido = 0, t0 = null;
+  let linea = L.polyline([partes[0].coordenadas[0]], estilo(partes[0].tipo)).addTo(capas);
+  function paso(t) {
+    t0 ??= t;
+    const meta = (t - t0) / duracion * total;
+    while (i < partes.length && recorrido <= meta) {
+      const c = partes[i].coordenadas;
+      if (j >= c.length) {
+        if (++i < partes.length) { j = 1; linea = L.polyline([partes[i].coordenadas[0]], estilo(partes[i].tipo)).addTo(capas); }
+        continue;
+      }
+      recorrido += distM(c[j - 1], c[j]);
+      linea.addLatLng([c[j][0], c[j][1]]);
+      cabeza.setLatLng([c[j][0], c[j][1]]);
+      j++;
+    }
+    if (i < partes.length) animacion = requestAnimationFrame(paso);
+    else { animacion = null; cabeza.remove(); alTerminar?.(); }
+  }
+  animacion = requestAnimationFrame(paso);
+}
+
+function marcas(plan) {
   const t = plan.tramo;
-  L.polyline(ll(t.coordenadas), { color: "#f97316", weight: 8, opacity: .95 }).addTo(capas);
-  L.marker(t.inicio, { title: "Inicio de la serie" }).addTo(capas).bindPopup("Serie: extremo A");
-  L.marker(t.fin, { title: "Fin de la serie" }).addTo(capas).bindPopup("Serie: extremo B");
-  for (const c of t.cruces) {
-    L.circleMarker([c.lat, c.lon], { radius: 5, color: c.semaforo ? "#ef4444" : "#fbbf24", weight: 2 })
-      .addTo(capas).bindPopup(c.semaforo ? "Semáforo" : "Cruce" + (c.calle ? " con " + esc(c.calle) : ""));
+  if (t) {
+    L.marker(t.inicio, { icon: pin("", "#f2541b") }).addTo(capas).bindPopup("Inicio de la repetición");
+    L.marker(t.fin, { icon: pin("", "#1d1d21") }).addTo(capas).bindPopup("Fin de la repetición");
   }
-  mapa.fitBounds(L.polyline(plan.partes.flatMap((p) => ll(p.coordenadas || []))).getBounds(),
-                 { paddingTopLeft: [20, 90], paddingBottomRight: [20, $("abajo").offsetHeight + 30], animate: false });
+  for (const m of plan.marcas || []) {
+    if (m.tipo === "extremo") continue;
+    const color = { semaforo: "#d62828", cruce: "#f4a100", agua: "#1c7ed6" }[m.tipo] || "#666";
+    L.circleMarker(m.punto, { radius: 5, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 })
+      .addTo(capas).bindPopup(esc(m.texto) + (m.a_m != null ? ` · km ${num(m.a_m / 1000, 1)}` : ""));
+  }
+}
+
+function encuadrar(plan) {
+  const pts = plan.partes.flatMap((p) => (p.coordenadas || []).map((c) => [c[0], c[1]]));
+  if (!pts.length) return;
+  const arriba = document.querySelector("header").offsetHeight + 16;
+  const abajo = $("hoja").offsetHeight + document.querySelector("nav").offsetHeight + 16;
+  mapa.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [24, arriba], paddingBottomRight: [24, abajo], animate: false });
+}
+
+// ── Hoja de resultados ──────────────────────────────────────────────────────
+function cifrasDe(plan) {
+  const r = plan.tramo || plan.bloque || plan.recorrido;
+  const cruces = (r.cruces_menores || 0) + (r.cruces_mayores || 0);
+  const primera = plan.tramo ? [km(plan.tramo.largo_m), plan.sesion.tipo === "tempo" ? "Tramo" : "Repetición"]
+                             : [km(r.distancia_m), plan.bloque ? "Bloque" : "Distancia"];
+  const ultima = plan.sesion.tipo === "cuestas" ? [num(Math.abs(plan.tramo.pendiente_pct), 1) + " %", "Pendiente"]
+               : r.desnivel_m != null ? [num(r.desnivel_m) + " m", "Desnivel"] : [num(r.subida_m) + " m", "Subida"];
+  return [primera, [r.semaforos, "Semáforos"], [cruces, "Cruces"], ultima];
+}
+
+function perfilSvg(plan) {
+  const pts = [];
+  let d = 0, prev = null;
+  for (const p of plan.partes) for (const c of p.coordenadas || []) {
+    if (prev) d += distM(prev, c);
+    pts.push([d, c[2]]); prev = c;
+  }
+  if (pts.length < 2 || d <= 0) return "";
+  const zs = pts.map((p) => p[1]), lo = Math.min(...zs), hi = Math.max(...zs), W = 320, H = 56;
+  const x = (v) => v / d * W, y = (z) => H - 4 - (z - lo) / Math.max(hi - lo, 5) * (H - 10);
+  const linea = pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+  return `<div class="perfil"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <path d="${linea}L${W},${H}L0,${H}Z" fill="#fde3d8"/><path d="${linea}" fill="none" stroke="#f2541b" stroke-width="1.6"/></svg>
+    <small>Perfil de toda la sesión · ${num(lo)}–${num(hi)} m s. n. m.</small></div>`;
 }
 
 function mostrar(plan) {
-  const t = plan.tramo, tot = plan.totales;
-  $("abajo").innerHTML = `
-    <h2>${esc(plan.sesion.resumen)}${t.calles?.length ? " · " + esc(t.calles.join(" / ")) : ""}</h2>
-    <div class="cifras">
-      <div class="cifra"><b>${km(t.largo_m)}</b><span>serie</span></div>
-      <div class="cifra"><b>${t.semaforos}</b><span>semáforos</span></div>
-      <div class="cifra"><b>${t.cruces_menores + t.cruces_mayores}</b><span>cruces</span></div>
-      <div class="cifra"><b>${Math.round(t.desnivel_m)} m</b><span>desnivel</span></div>
-    </div>
-    ${plan.explicacion.map((l) => `<p>${esc(l)}</p>`).join("")}
-    ${plan.avisos.map((a) => `<p class="aviso">${esc(a)}</p>`).join("")}
-    <div class="fila"><button class="sec" id="gpx" type="button">Descargar GPX</button>
-      <button class="sec" id="otra" type="button">Cambiar salida</button></div>`;
+  const r = plan.tramo || plan.bloque || plan.recorrido;
+  const calles = r.calles?.length ? r.calles.slice(0, 3).join(" · ") : "";
+  hoja(`<div class="tipo">${TIPOS[plan.sesion.tipo]} · ${km(plan.totales.distancia_m)} en total</div>
+    <h2>${esc(plan.sesion.resumen)}</h2>
+    <div class="donde">${esc(calles)}</div>
+    <div class="cifras">${cifrasDe(plan).map(([v, e]) =>
+      `<div class="cifra"><span>${e}</span><b class="${v === 0 ? "cero" : ""}">${v}</b></div>`).join("")}</div>
+    ${perfilSvg(plan)}
+    <div class="texto">${plan.explicacion.map((l) => `<p>${esc(l)}</p>`).join("")}
+    ${plan.avisos.slice(0, -1).map((a) => `<p class="aviso">${esc(a)}</p>`).join("")}</div>
+    <div class="fila"><button id="gpx" type="button">Descargar GPX</button>
+      <button class="sec" id="otra" type="button">Cambiar salida</button></div>`);
   $("gpx").onclick = descargarGpx;
-  $("otra").onclick = () => { $("abajo").innerHTML = '<p class="pista">Toca el mapa para marcar otra salida.</p>'; };
+  $("otra").onclick = () => { capas.clearLayers(); $("desde").focus(); $("desde").select();
+    hoja('<p class="pista">Escribe otra calle, usa «Cerca de mí» o toca el mapa.</p>'); };
 }
 
 function pedido() { return { lat: salida.lat, lon: salida.lon, texto: $("texto").value }; }
@@ -123,19 +361,23 @@ async function descargarGpx() {
   a.click();
 }
 
-$("arriba").onsubmit = async (e) => {
+$("form").onsubmit = async (e) => {
   e.preventDefault();
-  if (!salida) { $("abajo").innerHTML = '<p class="aviso">Primero toca el mapa para marcar tu salida.</p>'; return; }
+  document.activeElement?.blur();
+  if (!salida) return hoja('<p class="aviso">Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.</p>');
   $("armar").disabled = true;
-  $("abajo").innerHTML = '<p class="pista">Buscando el mejor tramo… (la primera vez baja el mapa de la comuna)</p>';
+  hoja('<div class="cargando"><div class="rueda"></div>Buscando la mejor ruta para tu sesión…</div>');
   try {
     const r = await fetch("/api/ruta", { method: "POST", headers: { "Content-Type": "application/json" },
                                          body: JSON.stringify(pedido()) });
     const j = await r.json();
     if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : "No pude armar la ruta.");
-    ultimo = j; mostrar(j); dibujar(j);
+    $("comuna").textContent = j.comuna.replace("_", " ");
+    mostrar(j);
+    encuadrar(j);
+    dibujarAnimado(j, () => marcas(j));
   } catch (err) {
-    $("abajo").innerHTML = `<p class="aviso">${esc(err.message)}</p>`;
+    hoja(`<p class="aviso">${esc(err.message)}</p>`);
   } finally { $("armar").disabled = false; }
 };
 </script>

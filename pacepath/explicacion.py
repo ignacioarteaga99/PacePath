@@ -59,3 +59,73 @@ def explicar_series(plan: dict) -> list[str]:
     lineas.append(f"Total: {metros(tot['distancia_m'])} "
                   f"({metros(tot['series_m'])} de series).")
     return lineas
+
+
+def explicar_cuestas(plan: dict) -> list[str]:
+    t, tot, s = plan["tramo"], plan["totales"], plan["sesion"]
+    sem = "sin semáforos" if t["semaforos"] == 0 else f"{t['semaforos']} semáforo(s)"
+    cru = "sin cruces" if t["cruces_menores"] + t["cruces_mayores"] == 0 else \
+        f"{t['cruces_menores'] + t['cruces_mayores']} cruce(s)"
+    cal = next(p for p in plan["partes"] if p["tipo"] == "calentamiento")
+    por = f" por {lista(cal['calles'][:4])}" if cal.get("calles") else ""
+    return [
+        f"Las cuestas van por {_donde(t)}: {metros(t['largo_m'])} de subida al "
+        f"{num(abs(t['pendiente_pct']), 1)} % (pediste {num(s['pendiente_pct'], 1)} %), "
+        f"{sem}, {cru}, {num(t['desnivel_m'])} m de desnivel por repetición.",
+        f"Haz las {s['repeticiones']} subidas fuerte y baja trotando suave: la bajada es la "
+        "recuperación.",
+        f"Calentamiento: {metros(cal['distancia_m'])} hasta el pie de la cuesta{por}.",
+        f"Total: {metros(tot['distancia_m'])} ({metros(tot['series_m'])} de subida).",
+    ]
+
+
+def _paradas(r: dict) -> str:
+    sem, cru = r["semaforos"], r["cruces_mayores"] + r["cruces_menores"]
+    if sem == 0 and cru == 0:
+        return "sin semáforos ni cruces"
+    return f"{sem} semáforo(s) y {cru} cruce(s)"
+
+
+def explicar_tempo(plan: dict) -> list[str]:
+    tot, s = plan["totales"], plan["sesion"]
+    cal = next(p for p in plan["partes"] if p["tipo"] == "calentamiento")
+    lineas = []
+    if plan["forma"] == "corredor":
+        t = plan["tramo"]
+        lineas.append(
+            f"El tempo va por {_donde(t)}: un tramo de {metros(t['largo_m'])} sin semáforos ni "
+            f"cruces, en ida y vuelta {plan['vueltas']} veces "
+            f"({plan['vueltas'] - 1} vueltas en U), desnivel {num(t['desnivel_m'])} m.")
+    else:
+        b = plan["bloque"]
+        donde = f" por {lista(b['calles'][:4])}" if b.get("calles") else ""
+        lineas.append(f"El bloque de tempo es un tramo continuo de {metros(b['distancia_m'])}"
+                      f"{donde}: {_paradas(b)}, {num(b['subida_m'])} m de subida.")
+    alt = plan.get("alternativa")
+    if alt:
+        lineas.append(f"Lo elegí porque tiene menos detenciones probables "
+                      f"({num(plan['detenciones_bloque'], 1)}) que la otra forma "
+                      f"({alt['forma']}: {num(alt['detenciones_bloque'], 1)}).")
+    lineas.append(f"Calentamiento: {metros(cal['distancia_m'])}. "
+                  f"Vuelta a la calma: {metros(tot['vuelta_calma_m'])}.")
+    lineas.append(f"Total: {metros(tot['distancia_m'])} ({metros(tot['tempo_m'])} de tempo).")
+    return lineas
+
+
+def explicar_continuo(plan: dict) -> list[str]:
+    r, s = plan["recorrido"], plan["sesion"]
+    nombre = "Fondo" if s["tipo"] == "fondo" else "Regenerativo"
+    por = f" por {lista(r['calles'][:5])}" if r.get("calles") else ""
+    lineas = [f"{nombre} de {metros(r['distancia_m'])} en circuito{por}.",
+              f"En el camino: {_paradas(r)}; {num(r['subida_m'])} m de subida; "
+              f"{r['parque_pct']} % por parque."]
+    if s["tipo"] == "fondo":
+        agua = [a for a in r["agua"] if a["tipo"] == "drinking_water"]
+        banos = [a for a in r["agua"] if a["tipo"] == "toilets"]
+        if agua:
+            lineas.append("Fuentes de agua en los km " +
+                          lista([num(a["a_m"] / 1000, 1) for a in agua]) + ".")
+        if banos:
+            lineas.append("Baños en los km " +
+                          lista([num(a["a_m"] / 1000, 1) for a in banos]) + ".")
+    return lineas
