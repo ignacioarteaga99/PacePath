@@ -67,8 +67,10 @@ def test_flujo_completo(falso):
     assert r.headers["location"] == "/#ciudad"
     cookie = cli.cookies.get(strava.COOKIE)
     assert cookie and "a1" not in cookie                  # cifrada, no en claro
-    assert cli.get("/api/strava/estado").json() == {
-        "configurado": True, "conectado": True, "nombre": "Ignacio", "privadas": True}
+    e = cli.get("/api/strava/estado").json()
+    assert e | {"vuelta": None} == {"configurado": True, "conectado": True, "nombre": "Ignacio",
+                                    "privadas": True, "vuelta": None}
+    assert e["vuelta"] == "https://pacepath.onrender.com/api/strava/vuelta"
 
     # El token venció (expires_at=0): se renueva solo y sólo vuelven carreras.
     j = cli.get("/api/strava/actividades").json()

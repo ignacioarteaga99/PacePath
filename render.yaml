@@ -20,6 +20,10 @@ services:
         value: https://github.com/ignacioarteaga99/PacePath/releases/download/nombres
       - key: RACEENGINE_MAX_REGIONS
         value: "1"
+      # URL pública: con ella se arma la dirección de vuelta de Strava, que debe
+      # coincidir con el «Authorization Callback Domain» de la app de Strava.
+      - key: PACEPATH_URL
+        value: https://pacepath.onrender.com
       # Strava (Fase 2). El Client ID es público; el secreto se pega en Render,
       # nunca en el repositorio.
       - key: STRAVA_CLIENT_ID

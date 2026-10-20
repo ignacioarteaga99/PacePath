@@ -214,6 +214,9 @@ def strava_vuelta(request: Request, code: str | None = None, state: str | None =
 def strava_estado(request: Request) -> dict:
     s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
     return {"configurado": strava.configurado(), "conectado": s is not None,
+            # Para diagnosticar «redirect_uri invalid»: el dominio de esta URL
+            # debe ser el «Authorization Callback Domain» de la app de Strava.
+            "vuelta": f"{_base(request)}/api/strava/vuelta",
             "nombre": s.nombre if s else None,
             "privadas": bool(s and "activity:read_all" in s.alcance)}
 
