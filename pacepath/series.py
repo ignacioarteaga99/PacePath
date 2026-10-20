@@ -31,7 +31,9 @@ from raceengine_engine.weights import build_weights
 from raceengine_geodata import ALL_CLASSES
 from raceengine_routing import RoutingWeights
 
+from . import nombres as _nombres
 from .sesion import CRUCE_MAYOR, Requisitos, Sesion, TipoSesion, requisitos
+from .explicacion import explicar_series
 from .tramos import CLASES_SENDA, Trazo, aristas_corribles, trazos
 
 MARGEN_EXTREMO_M = 8.0        # un cruce justo en el inicio o el fin no corta la serie
@@ -291,14 +293,23 @@ def _tramo_info(ctx: GraphContext, m: Tramo) -> dict:
         c = ALL_CLASSES[g.eclass[e]]
         clases[c] = clases.get(c, 0.0) + float(g.elen[e])
     coords = m.coordenadas(ctx)
+    cruces = m.cruces(ctx)
+    tabla = _nombres.tabla(ctx)
+    calles: list[str] = []
+    if tabla is not None:
+        calles = tabla.principal(ctx, aristas)
+        for c in cruces:
+            nodo = int(g.nearest_node(c["lat"], c["lon"]))
+            c["calle"] = tabla.del_nodo(ctx, nodo, set(calles))
     return {
+        "calles": calles,
         "inicio": [round(coords[0][0], 6), round(coords[0][1], 6)],
         "fin": [round(coords[-1][0], 6), round(coords[-1][1], 6)],
         "largo_m": round(m.largo_m),
         "semaforos": m.semaforos,
         "cruces_mayores": m.cruces_mayores,
         "cruces_menores": m.cruces_menores,
-        "cruces": m.cruces(ctx),
+        "cruces": cruces,
         "desnivel_m": round(m.desnivel_m, 1),
         "subida_m": round(subida, 1),
         "pendiente_media_pct": round(abs(z[-1] - z[0]) / m.largo_m * 100, 2),
@@ -313,9 +324,22 @@ def _tramo_info(ctx: GraphContext, m: Tramo) -> dict:
     }
 
 
+def _calles_trote(ctx: GraphContext, aristas: list[int]) -> list[str]:
+    """Calles del trote en orden de paso, sin repetir las consecutivas."""
+    tabla = _nombres.tabla(ctx)
+    if tabla is None or not aristas:
+        return []
+    out: list[str] = []
+    for n in tabla.de_aristas(ctx, aristas):
+        if n and (not out or out[-1] != n) and n not in out:
+            out.append(n)
+    return out
+
+
 def _tramo_trote(ctx: GraphContext, w: RoutingWeights, a: int, b: int) -> dict | None:
     if a == b:
-        return {"distancia_m": 0, "semaforos": 0, "subida_m": 0.0, "coordenadas": []}
+        return {"distancia_m": 0, "semaforos": 0, "calles": [], "subida_m": 0.0,
+                "coordenadas": []}
     leg = ctx.provider.shortest_path(a, b, w)
     if leg is None or not leg.ok:
         return None
@@ -325,6 +349,7 @@ def _tramo_trote(ctx: GraphContext, w: RoutingWeights, a: int, b: int) -> dict |
     return {
         "distancia_m": round(leg.distance_m),
         "semaforos": int(g.is_signal[n].sum()),
+        "calles": _calles_trote(ctx, leg.edges),
         "subida_m": round(float(np.maximum(np.diff(z), 0).sum()), 1),
         "coordenadas": [[round(float(g.lat[i]), 6), round(float(g.lon[i]), 6),
                          round(float(g.elev[i]), 1)] for i in n],
@@ -383,7 +408,7 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                       f"con {calentamiento_extra} m suaves por el mismo tramo.")
     avisos.append("Elevación del modelo SRTM (±2–3 m): el desnivel es orientativo.")
 
-    return {
+    plan = {
         "sesion": sesion.model_dump(mode="json") | {"resumen": sesion.resumen},
         "comuna": ctx.region_id,
         "salida": [round(float(g.lat[casa]), 6), round(float(g.lon[casa]), 6)],
@@ -402,3 +427,5 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                        if k not in ("tipo", "notas")},
         "notas": list(req.notas),
     }
+    plan["explicacion"] = explicar_series(plan)
+    return plan

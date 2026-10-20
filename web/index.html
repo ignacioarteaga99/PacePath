@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>PacePath</title>
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<style>
+  :root {
+    --fondo: #0f172a; --panel: rgba(15, 23, 42, .94); --texto: #f1f5f9; --suave: #94a3b8;
+    --serie: #f97316; --trote: #38bdf8; --borde: rgba(148, 163, 184, .25);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--texto);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  #mapa { position: fixed; inset: 0; background: #1e293b; }
+  .flota { position: fixed; left: 12px; right: 12px; z-index: 1000; background: var(--panel);
+    border: 1px solid var(--borde); border-radius: 14px; backdrop-filter: blur(8px); }
+  #arriba { top: calc(env(safe-area-inset-top) + 12px); padding: 10px; display: flex; gap: 8px; }
+  /* 16 px: con menos, Safari iOS hace zoom al enfocar. */
+  #texto { flex: 1; min-width: 0; font-size: 16px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--borde); background: #0b1220; color: var(--texto); }
+  button { font-size: 16px; border: 0; border-radius: 10px; padding: 10px 14px; font-weight: 600;
+    background: var(--serie); color: #111; cursor: pointer; }
+  button.sec { background: #1e293b; color: var(--texto); border: 1px solid var(--borde); }
+  button:disabled { opacity: .5; }
+  #abajo { bottom: calc(env(safe-area-inset-bottom) + 12px); padding: 12px 14px; max-height: 42vh;
+    overflow-y: auto; }
+  #abajo h2 { margin: 0 0 6px; font-size: 17px; }
+  #abajo p { margin: 6px 0; }
+  .cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0; }
+  .cifra { background: #0b1220; border-radius: 10px; padding: 6px; text-align: center; }
+  .cifra b { display: block; font-size: 17px; }
+  .cifra span { color: var(--suave); font-size: 12px; }
+  .aviso { color: #fbbf24; font-size: 13px; }
+  .pista { color: var(--suave); font-size: 13px; }
+  .fila { display: flex; gap: 8px; margin-top: 8px; }
+  .fila button { flex: 1; }
+</style>
+</head>
+<body>
+<div id="mapa"></div>
+<form id="arriba" class="flota" autocomplete="off">
+  <input id="texto" value="6x1k" aria-label="Sesión de hoy" placeholder="6x1k, 8x400 r60…">
+  <button id="armar" type="submit">Armar</button>
+</form>
+<div id="abajo" class="flota">
+  <p class="pista" id="estado">Toca el mapa para marcar tu salida (o usa tu ubicación) y escribe la sesión de hoy.</p>
+  <div class="fila"><button class="sec" id="ubicacion" type="button">Usar mi ubicación</button></div>
+</div>
+<script src="/vendor/leaflet/leaflet.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const mapa = L.map("mapa", { zoomControl: false, zoomSnap: 0.25 }).setView([-33.4258, -70.61], 14);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, attribution: "© OpenStreetMap",
+}).addTo(mapa);
+
+let salida = null, marca = null, capas = L.layerGroup().addTo(mapa), ultimo = null;
+
+function fijarSalida(lat, lon) {
+  salida = { lat, lon };
+  if (marca) marca.setLatLng([lat, lon]);
+  else marca = L.circleMarker([lat, lon], { radius: 8, color: "#fff", fillColor: "#22c55e",
+                                            fillOpacity: 1, weight: 3 }).addTo(mapa);
+  $("estado").textContent = "Salida marcada. Pulsa «Armar».";
+}
+mapa.on("click", (e) => fijarSalida(e.latlng.lat, e.latlng.lng));
+$("ubicacion").onclick = () => navigator.geolocation?.getCurrentPosition(
+  (p) => { fijarSalida(p.coords.latitude, p.coords.longitude); mapa.setView([p.coords.latitude, p.coords.longitude], 15); },
+  () => { $("estado").textContent = "No pude leer tu ubicación: toca el mapa."; });
+
+const km = (m) => m >= 1000 ? (m / 1000).toFixed(2).replace(".", ",") + " km" : Math.round(m) + " m";
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function dibujar(plan) {
+  capas.clearLayers();
+  const ll = (c) => c.map((p) => [p[0], p[1]]);
+  for (const parte of plan.partes) {
+    if (!parte.coordenadas?.length || parte.tipo === "serie") continue;
+    L.polyline(ll(parte.coordenadas), { color: "#38bdf8", weight: 4, dashArray: "6 8", opacity: .9 }).addTo(capas);
+  }
+  const t = plan.tramo;
+  L.polyline(ll(t.coordenadas), { color: "#f97316", weight: 8, opacity: .95 }).addTo(capas);
+  L.marker(t.inicio, { title: "Inicio de la serie" }).addTo(capas).bindPopup("Serie: extremo A");
+  L.marker(t.fin, { title: "Fin de la serie" }).addTo(capas).bindPopup("Serie: extremo B");
+  for (const c of t.cruces) {
+    L.circleMarker([c.lat, c.lon], { radius: 5, color: c.semaforo ? "#ef4444" : "#fbbf24", weight: 2 })
+      .addTo(capas).bindPopup(c.semaforo ? "Semáforo" : "Cruce" + (c.calle ? " con " + esc(c.calle) : ""));
+  }
+  mapa.fitBounds(L.polyline(plan.partes.flatMap((p) => ll(p.coordenadas || []))).getBounds(),
+                 { paddingTopLeft: [20, 90], paddingBottomRight: [20, $("abajo").offsetHeight + 30], animate: false });
+}
+
+function mostrar(plan) {
+  const t = plan.tramo, tot = plan.totales;
+  $("abajo").innerHTML = `
+    <h2>${esc(plan.sesion.resumen)}${t.calles?.length ? " · " + esc(t.calles.join(" / ")) : ""}</h2>
+    <div class="cifras">
+      <div class="cifra"><b>${km(t.largo_m)}</b><span>serie</span></div>
+      <div class="cifra"><b>${t.semaforos}</b><span>semáforos</span></div>
+      <div class="cifra"><b>${t.cruces_menores + t.cruces_mayores}</b><span>cruces</span></div>
+      <div class="cifra"><b>${Math.round(t.desnivel_m)} m</b><span>desnivel</span></div>
+    </div>
+    ${plan.explicacion.map((l) => `<p>${esc(l)}</p>`).join("")}
+    ${plan.avisos.map((a) => `<p class="aviso">${esc(a)}</p>`).join("")}
+    <div class="fila"><button class="sec" id="gpx" type="button">Descargar GPX</button>
+      <button class="sec" id="otra" type="button">Cambiar salida</button></div>`;
+  $("gpx").onclick = descargarGpx;
+  $("otra").onclick = () => { $("abajo").innerHTML = '<p class="pista">Toca el mapa para marcar otra salida.</p>'; };
+}
+
+function pedido() { return { lat: salida.lat, lon: salida.lon, texto: $("texto").value }; }
+
+async function descargarGpx() {
+  const r = await fetch("/api/ruta.gpx", { method: "POST", headers: { "Content-Type": "application/json" },
+                                           body: JSON.stringify(pedido()) });
+  if (!r.ok) return;
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await r.blob()),
+                                                         download: "pacepath.gpx" });
+  a.click();
+}
+
+$("arriba").onsubmit = async (e) => {
+  e.preventDefault();
+  if (!salida) { $("abajo").innerHTML = '<p class="aviso">Primero toca el mapa para marcar tu salida.</p>'; return; }
+  $("armar").disabled = true;
+  $("abajo").innerHTML = '<p class="pista">Buscando el mejor tramo… (la primera vez baja el mapa de la comuna)</p>';
+  try {
+    const r = await fetch("/api/ruta", { method: "POST", headers: { "Content-Type": "application/json" },
+                                         body: JSON.stringify(pedido()) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : "No pude armar la ruta.");
+    ultimo = j; mostrar(j); dibujar(j);
+  } catch (err) {
+    $("abajo").innerHTML = `<p class="aviso">${esc(err.message)}</p>`;
+  } finally { $("armar").disabled = false; }
+};
+</script>
+</body>
+</html>

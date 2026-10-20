@@ -36,3 +36,22 @@ de rutas sobre grafos de OpenStreetMap con elevación, semáforos y cruces, y lo
 grafos de comunas de Santiago ya publicados en su Release `graphs`.
 
 Plan de trabajo: [`PLAN.md`](PLAN.md).
+
+## Desarrollo
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e ".[dev]"
+pytest                          # PACEPATH_SIN_RED=1 salta los tests con grafo real
+uvicorn pacepath.api:app --reload   # http://localhost:8000
+```
+
+Los grafos de comuna se descargan solos la primera vez desde la Release `graphs`
+de RaceEngine a `data/` (variables `RACEENGINE_GRAPHS_URL`, `RACEENGINE_DATA`).
+Los nombres de calle, desde la Release `nombres` de este repo
+(`PACEPATH_NOMBRES_URL`; vacía = sin nombres).
+
+```bash
+curl -X POST localhost:8000/api/ruta -H 'Content-Type: application/json' \
+     -d '{"lat": -33.4258, "lon": -70.61, "texto": "6x1k"}'
+```

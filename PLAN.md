@@ -28,16 +28,21 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
 - **Despliegue:** mismo esquema que RaceEngine (Render gratis + Neon), móvil primero.
 
 ## Fase 0 — Esqueleto
-- [ ] Estructura del repo, FastAPI, dependencias de RaceEngine, tests con pytest.
-- [ ] Cargar un grafo de comuna desde la Release y generar una ruta con el motor.
-- [ ] Interfaz móvil mínima (mapa a pantalla completa, como la de RaceEngine `/m`).
+- [x] Estructura del repo, FastAPI, dependencias de RaceEngine, tests con pytest.
+- [x] Cargar un grafo de comuna desde la Release y generar una ruta con el motor.
+- [x] Interfaz móvil mínima (mapa a pantalla completa, controles flotantes,
+      inputs a 16 px). Leaflet vendorizado en `web/vendor/`.
+- [x] Nombres de calle: el grafo no los trae. Workflow «Nombres de calle»
+      (Overpass en CI) → Release `nombres` de PacePath; se cruzan con el grafo
+      por id de nodo OSM. Trae también fuentes de agua y baños (para fondo).
+      **Propuesta para RaceEngine:** guardar un `ename` por arista en el grafo.
 
 ## Fase 1 — Ruta según la sesión (función principal)
-- [ ] Modelo de sesión: `tipo` (series, tempo, fondo, cuestas, regenerativo),
+- [x] Modelo de sesión: `tipo` (series, tempo, fondo, cuestas, regenerativo),
       distancia o duración, y parámetros (p. ej. 6×1000 m con 90 s de pausa;
       cuestas 8×300 m al 6 %).
 - [ ] Traducir cada sesión a pesos y restricciones del motor:
-  - Series: buscar **tramos rectos y planos** de la longitud de la repetición
+  - [x] Series: buscar **tramos rectos y planos** de la longitud de la repetición
     sin semáforos (`is_signal`) ni cruces mayores; armar calentamiento → bloque
     de series → vuelta. Métrica nueva: «tramo apto para series».
   - Tempo: penalizar semáforos, cruces y giros cerrados; pendiente baja.
@@ -46,9 +51,10 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
   - Cuestas: localizar segmentos con pendiente/largo pedidos (`egrad`, `elen`)
     cerca de la salida.
   - Regenerativo: plano, parques, corto.
-- [ ] Explicación de la ruta («Las series van por Av. Pocuro: 1,1 km recto,
+- [x] Explicación de la ruta (series) («Las series van por Av. Pocuro: 1,1 km recto,
       0 semáforos, desnivel 4 m»).
-- [ ] Exportar GPX con marcas de cada repetición.
+- [x] Exportar GPX con marcas de cada repetición (series).
+- [ ] Generadores de tempo, fondo, cuestas y regenerativo (hoy la API responde 501).
 
 ## Fase 2 — Strava
 - [ ] OAuth de Strava (app propia en strava.com/settings/api; scopes
@@ -75,7 +81,22 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
       «6x1k», «fondo 18k», «cuestas 8x300»).
 - [ ] Despliegue en Render + Neon; PWA instalable en iPhone.
 
+## Cómo funciona «series» (implementado)
+1. `tramos.py` reconstruye «trazos» rectos del grafo (strokes: en cada nodo se
+   empareja la continuación más recta, desvío < 35°). Cada nodo del trazo lleva
+   semáforo (o semáforo a < 25 m de un cruce) y coste de cruce según la clase
+   de las otras vías (senda 0, residencial 1, colectora 2, avenida 3).
+2. `series.py` evalúa todas las ventanas del largo de la repetición. Duro: 0
+   semáforos, 0 cruces de colectora/avenida, desnivel ≤ máx(6 m, 1,2 %), recta.
+   Blando: cruces menores, desnivel, curvatura, distancia extra más allá del
+   calentamiento, parque. Si nada cumple se relaja por niveles y se avisa.
+3. Calentamiento y vuelta con los pesos del motor de RaceEngine (`build_weights`,
+   llano y con pocos semáforos) + sendas de parque; repeticiones en ida y vuelta.
+
 ## Decisiones abiertas
+- Cuánto vale ir más lejos frente a cruzar calles: desde Plaza Ñuñoa el mejor
+  1 km sin cruces está a 4,4 km (Andrés Bello); el más cercano tiene 10–16
+  cruces residenciales. Hoy gana el lejano.
 - Fuente de puntos de agua/baños (OSM) → ampliar el grafo en RaceEngine.
 - Cómo combinar comunas en una ruta (RaceEngine ya soporta regiones compuestas
   `a+b`).
