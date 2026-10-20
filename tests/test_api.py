@@ -42,3 +42,26 @@ def test_todos_los_tipos():
 
 def test_lugares_sin_datos_no_falla():
     assert cli.get("/api/lugares", params={"q": "xx"}).json() == []
+
+
+def test_trazar_a_mano():
+    d = REGIONS["demo"]
+    pts = [{"lat": d.lat, "lon": d.lon}, {"lat": d.lat + 0.006, "lon": d.lon},
+           {"lat": d.lat + 0.006, "lon": d.lon + 0.008}]
+    import pacepath.comunas as c
+    original = c.comuna_para
+    c.comuna_para = lambda lat, lon: "demo"
+    try:
+        r = cli.post("/api/trazar", json={"puntos": pts, "volver": True})
+        assert r.status_code == 200, r.text
+        j = r.json()
+        assert len(j["partes"]) == 3                       # dos tramos y el regreso
+        ini, fin = j["partes"][0]["coordenadas"][0], j["partes"][-1]["coordenadas"][-1]
+        assert abs(ini[0] - fin[0]) < 1e-6 and abs(ini[1] - fin[1]) < 1e-6
+        abierta = cli.post("/api/trazar", json={"puntos": pts, "volver": False}).json()
+        assert len(abierta["partes"]) == 2
+        assert abierta["totales"]["distancia_m"] < j["totales"]["distancia_m"]
+        assert "<trkseg>" in cli.post("/api/trazar.gpx", json={"puntos": pts}).text
+    finally:
+        c.comuna_para = original
+    assert cli.post("/api/trazar", json={"puntos": pts[:1]}).status_code == 422

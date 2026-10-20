@@ -7,6 +7,7 @@
     POST /api/sesion             «6x1k» → sesión estructurada
     POST /api/ruta               sesión + salida → plan completo
     POST /api/ruta.gpx           lo mismo, en GPX
+    POST /api/trazar             ruta a mano: puntos → ruta por la calle (+ .gpx)
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
 from .planificador import planificar
 from .series import SinTramo
+from .trazado import MAX_PUNTOS, TrazadoInvalido, trazar
 
 WEB = Path(__file__).resolve().parents[1] / "web"
 
@@ -31,6 +33,16 @@ app = FastAPI(title="PacePath", version="0.1.0")
 # seguro entre hilos) y en 512 MB tampoco caben dos comunas cargando a la vez.
 _motor = threading.Lock()
 app.mount("/vendor", StaticFiles(directory=WEB / "vendor"), name="vendor")
+
+
+class Punto(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+
+
+class PedidoTrazado(BaseModel):
+    puntos: list[Punto] = Field(min_length=2, max_length=MAX_PUNTOS)
+    volver: bool = True          # la meta es la salida (lo habitual)
 
 
 class TextoSesion(BaseModel):
@@ -100,6 +112,31 @@ def _plan(body: PedidoRuta) -> dict:
 @app.post("/api/ruta")
 def ruta(body: PedidoRuta) -> dict:
     return _plan(body)
+
+
+def _trazado(body: PedidoTrazado) -> dict:
+    p0 = body.puntos[0]
+    comuna = comunas.comuna_para(p0.lat, p0.lon)
+    if comuna is None:
+        raise HTTPException(422, "Ese punto no está en ninguna comuna con mapa todavía.")
+    try:
+        with _motor:
+            ctx = comunas.contexto(comuna)
+            return trazar(ctx, [(p.lat, p.lon) for p in body.puntos], body.volver)
+    except TrazadoInvalido as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/api/trazar")
+def trazar_ruta(body: PedidoTrazado) -> dict:
+    """Ruta a mano: une los puntos por la calle, en orden (y vuelve a la salida)."""
+    return _trazado(body)
+
+
+@app.post("/api/trazar.gpx")
+def trazar_gpx(body: PedidoTrazado) -> Response:
+    return Response(plan_a_gpx(_trazado(body)), media_type="application/gpx+xml",
+                    headers={"Content-Disposition": 'attachment; filename="pacepath-trazado.gpx"'})
 
 
 @app.post("/api/ruta.gpx")

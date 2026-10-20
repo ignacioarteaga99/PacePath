@@ -54,6 +54,21 @@
   #sugerencias button small { color: var(--suave); margin-left: 6px; text-transform: capitalize; }
   #sugerencias button:last-child { border-bottom: 0; }
 
+  .modos { display: grid; grid-template-columns: 1fr 1fr; background: var(--gris); border-radius: 10px;
+    padding: 3px; margin-top: 10px; }
+  .modos button { background: transparent; color: var(--suave); font-size: 14px; padding: 7px; border-radius: 8px; }
+  .modos button.on { background: #fff; color: var(--tinta); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .trazar { display: none; gap: 8px; margin-top: 8px; align-items: center; }
+  body.modo-trazar .trazar { display: flex; }
+  body.modo-trazar .solo-sesion { display: none; }
+  body.modo-trazar #hoja { max-height: 28vh; }
+  .interruptor { display: flex; align-items: center; gap: 8px; flex: 1; font-size: 14px; font-weight: 600; }
+  .interruptor input { width: 22px; height: 22px; accent-color: var(--acento); }
+  .num { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 2px solid var(--acento);
+    color: var(--acento); font: 700 11px/18px -apple-system, sans-serif; text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .num.primero { background: var(--tinta); border-color: #fff; color: #fff; }
+
   /* Hoja inferior */
   #hoja { position: fixed; z-index: 1000; left: 0; right: 0;
     bottom: calc(env(safe-area-inset-bottom) + 58px); background: #fff;
@@ -108,7 +123,11 @@
             stroke-linecap="round" stroke-linejoin="round"/></svg>
     PacePath <small id="comuna"></small>
   </div>
-  <div class="chips" id="chips">
+  <div class="modos" role="tablist">
+    <button type="button" class="on" id="modo-sesion">Ruta para mi sesión</button>
+    <button type="button" id="modo-trazar">Trazar a mano</button>
+  </div>
+  <div class="chips solo-sesion" id="chips">
     <button class="chip on" type="button" data-t="6x1k">Series</button>
     <button class="chip" type="button" data-t="tempo 8k">Tempo</button>
     <button class="chip" type="button" data-t="fondo 18k">Fondo largo</button>
@@ -125,10 +144,15 @@
         Cerca de mí</button>
       <div id="sugerencias"></div>
     </div>
-    <div class="campo">
+    <div class="campo solo-sesion">
       <label for="texto">Sesión</label>
       <input id="texto" value="6x1k" aria-label="Sesión de hoy" placeholder="6x1k · tempo 8k · fondo 18k">
       <button id="armar" type="submit">Crear ruta</button>
+    </div>
+    <div class="trazar">
+      <label class="interruptor"><input type="checkbox" id="volver" checked> Volver a la salida</label>
+      <button class="sec" type="button" id="deshacer">Deshacer</button>
+      <button class="sec" type="button" id="borrar">Borrar</button>
     </div>
   </form>
 </header>
@@ -162,6 +186,15 @@ const pin = (clase, color) => L.divIcon({ className: "", iconSize: [22, 22], ico
 
 // ── Desde dónde se sale ─────────────────────────────────────────────────────
 function fijarSalida(lat, lon, nombre, centrar = false) {
+  if (modo === "trazar") {
+    // En el modo trazar, buscar o «Cerca de mí» fija el primer punto (la salida).
+    $("desde").value = nombre || "";
+    if (puntos.length) puntos[0] = [lat, lon]; else puntos.push([lat, lon]);
+    salida = { lat, lon };
+    pintarPuntos();
+    if (centrar) mapa.setView([lat, lon], 15);
+    return puntos.length > 1 ? recalcular(null) : hoja('<p class="pista">Salida marcada. Toca el mapa para agregar puntos.</p>');
+  }
   salida = { lat, lon };
   $("desde").value = nombre || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
   if (marcaSalida) marcaSalida.setLatLng([lat, lon]);
@@ -173,7 +206,8 @@ function fijarSalida(lat, lon, nombre, centrar = false) {
   capas.clearLayers();
   hoja('<p class="pista">Salida lista. Elige la sesión y pulsa «Crear ruta». Puedes arrastrar el punto.</p>');
 }
-mapa.on("click", (e) => fijarSalida(e.latlng.lat, e.latlng.lng, "Punto en el mapa"));
+mapa.on("click", (e) => modo === "trazar" ? agregarPunto(e.latlng.lat, e.latlng.lng)
+                                         : fijarSalida(e.latlng.lat, e.latlng.lng, "Punto en el mapa"));
 
 $("cerca").onclick = () => {
   if (!navigator.geolocation) return hoja('<p class="aviso">Este navegador no da la ubicación: escribe una calle o toca el mapa.</p>');
@@ -203,6 +237,80 @@ $("desde").addEventListener("input", () => {
   }, 200);
 });
 $("desde").addEventListener("blur", () => setTimeout(() => { $("sugerencias").style.display = "none"; }, 200));
+
+// ── Trazar a mano ───────────────────────────────────────────────────────────
+// Cada toque agrega un punto; el servidor une los puntos por la calle. La
+// salida es el primer punto y, con «Volver a la salida», también la meta.
+let modo = "sesion", puntos = [], marcasPuntos = L.layerGroup().addTo(mapa), pedidoTrazado = 0, ultimoTrazado = null;
+
+function cambiarModo(m) {
+  modo = m;
+  document.body.classList.toggle("modo-trazar", m === "trazar");
+  $("modo-sesion").classList.toggle("on", m === "sesion");
+  $("modo-trazar").classList.toggle("on", m === "trazar");
+  capas.clearLayers(); marcasPuntos.clearLayers();
+  if (marcaSalida) { marcaSalida.remove(); marcaSalida = null; }
+  puntos = salida && m === "trazar" ? [[salida.lat, salida.lon]] : [];
+  if (m === "trazar") { pintarPuntos();
+    hoja('<p class="pista">Toca el mapa para ir marcando por dónde quieres pasar. El primer punto es la salida; puedes arrastrar cualquier punto.</p>'); }
+  else { salida = null; hoja('<p class="pista">Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.</p>'); }
+}
+$("modo-sesion").onclick = () => cambiarModo("sesion");
+$("modo-trazar").onclick = () => cambiarModo("trazar");
+
+function pintarPuntos() {
+  marcasPuntos.clearLayers();
+  puntos.forEach((p, i) => {
+    const m = L.marker(p, { draggable: true, zIndexOffset: 900, icon: L.divIcon({ className: "",
+      iconSize: [22, 22], iconAnchor: [11, 11], html: `<div class="num ${i ? "" : "primero"}">${i ? i + 1 : "S"}</div>` }) });
+    m.on("dragend", () => { const q = m.getLatLng(); puntos[i] = [q.lat, q.lng]; recalcular(null); });
+    m.addTo(marcasPuntos);
+  });
+}
+
+function agregarPunto(lat, lon) {
+  puntos.push([lat, lon]);
+  salida = { lat: puntos[0][0], lon: puntos[0][1] };
+  pintarPuntos();
+  recalcular(Math.max(0, puntos.length - 2));
+}
+
+async function recalcular(animarDesde) {
+  if (puntos.length < 2) { capas.clearLayers(); return; }
+  const yo = ++pedidoTrazado;
+  const r = await fetch("/api/trazar", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ puntos: puntos.map(([lat, lon]) => ({ lat, lon })), volver: $("volver").checked }) });
+  const j = await r.json();
+  if (yo !== pedidoTrazado) return;
+  if (!r.ok) { puntos.pop(); pintarPuntos(); return hoja(`<p class="aviso">${esc(j.detail || "No pude unir ese punto.")}</p>`); }
+  ultimoTrazado = j;
+  $("comuna").textContent = j.comuna.replace("_", " ");
+  mostrarTrazado(j);
+  if (animarDesde == null) dibujarEstatico(j); else dibujarAnimado(j, () => marcas(j), animarDesde);
+}
+
+function mostrarTrazado(j) {
+  const r = j.recorrido;
+  hoja(`<div class="tipo">Ruta trazada · ${j.volver ? "vuelve a la salida" : "termina en el último punto"}</div>
+    <h2>${km(r.distancia_m)}</h2>
+    <div class="donde">${esc((r.calles || []).slice(0, 3).join(" · "))}</div>
+    <div class="cifras">${[[km(r.distancia_m), "Distancia"], [r.semaforos, "Semáforos"],
+      [r.cruces_menores + r.cruces_mayores, "Cruces"], [num(r.subida_m) + " m", "Subida"]].map(([v, e]) =>
+      `<div class="cifra"><span>${e}</span><b class="${v === 0 ? "cero" : ""}">${v}</b></div>`).join("")}</div>
+    ${perfilSvg(j)}
+    <div class="fila"><button id="gpx" type="button">Descargar GPX</button></div>`);
+  $("gpx").onclick = async () => {
+    const r2 = await fetch("/api/trazar.gpx", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ puntos: puntos.map(([lat, lon]) => ({ lat, lon })), volver: $("volver").checked }) });
+    if (!r2.ok) return;
+    Object.assign(document.createElement("a"), { href: URL.createObjectURL(await r2.blob()), download: "pacepath-trazado.gpx" }).click();
+  };
+}
+
+$("volver").onchange = () => recalcular(Math.max(0, puntos.length - 2));
+$("deshacer").onclick = () => { puntos.pop(); pintarPuntos(); if (puntos.length < 2) { capas.clearLayers(); hoja('<p class="pista">Toca el mapa para seguir marcando.</p>'); } else recalcular(null); };
+$("borrar").onclick = () => { puntos = []; salida = null; pintarPuntos(); capas.clearLayers();
+  hoja('<p class="pista">Toca el mapa para marcar la salida.</p>'); };
 
 for (const c of document.querySelectorAll(".chip")) {
   c.onclick = () => {
@@ -251,10 +359,20 @@ function distM(a, b) {
   return Math.hypot((b[0] - a[0]) * 111195, (b[1] - a[1]) * 111195 * k);
 }
 
-function dibujarAnimado(plan, alTerminar) {
+function dibujarEstatico(plan) {
   if (animacion) cancelAnimationFrame(animacion);
   capas.clearLayers();
-  const partes = partesParaDibujar(plan);
+  for (const p of partesParaDibujar(plan)) L.polyline(p.coordenadas.map((c) => [c[0], c[1]]), estilo(p.tipo)).addTo(capas);
+  marcas(plan);
+}
+
+function dibujarAnimado(plan, alTerminar, desde = 0) {
+  if (animacion) cancelAnimationFrame(animacion);
+  capas.clearLayers();
+  const todas = partesParaDibujar(plan);
+  // Lo ya dibujado antes se pinta de una vez; sólo lo nuevo se traza.
+  for (const p of todas.slice(0, desde)) L.polyline(p.coordenadas.map((c) => [c[0], c[1]]), estilo(p.tipo)).addTo(capas);
+  const partes = todas.slice(desde);
   if (!partes.length) return alTerminar?.();
   const largo = (c) => c.reduce((t, p, i) => i ? t + distM(c[i - 1], p) : 0, 0);
   const total = partes.reduce((s, p) => s + largo(p.coordenadas), 0);
@@ -331,7 +449,7 @@ function perfilSvg(plan) {
   const linea = pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
   return `<div class="perfil"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <path d="${linea}L${W},${H}L0,${H}Z" fill="#fde3d8"/><path d="${linea}" fill="none" stroke="#f2541b" stroke-width="1.6"/></svg>
-    <small>Perfil de toda la sesión · ${num(lo)}–${num(hi)} m s. n. m.</small></div>`;
+    <small>Perfil · ${num(lo)}–${num(hi)} m s. n. m.</small></div>`;
 }
 
 function mostrar(plan) {

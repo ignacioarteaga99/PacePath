@@ -9,7 +9,8 @@ def _trkpt(p) -> str:
 
 
 def plan_a_gpx(plan: dict) -> str:
-    nombre = f"PacePath · {plan['sesion']['resumen']}"
+    resumen = plan["sesion"]["resumen"] if "sesion" in plan else "ruta trazada"
+    nombre = f"PacePath · {resumen}"
     wpts, segs = [], []
     for parte in plan["partes"]:
         c = parte.get("coordenadas") or []
