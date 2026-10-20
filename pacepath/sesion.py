@@ -11,6 +11,7 @@ y probarlos sin grafo.
 """
 from __future__ import annotations
 
+import dataclasses
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -35,6 +36,8 @@ class Sesion(BaseModel):
     pendiente_pct: float | None = Field(default=None, ge=1, le=20)
     # Tempo, fondo, regenerativo: distancia del bloque principal
     distancia_m: float | None = Field(default=None, ge=1000, le=60_000)
+    # Tempo, fondo, regenerativo: límite de desnivel positivo de toda la sesión
+    max_subida_m: float | None = Field(default=None, ge=0, le=5000)
     # Calentamiento y vuelta a la calma (trote suave hasta y desde el tramo)
     calentamiento_m: float = Field(default=2000, ge=0, le=10_000)
     vuelta_calma_m: float = Field(default=1500, ge=0, le=10_000)
@@ -61,7 +64,8 @@ class Sesion(BaseModel):
         if t is TipoSesion.CUESTAS:
             return (f"cuestas {self.repeticiones}×{_m(self.distancia_rep_m)}"
                     f" al {self.pendiente_pct:g} %")
-        return f"{t.value} {_m(self.distancia_m)}"
+        tope = f" (máx. +{self.max_subida_m:.0f} m)" if self.max_subida_m is not None else ""
+        return f"{t.value} {_m(self.distancia_m)}{tope}"
 
 
 def _m(metros: float | None) -> str:
@@ -96,6 +100,11 @@ def _metros(num: str, unidad: str | None) -> float:
     return v * 1000 if v < 50 else v
 
 
+_TOPE = re.compile(
+    r"(?:d\s*\+\s*|\+\s*|desnivel\s*(?:m[aá]x(?:imo)?\s*)?(?:de\s*)?|"
+    r"subida\s*(?:m[aá]x(?:ima)?\s*)?(?:de\s*)?|m[aá]x(?:imo)?\s*\+?\s*)(\d+)\s*m?\b")
+
+
 def interpretar(texto: str) -> Sesion:
     """Convierte lo que el corredor escribe en una `Sesion`.
 
@@ -120,11 +129,16 @@ def interpretar(texto: str) -> Sesion:
             pendiente_pct=float(pend.group(1).replace(",", ".")) if pend else None,
         )
 
+    # Límite de desnivel: «+100m», «d+100», «desnivel 100», «subida máx 100 m».
+    tope = _TOPE.search(t)
+    if tope:
+        t = t[:tope.start()] + " " + t[tope.end():]
     dist = re.search(rf"\b{_DIST}\b", t)
     if tipo is None or tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS) or not dist:
         raise ValueError(f"no entiendo la sesión «{texto}». Prueba «6x1k», "
                          "«tempo 8k», «fondo 18k», «cuestas 8x300 6%» o «regenerativo 6k»")
-    return Sesion(tipo=tipo, distancia_m=_metros(dist.group(1), dist.group(2) or "k"))
+    return Sesion(tipo=tipo, distancia_m=_metros(dist.group(1), dist.group(2) or "k"),
+                  max_subida_m=float(tope.group(1)) if tope else None)
 
 
 # ── Traducción a requisitos de la calle ─────────────────────────────────────
@@ -195,6 +209,7 @@ class Requisitos:
     mult_subida: float = 0.0                # coste × (1 + esto × % de subida)
     mult_sin_pavimento: float = 1.0
     radio_agua_m: float = 0.0               # fondo: premiar pasar junto a fuentes
+    max_subida_m: float | None = None       # duro: desnivel positivo máximo
     # Para elegir entre circuitos candidatos (puntos por km):
     peso_detencion: float = 40.0            # por detención probable / km
     peso_subida: float = 0.5                # por m de subida / km
@@ -210,6 +225,21 @@ class Requisitos:
 
 def requisitos(s: Sesion) -> Requisitos:
     """Traduce la sesión a lo que se busca en la calle."""
+    req = _requisitos_base(s)
+    if s.max_subida_m is None or s.tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS):
+        return req
+    # Con un tope de desnivel la subida se encarece al buscar, más cuanto más
+    # estricto sea el tope por km (2 m/km → 40 m extra por metro subido).
+    km = (s.distancia_m + (s.calentamiento_m + s.vuelta_calma_m
+                           if s.tipo is TipoSesion.TEMPO else 0)) / 1000
+    por_km = s.max_subida_m / max(km, 0.1)
+    return dataclasses.replace(
+        req, max_subida_m=float(s.max_subida_m),
+        penal_subida_m_por_m=max(req.penal_subida_m_por_m, min(40.0, 80.0 / max(por_km, 1.0))),
+        subida_tolerada_m_km=min(req.subida_tolerada_m_km, por_km))
+
+
+def _requisitos_base(s: Sesion) -> Requisitos:
     t = s.tipo
     if t is TipoSesion.SERIES:
         largo = float(s.distancia_rep_m)

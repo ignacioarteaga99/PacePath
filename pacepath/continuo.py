@@ -31,7 +31,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
 from .explicacion import explicar_continuo, explicar_tempo
-from .metricas import Medida, medir
+from .metricas import Medida, desnivel, medir
 from .sesion import COSTE_CRUCE, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
 from .series import (
     AVISO_SRTM, SinTramo, _calles_trote, _tramo_info, _tramo_trote, base_plan,
@@ -102,6 +102,9 @@ def puntuar(med: Medida, req: Requisitos, objetivo_m: float) -> float:
     p = req.peso_detencion * med.detenciones() / km
     p += req.peso_subida * med.subida_m / km
     p += req.peso_exceso_subida * max(0.0, med.subida_m / km - req.subida_tolerada_m_km)
+    if req.max_subida_m is not None and med.subida_m > req.max_subida_m:
+        # Tope duro: cualquier candidato que lo cumpla gana a uno que no.
+        p += 1000.0 + 20.0 * (med.subida_m - req.max_subida_m)
     p -= req.peso_parque * med.parque
     # Repetir calle no es grave en un fondo (ida y vuelta es un clásico).
     p += (8.0 if req.tipo is TipoSesion.FONDO else 25.0) * med.repetido
@@ -289,6 +292,18 @@ def ida_y_vuelta(ctx: GraphContext, casa: int, distancia_m: float, req: Requisit
     return out
 
 
+def subida_partes(partes: list[dict]) -> float:
+    """Desnivel positivo de toda la sesión, sumando las partes en orden."""
+    return desnivel([c[2] for p in partes for c in (p.get("coordenadas") or [])])[0]
+
+
+def aviso_tope(req: Requisitos, subida: float) -> list[str]:
+    if req.max_subida_m is None or subida <= req.max_subida_m + 1:
+        return []
+    return [f"No encontré una ruta que suba menos de {req.max_subida_m:.0f} m desde esta "
+            f"salida: ésta sube {subida:.0f} m, la que menos de las que probé."]
+
+
 def _coords(ctx: GraphContext, aristas: list[int]) -> list[list[float]]:
     g = ctx.graph
     if not aristas:
@@ -380,6 +395,7 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
     if abs(med.distancia_m - D) > 0.05 * D:
         avisos.append(f"El recorrido mide {med.distancia_m / 1000:.1f} km: no encontré uno "
                       "más ajustado a la distancia pedida.")
+    avisos += aviso_tope(req, med.subida_m)
     if sesion.tipo is TipoSesion.FONDO and not med.agua:
         avisos.append("No hay fuentes de agua registradas en OpenStreetMap junto a este "
                       "recorrido: lleva agua.")
@@ -390,7 +406,8 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
                     "coordenadas": _coords(ctx, aristas)}],
         "marcas": _marcas(ctx, aristas, med),
         "alternativas": [_resumen_medida(m) | {"puntos": round(p, 1)} for _, m, p in otros[:2]],
-        "totales": {"distancia_m": round(med.distancia_m)},
+        "totales": {"distancia_m": round(med.distancia_m), "subida_m": round(med.subida_m),
+                    "max_subida_m": req.max_subida_m},
         "avisos": avisos,
         "volver": volver,
         "llegada": _punto(ctx, aristas, med.cum, med.distancia_m),
@@ -448,8 +465,20 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float) 
         tramo, vueltas = corr
         det_corr = (vueltas - 1) * DETENCION_VUELTA_U
 
+    usar_corredor = bool(corr) and det_corr <= det_circ
+    if usar_corredor and req.max_subida_m is not None:
+        # Con tope de desnivel: estimar la subida del corredor (trote de ida y
+        # vuelta + la mitad del desnivel del tramo por pasada) y, si se pasa y
+        # el circuito no, quedarse con el circuito.
+        tramo, vueltas = corr
+        wt = pesos_trote(ctx, casa, cal + 6000 + 2 * tramo.largo_m)
+        ida0 = _tramo_trote(ctx, wt, casa, tramo.nodo_inicio())
+        estimada = 2 * (ida0["subida_m"] if ida0 else 0) + vueltas * tramo.desnivel_m / 2
+        if estimada > req.max_subida_m and med.subida_m <= req.max_subida_m:
+            usar_corredor = False
+
     avisos = []
-    if corr and det_corr <= det_circ:
+    if usar_corredor:
         tramo, vueltas = corr
         w = pesos_trote(ctx, casa, cal + 6000 + 2 * tramo.largo_m)
         a, b = tramo.nodo_inicio(), tramo.nodo_fin()
@@ -509,12 +538,15 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float) 
                           "cronómetro del bloque.")
     if abs(bloque - X) > 0.06 * X:
         avisos.append(f"El bloque mide {bloque / 1000:.1f} km en vez de {X / 1000:.1f} km.")
+    subida = subida_partes(partes)
+    avisos += aviso_tope(req, subida)
     avisos.append(AVISO_SRTM)
     plan = base_plan(ctx, sesion, req, casa) | forma | {
         "partes": partes,
         "marcas": marcas,
         "totales": {"distancia_m": round(total), "calentamiento_m": calentamiento_m,
-                    "tempo_m": round(bloque), "vuelta_calma_m": vuelta_m},
+                    "tempo_m": round(bloque), "vuelta_calma_m": vuelta_m,
+                    "subida_m": round(subida), "max_subida_m": req.max_subida_m},
         "avisos": avisos,
     }
     plan["explicacion"] = explicar_tempo(plan)

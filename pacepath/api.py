@@ -35,6 +35,11 @@ _motor = threading.Lock()
 app.mount("/vendor", StaticFiles(directory=WEB / "vendor"), name="vendor")
 
 
+class Punto(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+
+
 class PedidoTrazado(BaseModel):
     puntos: list[Punto] = Field(min_length=2, max_length=MAX_PUNTOS)
     volver: bool = True          # la meta es la salida (lo habitual)
@@ -42,11 +47,6 @@ class PedidoTrazado(BaseModel):
 
 class TextoSesion(BaseModel):
     texto: str = Field(min_length=1, max_length=120)
-
-
-class Punto(BaseModel):
-    lat: float = Field(ge=-90, le=90)
-    lon: float = Field(ge=-180, le=180)
 
 
 class PedidoRuta(BaseModel):
@@ -59,6 +59,8 @@ class PedidoRuta(BaseModel):
     # con `meta` la ruta termina ahí; sin meta, donde se cumplen los km.
     volver: bool = True
     meta: Punto | None = None
+    # Tempo, fondo y regenerativo: desnivel positivo máximo de toda la sesión.
+    max_subida_m: float | None = Field(default=None, ge=0, le=5000)
 
     @model_validator(mode="after")
     def _una_sesion(self) -> "PedidoRuta":
@@ -102,6 +104,8 @@ def _plan(body: PedidoRuta) -> dict:
         s = body.sesion or interpretar(body.texto or "")
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+    if body.max_subida_m is not None:
+        s = s.model_copy(update={"max_subida_m": body.max_subida_m})
     comuna = body.comuna or comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
         raise HTTPException(422, "Ese punto no está en ninguna comuna con mapa todavía.")

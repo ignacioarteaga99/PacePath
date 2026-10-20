@@ -63,3 +63,23 @@ def test_requisitos_por_tipo():
     assert t.penal_semaforo_m > f.penal_semaforo_m > r.penal_semaforo_m
     assert r.peso_subida > f.peso_subida
     assert f.radio_agua_m > 0 and f.tipo is TipoSesion.FONDO
+
+
+@pytest.mark.parametrize("texto,tope", [
+    ("fondo 18k +100m", 100), ("fondo 18k desnivel 100", 100), ("regenerativo 6k d+40", 40),
+    ("tempo 8k max 60m", 60), ("fondo 18k subida máx de 120 m", 120), ("fondo 18k", None),
+])
+def test_tope_de_desnivel(texto, tope):
+    s = interpretar(texto)
+    assert s.max_subida_m == tope
+    assert s.distancia_m in (18000, 6000, 8000)          # el tope no se confunde con la distancia
+    r = requisitos(s)
+    if tope is not None:
+        assert r.max_subida_m == tope and r.penal_subida_m_por_m >= 8
+
+
+def test_desnivel_con_umbral():
+    from pacepath.metricas import desnivel
+    # Una bajadita de 1 m (ruido) no corta la subida ni suma de más.
+    assert desnivel([0, 1, 0, 1, 0, 5, 4, 6, 8, 2, 0]) == (8.0, 8.0)
+    assert desnivel([600, 601, 600.5, 601]) == (0.0, 0.0)

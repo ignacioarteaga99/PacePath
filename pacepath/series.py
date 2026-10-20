@@ -34,6 +34,7 @@ from raceengine_routing import RoutingWeights
 from . import nombres as _nombres
 from .sesion import CRUCE_MAYOR, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
 from .explicacion import explicar_cuestas, explicar_series
+from .metricas import desnivel
 from .parques import en_parque
 from .tramos import CLASES_SENDA, Trazo, aristas_corribles, trazos
 
@@ -320,7 +321,7 @@ def _centro(ctx: GraphContext, m: Tramo) -> tuple[float, float]:
 def _tramo_info(ctx: GraphContext, m: Tramo) -> dict:
     g = ctx.graph
     d, _, _, z = m.perfil(ctx, paso_m=10.0)
-    subida = float(np.maximum(np.diff(z), 0).sum())
+    subida, _ = desnivel(z)
     # Pendiente máxima sostenida en 50 m (con 10 m el ruido del SRTM manda).
     k = 5
     pend = np.abs(z[k:] - z[:-k]) / np.maximum(d[k:] - d[:-k], 1.0) * 100 if len(z) > k else [0]
@@ -389,7 +390,7 @@ def _tramo_trote(ctx: GraphContext, w: RoutingWeights, a: int, b: int) -> dict |
         "distancia_m": round(leg.distance_m),
         "semaforos": int(g.is_signal[n].sum()),
         "calles": _calles_trote(ctx, leg.edges),
-        "subida_m": round(float(np.maximum(np.diff(z), 0).sum()), 1),
+        "subida_m": round(desnivel(z)[0], 1),
         "coordenadas": [[round(float(g.lat[i]), 6), round(float(g.lon[i]), 6),
                          round(float(g.elev[i]), 1)] for i in n],
     }

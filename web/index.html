@@ -63,8 +63,14 @@
   body.modo-trazar .solo-sesion { display: none; }
   body.modo-trazar #hoja { max-height: 28vh; }
   .continuo { display: none; gap: 8px; margin-top: 8px; align-items: center; }
-  body.sesion-continua:not(.modo-trazar) .continuo { display: flex; }
+  body.sesion-continua:not(.modo-trazar) .continuo,
+  body.sesion-tope:not(.modo-trazar) .continuo { display: flex; }
+  body:not(.sesion-continua) .continuo .interruptor { display: none; }
   .campo.meta { display: none; }
+  .tope { display: none; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+  body.sesion-tope:not(.modo-trazar) .tope { display: flex; }
+  .tope input { width: 84px; font-size: 16px; padding: 8px 10px; border-radius: 10px;
+    border: 1px solid var(--linea); background: var(--gris); color: var(--tinta); }
   body.sesion-continua:not(.modo-trazar):not(.volver) .campo.meta { display: flex; }
   .interruptor { display: flex; align-items: center; gap: 8px; flex: 1; font-size: 14px; font-weight: 600; }
   .interruptor input { width: 22px; height: 22px; accent-color: var(--acento); }
@@ -185,6 +191,8 @@
     </div>
     <div class="continuo">
       <label class="interruptor"><input type="checkbox" id="volverSesion" checked> Volver a la salida</label>
+      <label class="tope">Desnivel máx. <input id="tope" type="number" inputmode="numeric" min="0"
+        step="10" placeholder="sin límite" aria-label="Desnivel positivo máximo en metros"> m</label>
     </div>
     <div class="campo meta">
       <label for="meta">Meta</label>
@@ -308,8 +316,10 @@ conectarBusqueda("desde", "sugerencias", (l) => fijarSalida(l.lat, l.lon, l.nomb
 // Sin meta, la ruta termina donde se cumplen los km.
 let meta = null, marcaMeta = null, eligiendoMeta = false;
 const CONTINUA = /\b(fondo|largo|tirada|regenerativo|suave|rodaje)\b/i;
+const CON_TOPE = /\b(fondo|largo|tirada|regenerativo|suave|rodaje|tempo|umbral)\b/i;
 function revisarTipo() {
   document.body.classList.toggle("sesion-continua", CONTINUA.test($("texto").value));
+  document.body.classList.toggle("sesion-tope", CON_TOPE.test($("texto").value));
   document.body.classList.toggle("volver", $("volverSesion").checked);
 }
 $("texto").addEventListener("input", revisarTipo);
@@ -549,10 +559,12 @@ function perfilSvg(plan) {
   }
   perfilPts = pts; perfilTotal = d;
   if (pts.length < 2 || d <= 0) return "";
-  let sube = 0, baja = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const dz = pts[i][1] - pts[i - 1][1];
-    if (dz > 0) sube += dz; else baja -= dz;
+  // Igual que el servidor: sólo cuentan cambios de más de 2 m (el ruido del
+  // modelo de elevación no son repechos).
+  let sube = 0, baja = 0, ref = pts[0][1];
+  for (const p of pts) {
+    if (p[1] - ref >= 2) { sube += p[1] - ref; ref = p[1]; }
+    else if (ref - p[1] >= 2) { baja += ref - p[1]; ref = p[1]; }
   }
   const zs = pts.map((p) => p[1]), lo = Math.min(...zs), hi = Math.max(...zs);
   const rango = Math.max(hi - lo, 10), base = lo - rango * 0.08, techo = hi + rango * 0.08;
@@ -631,6 +643,8 @@ function mostrar(plan) {
 function pedido() {
   const p = { lat: salida.lat, lon: salida.lon, texto: $("texto").value };
   if (CONTINUA.test(p.texto) && !$("volverSesion").checked) { p.volver = false; if (meta) p.meta = meta; }
+  const tope = parseFloat($("tope").value);
+  if (CON_TOPE.test(p.texto) && Number.isFinite(tope) && tope >= 0) p.max_subida_m = tope;
   return p;
 }
 

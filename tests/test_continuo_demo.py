@@ -76,3 +76,12 @@ def test_poligono():
     lat = np.array([0.5, 1.5, 0.2])
     lon = np.array([0.5, 0.5, 0.9])
     assert list(_nodos_en(lat, lon, cuadrado)) == [True, False, True]
+
+
+def test_tope_de_desnivel_se_respeta_o_se_avisa(ctx):
+    s = interpretar("fondo 8k").model_copy(update={"max_subida_m": 30})
+    p = planificar_circuito(ctx, s, D.lat, D.lon)
+    assert p["totales"]["max_subida_m"] == 30
+    if p["totales"]["subida_m"] > 31:
+        assert any("suba menos de 30 m" in a for a in p["avisos"])
+    assert any("pediste como máximo 30 m" in l for l in p["explicacion"])

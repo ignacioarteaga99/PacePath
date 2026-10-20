@@ -109,6 +109,9 @@ def explicar_tempo(plan: dict) -> list[str]:
     lineas.append(f"Calentamiento: {metros(cal['distancia_m'])}. "
                   f"Vuelta a la calma: {metros(tot['vuelta_calma_m'])}.")
     lineas.append(f"Total: {metros(tot['distancia_m'])} ({metros(tot['tempo_m'])} de tempo).")
+    if tot.get("max_subida_m") is not None:
+        lineas.append(f"Desnivel positivo de la sesión: {num(tot['subida_m'])} m (pediste "
+                      f"como máximo {num(tot['max_subida_m'])} m).")
     return lineas
 
 
@@ -121,6 +124,10 @@ def explicar_continuo(plan: dict) -> list[str]:
     lineas = [f"{nombre} de {metros(r['distancia_m'])} {forma}{por}.",
               f"En el camino: {_paradas(r)}; {num(r['subida_m'])} m de subida; "
               f"{r['parque_pct']} % por parque."]
+    tope = plan["totales"].get("max_subida_m")
+    if tope is not None:
+        lineas.append(f"Desnivel positivo: {num(r['subida_m'])} m (pediste como máximo "
+                      f"{num(tope)} m).")
     if r.get("forma") == "solo ida" and r.get("calles"):
         lineas.append(f"Terminas en {r['calles'][-1]}: revisa cómo volver (metro, micro "
                       "o que te pasen a buscar).")

@@ -19,6 +19,28 @@ from .sesion import COSTE_CRUCE, CRUCE_MAYOR, CRUCE_MENOR
 from .tramos import semaforos_cercanos
 
 AGRUPAR_M = 40.0    # nodos marcados a menos de esto son la misma detención
+UMBRAL_DESNIVEL_M = 2.0
+
+
+def desnivel(z, umbral: float = UMBRAL_DESNIVEL_M) -> tuple[float, float]:
+    """(subida, bajada) contando sólo cambios de más de `umbral` metros.
+
+    Con un nodo cada ~10 m, sumar cada diferencia acumula el ruido del modelo
+    de elevación (SRTM, ±2–3 m) como si fueran repechos. Así lo cuentan también
+    los relojes GPS y Strava, y los números se parecen a los del final del día."""
+    z = list(z)
+    if len(z) < 2:
+        return 0.0, 0.0
+    sube = baja = 0.0
+    ref = z[0]                  # último nivel confirmado
+    for v in z[1:]:
+        if v - ref >= umbral:
+            sube += v - ref
+            ref = v
+        elif ref - v >= umbral:
+            baja += ref - v
+            ref = v
+    return sube, baja
 
 _COSTE = np.array([COSTE_CRUCE.get(c, 0.0) for c in ALL_CLASSES], dtype=np.float32)
 
@@ -103,9 +125,7 @@ def medir(ctx: GraphContext, aristas: list[int], radio_agua_m: float = 60.0) -> 
     m.cruces = agrupados
 
     z = g.elev[nodos].astype(np.float64)
-    dz = np.diff(z)
-    m.subida_m = float(np.maximum(dz, 0).sum())
-    m.bajada_m = float(np.maximum(-dz, 0).sum())
+    m.subida_m, m.bajada_m = desnivel(z)
     if total > 100:
         d = np.arange(0.0, total, 25.0)
         zi = np.interp(d, cum, z)
