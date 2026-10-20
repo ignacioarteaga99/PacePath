@@ -98,6 +98,7 @@ def puntuar(med: Medida, req: Requisitos, objetivo_m: float) -> float:
     km = max(med.distancia_m / 1000, 0.1)
     p = req.peso_detencion * med.detenciones() / km
     p += req.peso_subida * med.subida_m / km
+    p += req.peso_exceso_subida * max(0.0, med.subida_m / km - req.subida_tolerada_m_km)
     p -= 40.0 * (1.0 - req.mult_parque) * med.parque
     # Repetir calle no es grave en un fondo (ida y vuelta es un clásico).
     p += (8.0 if req.tipo is TipoSesion.FONDO else 25.0) * med.repetido

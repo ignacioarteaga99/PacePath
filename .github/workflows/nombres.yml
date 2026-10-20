@@ -16,7 +16,8 @@ permissions:
 
 concurrency:
   group: nombres
-  cancel-in-progress: false
+  # Cada ejecución publica todo de nuevo: la última manda y cancela las anteriores.
+  cancel-in-progress: true
 
 jobs:
   nombres:
