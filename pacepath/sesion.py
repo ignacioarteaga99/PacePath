@@ -57,15 +57,21 @@ class Sesion(BaseModel):
 
     @property
     def resumen(self) -> str:
+        from .idioma import tr
         t = self.tipo
         if t is TipoSesion.SERIES:
             return (f"{self.repeticiones}×{_m(self.distancia_rep_m)}"
-                    f" (pausa {self.pausa_s} s)")
+                    + tr(f" (pausa {self.pausa_s} s)", f" ({self.pausa_s} s rest)"))
         if t is TipoSesion.CUESTAS:
-            return (f"cuestas {self.repeticiones}×{_m(self.distancia_rep_m)}"
-                    f" al {self.pendiente_pct:g} %")
-        tope = f" (máx. +{self.max_subida_m:.0f} m)" if self.max_subida_m is not None else ""
-        return f"{t.value} {_m(self.distancia_m)}{tope}"
+            return tr(f"cuestas {self.repeticiones}×{_m(self.distancia_rep_m)}"
+                      f" al {self.pendiente_pct:g} %",
+                      f"hills {self.repeticiones}×{_m(self.distancia_rep_m)}"
+                      f" at {self.pendiente_pct:g} %")
+        tope = tr(f" (máx. +{self.max_subida_m:.0f} m)", f" (max +{self.max_subida_m:.0f} m)") \
+            if self.max_subida_m is not None else ""
+        nombre = {TipoSesion.TEMPO: ("tempo", "tempo"), TipoSesion.FONDO: ("fondo", "long run"),
+                  TipoSesion.REGENERATIVO: ("regenerativo", "easy run")}[t]
+        return f"{tr(*nombre)} {_m(self.distancia_m)}{tope}"
 
 
 def _m(metros: float | None) -> str:
@@ -87,6 +93,11 @@ _TIPOS = {
     "cuestas": TipoSesion.CUESTAS, "cuesta": TipoSesion.CUESTAS,
     "regenerativo": TipoSesion.REGENERATIVO, "suave": TipoSesion.REGENERATIVO,
     "rodaje": TipoSesion.REGENERATIVO,
+    # English
+    "intervals": TipoSesion.SERIES, "interval": TipoSesion.SERIES, "reps": TipoSesion.SERIES,
+    "threshold": TipoSesion.TEMPO, "long": TipoSesion.FONDO,
+    "hills": TipoSesion.CUESTAS, "hill": TipoSesion.CUESTAS,
+    "easy": TipoSesion.REGENERATIVO, "recovery": TipoSesion.REGENERATIVO,
 }
 
 
@@ -135,8 +146,11 @@ def interpretar(texto: str) -> Sesion:
         t = t[:tope.start()] + " " + t[tope.end():]
     dist = re.search(rf"\b{_DIST}\b", t)
     if tipo is None or tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS) or not dist:
-        raise ValueError(f"no entiendo la sesión «{texto}». Prueba «6x1k», "
-                         "«tempo 8k», «fondo 18k», «cuestas 8x300 6%» o «regenerativo 6k»")
+        from .idioma import tr
+        raise ValueError(tr(f"No entiendo la sesión «{texto}». Prueba «6x1k», «tempo 8k», "
+                            "«fondo 18k», «cuestas 8x300 6%» o «regenerativo 6k».",
+                            f"I don't understand «{texto}». Try «6x1k», «tempo 8k», "
+                            "«long run 18k», «hills 8x300 6%» or «easy 6k»."))
     return Sesion(tipo=tipo, distancia_m=_metros(dist.group(1), dist.group(2) or "k"),
                   max_subida_m=float(tope.group(1)) if tope else None)
 

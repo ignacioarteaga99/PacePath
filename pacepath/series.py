@@ -31,6 +31,7 @@ from raceengine_engine.weights import build_weights
 from raceengine_geodata import ALL_CLASSES
 from raceengine_routing import RoutingWeights
 
+from .idioma import tr
 from . import nombres as _nombres
 from .sesion import CRUCE_MAYOR, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
 from .explicacion import explicar_cuestas, explicar_series
@@ -253,15 +254,20 @@ def _niveles(req: Requisitos, holgura_m: float) -> list[tuple[Requisitos, float,
     lejos = holgura_m + LEJANIA_EXTRA_MAX_M
     return [
         (req, cerca, None),
-        (req, lejos, "No hay un tramo sin cruces más cerca: éste es el más próximo."),
+        (req, lejos, tr("No hay un tramo sin cruces más cerca: éste es el más próximo.",
+                        "There's no crossing-free stretch closer: this is the nearest one.")),
         (r(req, max_cruces_menores=2), lejos,
-         "No hay ningún tramo sin cruces a menos de "
-         f"{lejos / 1000:.0f} km: éste tiene como mucho dos cruces de calle residencial."),
+         tr(f"No hay ningún tramo sin cruces a menos de {lejos / 1000:.0f} km: éste tiene "
+            "como mucho dos cruces de calle residencial.",
+            f"There's no crossing-free stretch within {lejos / 1000:.0f} km: this one has at "
+            "most two residential street crossings.")),
         (r(req, max_cruces_menores=4, max_cruces_mayores=1, max_semaforos=1,
            max_desnivel_tramo_m=req.max_desnivel_tramo_m * 1.5,
            min_rectitud=req.min_rectitud - 0.1), lejos,
-         "No hay un tramo limpio cerca: éste tiene algún cruce y como mucho un "
-         "semáforo. Si te toca en rojo, alarga esa pausa."),
+         tr("No hay un tramo limpio cerca: éste tiene algún cruce y como mucho un "
+            "semáforo. Si te toca en rojo, alarga esa pausa.",
+            "There's no clean stretch nearby: this one has some crossings and at most one "
+            "traffic light. If it's red, make that rest longer.")),
     ]
 
 
@@ -305,11 +311,16 @@ def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: fl
             if len(elegidos) == n:
                 break
         return elegidos, aviso
-    que = (f"con {req.pendiente_objetivo_pct:g} % de pendiente"
-           if req.pendiente_objetivo_pct is not None else "sin semáforos")
-    raise SinTramo(
+    if req.pendiente_objetivo_pct is not None:
+        que = tr(f"con {req.pendiente_objetivo_pct:g} % de pendiente",
+                 f"at {req.pendiente_objetivo_pct:g} % grade")
+    else:
+        que = tr("sin semáforos", "without traffic lights")
+    raise SinTramo(tr(
         f"No encontré ningún tramo de {req.largo_tramo_m:.0f} m {que} a menos "
-        f"de {radio / 1000:.1f} km de la salida.")
+        f"de {radio / 1000:.1f} km de la salida.",
+        f"I couldn't find any {req.largo_tramo_m:.0f} m stretch {que} within "
+        f"{radio / 1000:.1f} km of the start."))
 
 
 def _centro(ctx: GraphContext, m: Tramo) -> tuple[float, float]:
@@ -414,7 +425,9 @@ def base_plan(ctx: GraphContext, sesion: Sesion, req: Requisitos, casa: int) -> 
     }
 
 
-AVISO_SRTM = "Elevación del modelo SRTM (±2–3 m): el desnivel es orientativo."
+def aviso_srtm() -> str:
+    return tr("Elevación del modelo SRTM (±2–3 m): el desnivel es orientativo.",
+              "Elevation from the SRTM model (±2–3 m): climb figures are approximate.")
 
 
 def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
@@ -452,7 +465,8 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
         if ida and vuelta:
             opciones.append((ida["distancia_m"] + vuelta["distancia_m"], ini, ida, vuelta))
     if not opciones:
-        raise SinTramo("El tramo encontrado no se puede alcanzar desde la salida.")
+        raise SinTramo(tr("El tramo encontrado no se puede alcanzar desde la salida.",
+                          "The stretch found can't be reached from the start."))
     _, ini, ida, vuelta = min(opciones, key=lambda o: o[0])
 
     info = _tramo_info(ctx, m)
@@ -484,9 +498,11 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
              + calentamiento_extra)
     avisos = [aviso] if aviso else []
     if calentamiento_extra >= 200:
-        avisos.append(f"El tramo está a {ida['distancia_m']} m: completa el calentamiento "
-                      f"con {calentamiento_extra} m suaves por el mismo tramo.")
-    avisos.append(AVISO_SRTM)
+        avisos.append(tr(f"El tramo está a {ida['distancia_m']} m: completa el calentamiento "
+                         f"con {calentamiento_extra} m suaves por el mismo tramo.",
+                         f"The stretch is {ida['distancia_m']} m away: finish your warm-up "
+                         f"with {calentamiento_extra} m easy on the same stretch."))
+    avisos.append(aviso_srtm())
 
     plan = base_plan(ctx, sesion, req, casa) | {
         "tramo": info,

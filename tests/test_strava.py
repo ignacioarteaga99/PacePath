@@ -37,6 +37,12 @@ def falso(monkeypatch):
             ]
         if url == strava.REVOCAR:
             return {}
+        if url == strava.API + "/athlete":
+            return {"id": 7, "firstname": "Ignacio", "lastname": "A.", "profile_medium": "https://f/x.jpg",
+                    "city": "Santiago", "country": "Chile", "created_at": "2015-03-01T00:00:00Z"}
+        if url == strava.API + "/athletes/7/stats":
+            t = {"count": 12, "distance": 123456.0, "moving_time": 36000, "elevation_gain": 812.4}
+            return {"recent_run_totals": t, "ytd_run_totals": t, "all_run_totals": t}
         raise AssertionError(url)
 
     monkeypatch.setattr(strava, "_http", http)
@@ -77,6 +83,12 @@ def test_flujo_completo(falso):
     assert [c["id"] for c in j["carreras"]] == [1]
     assert j["carreras"][0]["distancia_m"] == 18000 and j["ultima"] is True
     assert strava.Sesion.descifrar(cli.cookies.get(strava.COOKIE)).access_token == "a2"
+
+    pf = cli.get("/api/strava/perfil").json()
+    assert pf["nombre"] == "Ignacio" and pf["ciudad"] == "Santiago, Chile" and pf["desde"] == "2015-03-01"
+    assert pf["historico"] == {"carreras": 12, "km": 123.5, "horas": 10.0, "desnivel_m": 812}
+    c0 = j["carreras"][0]
+    assert {"tiempo_s", "desnivel_m", "fecha_local", "fc_media", "tipo_entreno"} <= set(c0)
 
     assert cli.post("/api/strava/desconectar").json() == {"ok": True}
     assert any(u == strava.REVOCAR for _, u, _, _ in falso)

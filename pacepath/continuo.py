@@ -30,11 +30,12 @@ from raceengine_routing import RoutingWeights
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components, dijkstra
 
+from .idioma import tr
 from .explicacion import explicar_continuo, explicar_tempo
 from .metricas import Medida, desnivel, medir
 from .sesion import COSTE_CRUCE, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
 from .series import (
-    AVISO_SRTM, SinTramo, _calles_trote, _tramo_info, _tramo_trote, base_plan,
+    SinTramo, aviso_srtm, _calles_trote, _tramo_info, _tramo_trote, base_plan,
     buscar_tramos, nodo_salida, pesos_trote,
 )
 from .parques import en_parque
@@ -176,7 +177,8 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
         todos += ida_y_vuelta(ctx, casa, distancia_m, req, w)
         todos += por_corredor(ctx, casa, distancia_m, req, w)
     if not todos:
-        raise SinTramo("No encontré ningún recorrido desde esa salida.")
+        raise SinTramo(tr("No encontré ningún recorrido desde esa salida.",
+                          "I couldn't find any route from that start."))
     todos.sort(key=lambda x: x[2])
     return todos[0][0], todos[0][1], todos[1:]
 
@@ -260,10 +262,13 @@ def hasta_meta(ctx: GraphContext, casa: int, meta: int, distancia_m: float,
     g = ctx.graph
     directo = ctx.provider.shortest_path(casa, meta, w)
     if directo is None or not directo.ok:
-        raise SinTramo("No hay camino corrible entre la salida y la meta.")
+        raise SinTramo(tr("No hay camino corrible entre la salida y la meta.",
+                          "There is no runnable path between the start and the finish."))
     if directo.distance_m > distancia_m * 1.05:
-        raise SinTramo(f"La meta está a {directo.distance_m / 1000:.1f} km por calle: más "
-                       f"que los {distancia_m / 1000:.0f} km de la sesión.")
+        raise SinTramo(tr(f"La meta está a {directo.distance_m / 1000:.1f} km por calle: más "
+                          f"que los {distancia_m / 1000:.0f} km de la sesión.",
+                          f"The finish is {directo.distance_m / 1000:.1f} km away by road: more "
+                          f"than the session's {distancia_m / 1000:.0f} km."))
     modelo = ConstraintModel(
         region=ctx.region_id,
         start=GeoPoint(lat=float(g.lat[casa]), lon=float(g.lon[casa])),
@@ -445,8 +450,10 @@ def subida_partes(partes: list[dict]) -> float:
 def aviso_tope(req: Requisitos, subida: float) -> list[str]:
     if req.max_subida_m is None or subida <= req.max_subida_m + 1:
         return []
-    return [f"No encontré una ruta que suba menos de {req.max_subida_m:.0f} m desde esta "
-            f"salida: ésta sube {subida:.0f} m, la que menos de las que probé."]
+    return [tr(f"No encontré una ruta que suba menos de {req.max_subida_m:.0f} m desde esta "
+               f"salida: ésta sube {subida:.0f} m, la que menos de las que probé.",
+               f"I couldn't find a route climbing less than {req.max_subida_m:.0f} m from this "
+               f"start: this one climbs {subida:.0f} m, the least of those I tried.")]
 
 
 def _coords(ctx: GraphContext, aristas: list[int]) -> list[list[float]]:
@@ -532,8 +539,10 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
             cands = solo_ida(ctx, casa, D, req, w)
             forma = "solo ida"
         if not cands:
-            raise SinTramo(f"No encontré un recorrido de {D / 1000:.0f} km de solo ida "
-                           "dentro del mapa de esta comuna: prueba volviendo a la salida.")
+            raise SinTramo(tr(f"No encontré un recorrido de {D / 1000:.0f} km de solo ida "
+                              "dentro del mapa de esta comuna: prueba volviendo a la salida.",
+                              f"I couldn't fit a {D / 1000:.0f} km one-way route inside this "
+                              "area's map: try returning to the start."))
         cands.sort(key=lambda c: c[2])
         (aristas, med, _), otros = cands[0], cands[1:]
     tipo = sesion.tipo.value
@@ -544,13 +553,17 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
                                    "corredor": getattr(med, "detalle", None)}
     avisos = []
     if abs(med.distancia_m - D) > 0.05 * D:
-        avisos.append(f"El recorrido mide {med.distancia_m / 1000:.1f} km: no encontré uno "
-                      "más ajustado a la distancia pedida.")
+        avisos.append(tr(f"El recorrido mide {med.distancia_m / 1000:.1f} km: no encontré uno "
+                         "más ajustado a la distancia pedida.",
+                         f"The route is {med.distancia_m / 1000:.1f} km: I couldn't find one "
+                         "closer to the requested distance."))
     avisos += aviso_tope(req, med.subida_m)
     if sesion.tipo is TipoSesion.FONDO and not med.agua:
-        avisos.append("No hay fuentes de agua registradas en OpenStreetMap junto a este "
-                      "recorrido: lleva agua.")
-    avisos.append(AVISO_SRTM)
+        avisos.append(tr("No hay fuentes de agua registradas en OpenStreetMap junto a este "
+                         "recorrido: lleva agua.",
+                         "There are no water fountains in OpenStreetMap along this route: "
+                         "bring water."))
+    avisos.append(aviso_srtm())
     plan = base_plan(ctx, sesion, req, casa) | {
         "recorrido": info,
         "partes": [{"tipo": tipo, "distancia_m": round(med.distancia_m),
@@ -642,7 +655,8 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
             if ida and vuelta:
                 opciones.append((ida["distancia_m"] + vuelta["distancia_m"], x, ida, vuelta))
         if not opciones:
-            raise SinTramo("El corredor encontrado no se puede alcanzar desde la salida.")
+            raise SinTramo(tr("El corredor encontrado no se puede alcanzar desde la salida.",
+                              "The corridor found can't be reached from the start."))
         _, x, ida, vuelta = min(opciones, key=lambda o: o[0])
         info = _tramo_info(ctx, tramo)
         coords = info["coordenadas"] if x == a else info["coordenadas"][::-1]
@@ -685,14 +699,18 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
         marcas = _marcas(ctx, a2, mb, desde=float(cum[i0]))
         calentamiento_m, vuelta_m = round(cum[i0]), round(med.distancia_m - cum[i1])
         if det_circ >= 2:
-            avisos.append(f"El bloque tiene unas {det_circ:.0f} detenciones probables: no "
-                          "encontré un corredor limpio cerca. Si paras, no cortes el "
-                          "cronómetro del bloque.")
+            avisos.append(tr(f"El bloque tiene unas {det_circ:.0f} detenciones probables: no "
+                             "encontré un corredor limpio cerca. Si paras, no cortes el "
+                             "cronómetro del bloque.",
+                             f"The block has about {det_circ:.0f} likely stops: I couldn't find "
+                             "a clean corridor nearby. If you stop, keep the block's clock "
+                             "running."))
     if abs(bloque - X) > 0.06 * X:
-        avisos.append(f"El bloque mide {bloque / 1000:.1f} km en vez de {X / 1000:.1f} km.")
+        avisos.append(tr(f"El bloque mide {bloque / 1000:.1f} km en vez de {X / 1000:.1f} km.",
+                         f"The block is {bloque / 1000:.1f} km instead of {X / 1000:.1f} km."))
     subida = subida_partes(partes)
     avisos += aviso_tope(req, subida)
-    avisos.append(AVISO_SRTM)
+    avisos.append(aviso_srtm())
     plan = base_plan(ctx, sesion, req, casa) | forma | {
         "partes": partes,
         "marcas": marcas,

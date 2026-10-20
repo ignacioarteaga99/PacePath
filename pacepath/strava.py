@@ -29,6 +29,8 @@ from dataclasses import asdict, dataclass
 
 from cryptography.fernet import Fernet, InvalidToken
 
+from .idioma import tr
+
 AUTORIZAR = "https://www.strava.com/oauth/authorize"
 TOKEN = "https://www.strava.com/oauth/token"
 REVOCAR = "https://www.strava.com/oauth/deauthorize"
@@ -101,13 +103,17 @@ def _http(metodo: str, url: str, datos: dict | None = None,
             return json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as exc:
         if exc.code == 429:
-            raise StravaError("Strava pide esperar un poco (límite de uso de la API). "
-                              "Prueba en 15 minutos.") from exc
+            raise StravaError(tr("Strava pide esperar un poco (límite de uso de la API). "
+                                 "Prueba en 15 minutos.",
+                                 "Strava asks us to wait (API rate limit). Try again in "
+                                 "15 minutes.")) from exc
         if exc.code in (401, 403):
-            raise StravaError("Strava rechazó el acceso: vuelve a conectar.") from exc
-        raise StravaError(f"Strava respondió {exc.code}.") from exc
+            raise StravaError(tr("Strava rechazó el acceso: vuelve a conectar.",
+                                 "Strava rejected access: please reconnect.")) from exc
+        raise StravaError(tr(f"Strava respondió {exc.code}.",
+                             f"Strava answered {exc.code}.")) from exc
     except OSError as exc:
-        raise StravaError("No pude hablar con Strava.") from exc
+        raise StravaError(tr("No pude hablar con Strava.", "I couldn't reach Strava.")) from exc
 
 
 # ── OAuth ───────────────────────────────────────────────────────────────────
@@ -181,7 +187,35 @@ def carreras(s: Sesion, pagina: int = 1, despues: int | None = None,
             continue
         out.append({
             "id": a["id"], "nombre": a.get("name", ""),
-            "fecha": a.get("start_date", ""), "distancia_m": round(a.get("distance", 0)),
+            "fecha": a.get("start_date", ""), "fecha_local": a.get("start_date_local", ""),
+            "distancia_m": round(a.get("distance", 0)),
+            "tiempo_s": int(a.get("moving_time") or 0),
+            "desnivel_m": round(a.get("total_elevation_gain") or 0),
+            "fc_media": a.get("average_heartrate"),
+            # 1 = carrera, 2 = fondo, 3 = entrenamiento (lo que marca el atleta)
+            "tipo_entreno": a.get("workout_type"),
             "polilinea": linea,
         })
     return out, len(datos) if isinstance(datos, list) else 0
+
+
+def _totales(t: dict | None) -> dict:
+    t = t or {}
+    return {"carreras": int(t.get("count") or 0), "km": round((t.get("distance") or 0) / 1000, 1),
+            "horas": round((t.get("moving_time") or 0) / 3600, 1),
+            "desnivel_m": round(t.get("elevation_gain") or 0)}
+
+
+def perfil(s: Sesion) -> dict:
+    """Perfil público y totales de carrera (4 semanas, año, histórico) de Strava."""
+    a = _http("GET", f"{API}/athlete", token=s.access_token)
+    st = _http("GET", f"{API}/athletes/{s.atleta_id or a.get('id')}/stats", token=s.access_token)
+    return {
+        "nombre": a.get("firstname") or "", "apellido": a.get("lastname") or "",
+        "foto": a.get("profile_medium") or a.get("profile"),
+        "ciudad": ", ".join(x for x in (a.get("city"), a.get("country")) if x),
+        "desde": (a.get("created_at") or "")[:10],
+        "recientes": _totales(st.get("recent_run_totals")),     # últimas 4 semanas
+        "anio": _totales(st.get("ytd_run_totals")),
+        "historico": _totales(st.get("all_run_totals")),
+    }

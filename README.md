@@ -1,6 +1,6 @@
 # PacePath
 
-**Tu entrenamiento de hoy, por calles que nunca has corrido.**
+**La ruta para tu entrenamiento de hoy, por calles reales.**
 
 PacePath diseña la ruta ideal para la sesión que te toca —series, tempo, fondo
 largo, cuestas, regenerativo— sobre las calles reales de tu ciudad. Conectas tu
@@ -21,14 +21,14 @@ posible, no sólo una que mida lo que pides:
 | Cuestas | La subida de la pendiente y largo pedidos más cercana, con calentamiento y vuelta |
 | Regenerativo | Corto, plano, con sombra y parques |
 
-### 2. Pinta tu ciudad
-Con tu historial de Strava, PacePath sabe qué calles ya corriste: porcentaje
-recorrido por comuna, mapa de cobertura y la opción **«priorizar calles
-nuevas»** en cualquier ruta generada.
+### 2. Mi ciudad y perfil (con Strava)
+Con tu historial de Strava: un mapa de calor de por dónde has corrido (cuántas
+veces por cada calle), tus calles de siempre y tramos favoritos como preferencia
+al crear rutas, y un perfil con tus indicadores e historial.
 
 ## Requisito
 El usuario conecta su cuenta de Strava (OAuth). Sin Strava la app genera rutas
-por sesión igual, pero sin la capa de calles nuevas.
+por sesión igual, pero sin la capa personal.
 
 ## Base técnica
 Reutiliza [RaceEngine](https://github.com/ignacioarteaga99/RaceEngine): su motor

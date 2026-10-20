@@ -1,9 +1,10 @@
 # Plan de PacePath
 
 Prioridad del producto: **la ruta según el entrenamiento del día es la función
-principal**; «calles nuevas» es una capa que la enriquece (y una vista propia de
-cobertura). Ambas requieren que el usuario conecte su Strava para la parte
-personal.
+principal**. Con Strava se suma la capa personal: por dónde has corrido (mapa
+de calor), tus calles de siempre y tramos favoritos, y un perfil con tu
+historial. **Decidido (Ignacio): no hay «lo que te falta por correr»** — ni
+cobertura por comuna ni priorizar calles nuevas; sólo por dónde has corrido.
 
 ## Arquitectura
 
@@ -75,21 +76,17 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
 - [ ] Cumplir los términos de la API de Strava: los datos de cada usuario sólo
       para ese usuario, borrado al desconectar, sin usarlos para entrenar modelos.
 
-## Fase 3 — Calles nuevas
+## Fase 3 — Por dónde has corrido
 - [x] Calles de siempre: tus carreras → aristas (KD-tree sobre las aristas,
       trazado densificado cada 8 m, 20 m de tolerancia). El teléfono las pide
       una vez por comuna y las adjunta a cada ruta; pesan en pesos, corredores
       y puntuación de tempo, fondo y regenerativo.
 - [x] Tramos favoritos: se trazan a mano y se guardan en el teléfono; pesan
       más que las calles de siempre.
-- [ ] **Map-matching con continuidad** (para pintar calles): proyectar cada traza GPS al grafo y marcar aristas
-      recorridas (tolerancia ~20–25 m, exigir continuidad para no marcar
-      calles paralelas por ruido GPS).
-- [ ] Cobertura por usuario: aristas recorridas (bitset por región) y % por
-      comuna (contando metros de calle, no aristas).
-- [ ] Peso «calle nueva» en el generador: bonificar metros no recorridos, con
-      un control de intensidad (0 = ignorar, 1 = máximo).
-- [ ] Mapa de cobertura (recorridas vs. pendientes) y logros por comuna.
+- [x] Mapa de calor con conteo real de veces por calle y escala.
+- [x] Perfil: indicadores de Strava (4 semanas, año, histórico) e historial.
+- ~~Cobertura por comuna, calles pendientes y priorizar calles nuevas~~:
+  descartado por decisión de producto.
 
 ## Fase 4 — Producto
 - [ ] Leer la sesión del día desde el plan del usuario (o escribirla rápido:

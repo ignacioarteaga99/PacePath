@@ -27,7 +27,7 @@ def test_interpreta_otras():
 
 
 def test_no_entiende():
-    with pytest.raises(ValueError, match="no entiendo"):
+    with pytest.raises(ValueError, match="(?i)no entiendo"):
         interpretar("hoy descanso")
 
 

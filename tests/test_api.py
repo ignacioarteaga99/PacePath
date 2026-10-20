@@ -107,3 +107,21 @@ def test_calles_de_siempre_y_favoritos():
         assert vieja["preferencias"]["version_ok"] is False
     finally:
         c.comuna_para = original
+
+
+def test_idioma_ingles():
+    d = REGIONS["demo"]
+    body = {"lat": d.lat, "lon": d.lon, "texto": "5x400", "comuna": "demo"}
+    es = cli.post("/api/ruta", json=body).json()
+    en = cli.post("/api/ruta", json=body, headers={"X-Idioma": "en"}).json()
+    assert es["explicacion"][0].startswith("Las series van por")
+    assert en["explicacion"][0].startswith("The intervals go along")
+    assert en["sesion"]["resumen"] == "5×400 m (90 s rest)"
+    assert "SRTM" in en["avisos"][-1] and "approximate" in en["avisos"][-1]
+    assert cli.post("/api/sesion", json={"texto": "long run 18k"}).json()["tipo"] == "fondo"
+    assert cli.post("/api/sesion", json={"texto": "hills 8x300 6%"}).json()["tipo"] == "cuestas"
+    assert cli.post("/api/sesion", json={"texto": "easy 6k"}).json()["tipo"] == "regenerativo"
+    r = cli.post("/api/sesion", json={"texto": "nada"}, headers={"X-Idioma": "en"})
+    assert "I don't understand" in r.json()["detail"]
+    # El idioma de una petición no se filtra a la siguiente.
+    assert cli.post("/api/ruta", json=body).json()["explicacion"][0].startswith("Las series")

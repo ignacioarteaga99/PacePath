@@ -15,9 +15,10 @@ import numpy as np
 from raceengine_engine.context import GraphContext
 from raceengine_routing import RoutingWeights
 
+from .idioma import tr
 from .continuo import _coords, _marcas, _resumen_medida
 from .metricas import medir
-from .series import AVISO_SRTM, _calles_trote
+from .series import _calles_trote, aviso_srtm
 from .tramos import aristas_corribles, nodos_en_red
 
 MAX_PUNTOS = 60
@@ -37,9 +38,10 @@ def _pesos(ctx: GraphContext) -> RoutingWeights:
 
 def trazar(ctx: GraphContext, puntos: list[tuple[float, float]], volver: bool) -> dict:
     if len(puntos) < 2:
-        raise TrazadoInvalido("Marca al menos dos puntos.")
+        raise TrazadoInvalido(tr("Marca al menos dos puntos.", "Mark at least two points."))
     if len(puntos) > MAX_PUNTOS:
-        raise TrazadoInvalido(f"Como máximo {MAX_PUNTOS} puntos.")
+        raise TrazadoInvalido(tr(f"Como máximo {MAX_PUNTOS} puntos.",
+                                 f"At most {MAX_PUNTOS} points."))
     g = ctx.graph
     w = _pesos(ctx)
     red = nodos_en_red(ctx)
@@ -47,7 +49,8 @@ def trazar(ctx: GraphContext, puntos: list[tuple[float, float]], volver: bool) -
     for (la, lo), n in zip(puntos, nodos):
         x, y = g.project(la, lo)
         if np.hypot(g.x[n] - x, g.y[n] - y) > 300:
-            raise TrazadoInvalido("Hay un punto lejos de cualquier calle de este mapa.")
+            raise TrazadoInvalido(tr("Hay un punto lejos de cualquier calle de este mapa.",
+                                     "A point is far from any street on this map."))
     secuencia = nodos + ([nodos[0]] if volver and nodos[-1] != nodos[0] else [])
 
     tramos, aristas = [], []
@@ -56,8 +59,9 @@ def trazar(ctx: GraphContext, puntos: list[tuple[float, float]], volver: bool) -
             continue
         leg = ctx.provider.shortest_path(a, b, w, max_distance_m=MAX_SALTO_M * 1.6)
         if leg is None or not leg.ok:
-            raise TrazadoInvalido(f"No hay camino corrible entre el punto {k + 1} y el "
-                                  f"{k + 2 if k + 2 <= len(nodos) else 1}.")
+            fin = k + 2 if k + 2 <= len(nodos) else 1
+            raise TrazadoInvalido(tr(f"No hay camino corrible entre el punto {k + 1} y el {fin}.",
+                                     f"There's no runnable path between point {k + 1} and {fin}."))
         tramos.append({"tipo": "trazado", "numero": k + 1,
                        "distancia_m": round(leg.distance_m),
                        "coordenadas": _coords(ctx, leg.edges)})
@@ -73,5 +77,5 @@ def trazar(ctx: GraphContext, puntos: list[tuple[float, float]], volver: bool) -
         "partes": tramos,
         "marcas": _marcas(ctx, aristas, med),
         "totales": {"distancia_m": round(med.distancia_m)},
-        "avisos": [AVISO_SRTM],
+        "avisos": [aviso_srtm()],
     }

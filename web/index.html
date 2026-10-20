@@ -172,6 +172,12 @@
   /* En «trazar» el primer toque ya es la salida: el campo «Desde» sobra. */
   body.modo-trazar #form > .campo:first-child { display: none; }
   /* ── Mi ciudad ─────────────────────────────────────────────────────────── */
+  body.vista-perfil #form, body.vista-perfil .modos, body.vista-perfil .chips,
+  body.vista-perfil .plegado { display: none !important; }
+  body.vista-perfil .titulo-perfil { display: inline; }
+  .titulo-perfil { display: none; font-weight: 800; font-size: 17px; }
+  body.vista-perfil #hoja { max-height: 80vh; }
+  body.vista-perfil #botonCapas, body.vista-perfil #menuCapas { display: none !important; }
   body.vista-ciudad #form, body.vista-ciudad .modos, body.vista-ciudad .chips,
   body.vista-ciudad .plegado { display: none !important; }
   body.vista-ciudad .titulo-ciudad { display: inline; }
@@ -183,6 +189,31 @@
   .credito { color: var(--suave); font-size: 12px; margin-top: 10px; text-align: center; }
   .cifras.tres { grid-template-columns: repeat(3, 1fr); }
   .prefs { margin-top: 12px; }
+  /* ── Perfil ─────────────────────────────────────────────────────────────── */
+  .atleta { display: flex; align-items: center; gap: 12px; margin: 4px 0 14px; }
+  .atleta img, .atleta .sin-foto { width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
+    background: var(--gris); flex: none; }
+  .atleta h2 { margin: 0; }
+  .atleta small { color: var(--suave); }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .kpi { background: var(--gris); border-radius: 12px; padding: 10px; }
+  .kpi span { display: block; font-size: 11px; font-weight: 700; color: var(--suave); text-transform: uppercase;
+    letter-spacing: .4px; }
+  .kpi b { display: block; font-size: 22px; letter-spacing: -.5px; margin: 2px 0; }
+  .kpi small { color: var(--suave); font-size: 12px; line-height: 1.35; display: block; }
+  .bloque { margin-top: 18px; }
+  .bloque h3 { margin: 0 0 2px; font-size: 15px; }
+  .bloque .sub { color: var(--suave); font-size: 13px; margin: 0 0 8px; }
+  .grafico { position: relative; }
+  .grafico svg { display: block; width: 100%; overflow: visible; touch-action: none; }
+  .grafico .tip { position: absolute; top: -6px; transform: translate(-50%, -100%); background: var(--tinta);
+    color: var(--panel); font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 6px;
+    white-space: nowrap; pointer-events: none; display: none; }
+  .records { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .record { border: 1px solid var(--linea); border-radius: 12px; padding: 10px; }
+  .record span { display: block; font-size: 12px; color: var(--suave); }
+  .record b { display: block; font-size: 17px; margin-top: 2px; }
+  .record small { color: var(--suave); font-size: 12px; }
   /* Escala del mapa de calor, en el costado */
   #escalaCalor { position: fixed; z-index: 900; right: 10px; top: calc(env(safe-area-inset-top) + 64px);
     background: var(--panel); backdrop-filter: blur(8px); border-radius: 12px; border: 1px solid var(--linea);
@@ -220,21 +251,31 @@
     background: #1d1d23; color: #f4f4f6; }
   .popup-calor b { color: #ff8a1f; font-size: 16px; }
 
-  /* ── Controles flotantes del mapa ───────────────────────────────────────── */
-  #controles { position: fixed; z-index: 950; right: 10px; top: calc(var(--cab, 120px) + 10px);
-    display: flex; flex-direction: column; gap: 8px; }
-  #controles > button { width: 44px; height: 44px; padding: 0; display: grid; place-items: center;
-    background: var(--panel); color: var(--tinta); border: 1px solid var(--linea);
-    box-shadow: 0 2px 10px var(--sombra); border-radius: 12px; }
-  #controles svg { width: 22px; height: 22px; }
-  #menuCapas { position: absolute; right: 52px; top: 0; background: var(--panel); border: 1px solid var(--linea);
-    border-radius: 12px; box-shadow: 0 6px 20px var(--sombra); padding: 6px; display: none; min-width: 150px; }
+  /* ── Controles flotantes del mapa: una tarjeta, dos botones ───────────── */
+  #controles { position: fixed; z-index: 950; right: 12px; top: calc(var(--cab, 120px) + 12px); }
+  .tarjeta-ctl { display: flex; flex-direction: column; background: var(--panel);
+    backdrop-filter: blur(12px); border-radius: 14px; box-shadow: 0 4px 18px var(--sombra);
+    border: 1px solid var(--linea); overflow: hidden; }
+  .tarjeta-ctl button { width: 42px; height: 42px; padding: 0; display: grid; place-items: center;
+    background: transparent; color: var(--tinta); border-radius: 0; }
+  .tarjeta-ctl button + button { border-top: 1px solid var(--linea); }
+  .tarjeta-ctl button:active { background: var(--gris); }
+  .tarjeta-ctl svg { width: 20px; height: 20px; }
+  /* Selector de capas con miniaturas reales del mapa */
+  #menuCapas { position: absolute; right: 54px; top: 0; width: 252px; padding: 12px;
+    background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--linea);
+    border-radius: 16px; box-shadow: 0 10px 30px var(--sombra); display: none; }
   #menuCapas.abierto { display: block; }
-  #menuCapas button { display: flex; align-items: center; gap: 10px; width: 100%; background: transparent;
-    color: var(--tinta); font-weight: 600; font-size: 14px; padding: 8px 10px; border-radius: 8px; text-align: left; }
-  #menuCapas button.on { background: var(--gris); color: var(--acento); }
-  #menuCapas i { width: 30px; height: 30px; border-radius: 6px; flex: none; background-size: cover; }
-  #escalaCalor { top: calc(var(--cab, 120px) + 118px) !important; }
+  #menuCapas .titulo { font-size: 12px; font-weight: 700; color: var(--suave); text-transform: uppercase;
+    letter-spacing: .5px; margin: 0 0 10px 2px; }
+  #menuCapas .grilla { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; }
+  #menuCapas button { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0;
+    background: transparent; color: var(--tinta); font-size: 12px; font-weight: 600; border-radius: 0; }
+  #menuCapas i { display: block; width: 68px; height: 68px; border-radius: 12px; background-size: cover;
+    background-position: center; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); transition: box-shadow .15s; }
+  #menuCapas button.on i { box-shadow: 0 0 0 2.5px var(--acento); }
+  #menuCapas button.on { color: var(--acento); }
+  #escalaCalor { top: calc(var(--cab, 120px) + 110px) !important; }
 
   /* ── Computador: panel lateral fijo y el mapa al lado ───────────────────── */
   @media (min-width: 900px) {
@@ -254,18 +295,26 @@
 <body>
 <div id="mapa"></div>
 <div id="controles">
-  <button type="button" id="botonCapas" aria-label="Capas del mapa" title="Capas del mapa">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
-      <path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg></button>
-  <div id="menuCapas" role="menu">
-    <button type="button" data-capa="mapa"><i style="background:#e9e5dc"></i>Mapa</button>
-    <button type="button" data-capa="hibrido"><i style="background:linear-gradient(135deg,#3f5a3a,#7a6f55)"></i>Híbrido</button>
-    <button type="button" data-capa="satelite"><i style="background:linear-gradient(135deg,#2f4a2b,#5b5240)"></i>Satélite</button>
+  <div class="tarjeta-ctl">
+    <button type="button" id="botonCapas" aria-label="Capas del mapa" title="Capas del mapa" data-i18n-aria="Capas del mapa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+        <path d="m12 3.5 8.5 4.6L12 12.7 3.5 8.1z"/><path d="m3.5 12.1 8.5 4.6 8.5-4.6"/><path d="m3.5 16 8.5 4.6 8.5-4.6"/></svg></button>
+    <button type="button" id="botonNoche" aria-label="Modo noche" title="Modo día / noche"></button>
+    <button type="button" id="botonIdioma" aria-label="Cambiar idioma" title="Español / English"></button>
   </div>
-  <button type="button" id="botonNoche" aria-label="Modo noche" title="Modo día / noche"></button>
+  <div id="menuCapas" role="menu" aria-label="Capas del mapa">
+    <p class="titulo" data-i18n>Tipo de mapa</p>
+    <div class="grilla">
+      <button type="button" data-capa="claro"><i></i><span data-i18n>Claro</span></button>
+      <button type="button" data-capa="calles"><i></i><span data-i18n>Calles</span></button>
+      <button type="button" data-capa="relieve"><i></i><span data-i18n>Relieve</span></button>
+      <button type="button" data-capa="hibrido"><i></i><span data-i18n>Híbrido</span></button>
+      <button type="button" data-capa="satelite"><i></i><span data-i18n>Satélite</span></button>
+    </div>
+  </div>
 </div>
 <div id="escalaCalor" hidden aria-label="Escala: veces que corriste por ahí">
-  <b>veces</b><div class="barra"><i></i><div class="marcas"></div></div>
+  <b data-i18n>veces</b><div class="barra"><i></i><div class="marcas"></div></div>
 </div>
 
 <header>
@@ -276,48 +325,49 @@
       <circle cx="7.5" cy="19.5" r="2.2" fill="#fff"/>
       <circle cx="18.6" cy="5.6" r="2.1" fill="none" stroke="#fff" stroke-width="1.8"/></svg>
     <div class="modos" role="tablist">
-      <button type="button" class="on" id="modo-sesion">Para mi sesión</button>
-      <button type="button" id="modo-trazar">Trazar a mano</button>
+      <button type="button" class="on" id="modo-sesion" data-i18n>Para mi sesión</button>
+      <button type="button" id="modo-trazar" data-i18n>Trazar a mano</button>
     </div>
-    <span class="titulo-ciudad">Mi ciudad</span>
+    <span class="titulo-ciudad" data-i18n>Mi ciudad</span>
+    <span class="titulo-perfil" data-i18n>Perfil</span>
     <small id="comuna" hidden></small>
   </div>
   <div class="chips solo-sesion" id="chips">
-    <button class="chip on" type="button" data-t="6x1k">Series</button>
-    <button class="chip" type="button" data-t="tempo 8k">Tempo</button>
-    <button class="chip" type="button" data-t="fondo 18k">Fondo largo</button>
-    <button class="chip" type="button" data-t="cuestas 8x300 6%">Cuestas</button>
-    <button class="chip" type="button" data-t="regenerativo 6k">Regenerativo</button>
+    <button class="chip on" type="button" data-t="6x1k" data-t-en="6x1k" data-i18n>Series</button>
+    <button class="chip" type="button" data-t="tempo 8k" data-t-en="tempo 8k" data-i18n>Tempo</button>
+    <button class="chip" type="button" data-t="fondo 18k" data-t-en="long run 18k" data-i18n>Fondo largo</button>
+    <button class="chip" type="button" data-t="cuestas 8x300 6%" data-t-en="hills 8x300 6%" data-i18n>Cuestas</button>
+    <button class="chip" type="button" data-t="regenerativo 6k" data-t-en="easy 6k" data-i18n>Regenerativo</button>
   </div>
   <div class="plegado"><span id="resumenForm"></span>
-    <button class="sec" type="button" id="editar">Editar</button></div>
+    <button class="sec" type="button" id="editar" data-i18n>Editar</button></div>
   <form id="form" autocomplete="off">
     <div class="campo">
-      <label for="desde">Desde</label>
-      <input id="desde" placeholder="Calle, esquina o lugar" aria-label="Desde dónde sales">
+      <label for="desde" data-i18n>Desde</label>
+      <input id="desde" placeholder="Calle, esquina o lugar" aria-label="Desde dónde sales" data-i18n-ph="Calle, esquina o lugar">
       <button class="sec icono solo" id="cerca" type="button" aria-label="Cerca de mí" title="Cerca de mí">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
              stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
       <div class="sugerencias" id="sugerencias"></div>
     </div>
     <div class="campo solo-sesion">
-      <label for="texto">Sesión</label>
-      <input id="texto" value="6x1k" aria-label="Sesión de hoy" placeholder="6x1k · tempo 8k · fondo 18k">
-      <button id="armar" type="submit">Crear ruta</button>
+      <label for="texto" data-i18n>Sesión</label>
+      <input id="texto" value="6x1k" aria-label="Sesión de hoy" placeholder="6x1k · tempo 8k · fondo 18k" data-i18n-ph="6x1k · tempo 8k · fondo 18k">
+      <button id="armar" type="submit" data-i18n>Crear ruta</button>
     </div>
     <div class="continuo">
-      <label class="interruptor"><input type="checkbox" id="volverSesion" checked> Volver a la salida</label>
-      <label class="tope">Desnivel máx. <input id="tope" type="number" inputmode="numeric" min="0"
-        step="10" placeholder="sin límite" aria-label="Desnivel positivo máximo en metros"> m</label>
+      <label class="interruptor"><input type="checkbox" id="volverSesion" checked> <span data-i18n>Volver a la salida</span></label>
+      <label class="tope"><span data-i18n>Desnivel máx.</span> <input id="tope" type="number" inputmode="numeric" min="0"
+        step="10" placeholder="sin límite" data-i18n-ph="sin límite" aria-label="Desnivel positivo máximo en metros"> m</label>
     </div>
     <div class="campo meta">
-      <label for="meta">Meta</label>
-      <input id="meta" placeholder="Opcional: dónde terminar" aria-label="Meta">
-      <button class="sec icono" id="metaMapa" type="button">En el mapa</button>
+      <label for="meta" data-i18n>Meta</label>
+      <input id="meta" placeholder="Opcional: dónde terminar" aria-label="Meta" data-i18n-ph="Opcional: dónde terminar">
+      <button class="sec icono" id="metaMapa" type="button" data-i18n>En el mapa</button>
       <div class="sugerencias" id="sugerenciasMeta"></div>
     </div>
     <div class="trazar">
-      <label class="interruptor"><input type="checkbox" id="volver" checked> Volver a la salida</label>
+      <label class="interruptor"><input type="checkbox" id="volver" checked> <span data-i18n>Volver a la salida</span></label>
       <button class="sec icono solo" type="button" id="cercaTrazar" aria-label="Salir desde mi ubicación"
               title="Salir desde mi ubicación"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
              stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
@@ -333,59 +383,179 @@
 
 <div id="hoja">
   <div class="asa"></div>
-  <p class="pista">Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.</p>
+  <p class="pista" data-i18n>Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.</p>
 </div>
 
 <nav>
   <a class="on" href="#" id="tab-hoy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
      stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 19c0-4 4-4 5.5-6.5S10.5 8 12 6c.6-.7 1.4-1 2.1-1"/>
-     <circle cx="6.5" cy="19" r="1.6" fill="currentColor"/><circle cx="17.6" cy="5" r="1.8"/></svg>Hoy</a>
+     <circle cx="6.5" cy="19" r="1.6" fill="currentColor"/><circle cx="17.6" cy="5" r="1.8"/></svg><span data-i18n>Hoy</span></a>
   <a href="#" id="tab-ciudad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-     stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Mi ciudad</a>
-  <a href="#" data-pronto="Perfil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-     stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Perfil</a>
+     stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n>Mi ciudad</span></a>
+  <a href="#" id="tab-perfil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span data-i18n>Perfil</span></a>
 </nav>
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
+
+// ── Idioma: español / inglés con un botón ───────────────────────────────────
+// t("texto en español", {variables}) → el texto en el idioma actual. Las claves
+// son las frases en español; lo que no esté en EN queda en español.
+let idioma = (() => { try { const v = JSON.parse(localStorage.getItem("pp_lang")); if (v) return v; } catch {}
+  return (navigator.language || "es").toLowerCase().startsWith("en") ? "en" : "es"; })();
+const EN = {
+  "Tipo de mapa": "Map type", "Claro": "Light", "Calles": "Streets", "Relieve": "Terrain",
+  "Híbrido": "Hybrid", "Satélite": "Satellite", "veces": "times",
+  "Para mi sesión": "For my session", "Trazar a mano": "Draw by hand", "Mi ciudad": "My city",
+  "Perfil": "Profile", "Hoy": "Today", "Series": "Intervals", "Tempo": "Tempo",
+  "Fondo largo": "Long run", "Cuestas": "Hills", "Regenerativo": "Easy run", "Editar": "Edit",
+  "Desde": "From", "Calle, esquina o lugar": "Street, corner or place", "Sesión": "Session",
+  "6x1k · tempo 8k · fondo 18k": "6x1k · tempo 8k · long run 18k", "Crear ruta": "Create route",
+  "Volver a la salida": "Back to start", "Desnivel máx.": "Max climb", "sin límite": "no limit",
+  "Meta": "Finish", "Opcional: dónde terminar": "Optional: where to finish", "En el mapa": "On the map",
+  "Toca el mapa…": "Tap the map…", "Capas del mapa": "Map layers", "Modo día": "Day mode",
+  "Modo noche": "Night mode", "Plegar o desplegar": "Collapse or expand",
+  "Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.":
+    "Choose where you start: type a street or corner, use «Near me» or tap the map.",
+  "Salida marcada. Toca el mapa para agregar puntos.": "Start set. Tap the map to add points.",
+  "Salida lista. Elige la sesión y pulsa «Crear ruta». Puedes arrastrar el punto.":
+    "Start set. Pick the session and press «Create route». You can drag the point.",
+  "Punto en el mapa": "Point on the map", "Mi ubicación": "My location",
+  "Pasaste <b>{n}</b> veces por aquí": "You've run here <b>{n}</b> times",
+  "Pasaste <b>{n}</b> vez por aquí": "You've run here <b>{n}</b> time",
+  "Por aquí todavía no has corrido": "You haven't run here yet",
+  "Este navegador no da la ubicación: escribe una calle o toca el mapa.":
+    "This browser doesn't share location: type a street or tap the map.",
+  "Buscando tu ubicación…": "Finding your location…",
+  "No pude leer tu ubicación (revisa el permiso). Escribe una calle o toca el mapa.":
+    "I couldn't read your location (check the permission). Type a street or tap the map.",
+  "Sin resultados: prueba «Pocuro con Tobalaba» o toca el mapa": "No results: try «Pocuro con Tobalaba» or tap the map",
+  "Toca el mapa para ir marcando por dónde quieres pasar. El primer punto es la salida; puedes arrastrar cualquier punto.":
+    "Tap the map to mark where you want to go. The first point is the start; you can drag any point.",
+  "No pude unir ese punto.": "I couldn't connect that point.",
+  "Ruta trazada": "Drawn route", "vuelve a la salida": "back to start",
+  "termina en el último punto": "ends at the last point", "Distancia": "Distance",
+  "Semáforos": "Lights", "Cruces": "Crossings", "Subida": "Climb", "Desnivel": "Elev.",
+  "Repetición": "Rep", "Tramo": "Stretch", "Bloque": "Block", "Pendiente": "Grade",
+  "Nombre del tramo favorito (por ejemplo, «Ribera Balmaceda–Forestal»):": "Name of your favorite stretch (e.g. «Riverside park»):",
+  "★ Guardado": "★ Saved", "☆ Guardar como favorito": "☆ Save as favorite", "Descargar GPX": "Download GPX",
+  "Toca el mapa para seguir marcando.": "Tap the map to keep adding points.",
+  "Toca el mapa para marcar la salida.": "Tap the map to set the start.",
+  "Inicio de la repetición": "Rep start", "Fin de la repetición": "Rep end", "Llegada": "Finish",
+  "Semáforo": "Traffic light", "Cruce": "Crossing", "Fuente de agua": "Water fountain", "Baño": "Toilet",
+  "Altimetría": "Elevation", "subida": "up", "bajada": "down",
+  "en total": "in total", "sin volver a la salida": "one way", "Cambiar salida": "Change start",
+  "Escribe otra calle, usa «Cerca de mí» o toca el mapa.": "Type another street, use «Near me» or tap the map.",
+  "Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.":
+    "First choose where you start: type a street, use «Near me» or tap the map.",
+  "Buscando la mejor ruta para tu sesión…": "Finding the best route for your session…",
+  "No pude armar la ruta.": "I couldn't build the route.",
+  "Preferir mis calles de siempre al crear rutas": "Prefer my usual streets when creating routes",
+  "Tramos favoritos": "Favorite stretches",
+  "Traza a mano un tramo que te guste (en «Trazar a mano») y guárdalo: los fondos y regenerativos lo van a preferir.":
+    "Draw a stretch you like (in «Draw by hand») and save it: long and easy runs will prefer it.",
+  "Elige desde dónde sales y la sesión de hoy.": "Choose where you start and today's session.",
+  "Revisando tu conexión con Strava…": "Checking your Strava connection…",
+  "Las calles que ya corriste": "The streets you've run",
+  "Conecta tu Strava y PacePath dibuja todas tus carreras como un mapa de calor: lo que más repites se ve más intenso.":
+    "Connect Strava and PacePath draws all your runs as a heatmap: what you repeat most glows brightest.",
+  "Strava no está configurado en el servidor.": "Strava isn't configured on the server.",
+  "Conectar con Strava": "Connect with Strava",
+  "Se leen tus carreras sólo para mostrártelas a ti; quedan guardadas en este teléfono. Al desconectar se borra todo y se revoca el acceso.":
+    "Your runs are read only to show them to you; they stay on this phone. Disconnecting deletes everything and revokes access.",
+  "Tus carreras": "Your runs", "Carreras": "Runs", "Kilómetros": "Kilometers",
+  "Toca el mapa para ver cuántas veces pasaste por ahí.": "Tap the map to see how many times you've run there.",
+  "Sólo veo tus actividades públicas: al conectar no se dio permiso para las privadas.":
+    "I can only see your public activities: private ones weren't allowed when connecting.",
+  "Actualizar": "Refresh", "Desconectar": "Disconnect", "Con datos de Strava": "Powered by Strava",
+  "¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso.":
+    "Disconnect Strava? Your runs are deleted from this phone and access is revoked.",
+  "Strava desconectado: se borraron tus datos.": "Strava disconnected: your data was deleted.",
+  "Trayendo carreras de Strava… ({n} nuevas)": "Fetching runs from Strava… ({n} new)",
+  "{n} carreras nuevas.": "{n} new runs.", "Al día.": "Up to date.", "No pude leer Strava.": "I couldn't read Strava.",
+  "Cargando tu perfil de Strava…": "Loading your Strava profile…",
+  "Tu historial de carrera": "Your running history",
+  "Conecta tu Strava para ver tus kilómetros de las últimas semanas, del año y de siempre, tus récords y tus hábitos.":
+    "Connect Strava to see your kilometers for recent weeks, this year and all time, your records and habits.",
+  "Tú": "You", "en Strava desde {a}": "on Strava since {a}", "4 semanas": "4 weeks", "Histórico": "All time",
+  "No pude leer tus totales de Strava ahora.": "I couldn't read your Strava totals right now.",
+  "carreras": "runs", "carrera": "run", "Volumen semanal": "Weekly volume",
+  "Últimas 12 semanas · promedio {x} km por semana": "Last 12 weeks · average {x} km per week",
+  "Ritmo medio": "Average pace", "Por semana, ponderado por distancia (más arriba, más rápido)": "Per week, distance-weighted (higher is faster)",
+  "{a}, mes a mes": "{a}, month by month", "{k} km en {n} carreras con GPS": "{k} km in {n} GPS runs",
+  "Récords": "Records", "Más larga": "Longest", "Mejor ritmo (≥5 km)": "Best pace (≥5 km)",
+  "Mayor desnivel": "Most climbing", "Semana con más km": "Biggest week", "semana del {f}": "week of {f}",
+  "Racha actual": "Current streak", "Racha máxima": "Longest streak", "semana": "week", "semanas": "weeks",
+  "seguidas corriendo": "in a row running", "Hábitos": "Habits", "Día favorito": "Favorite day",
+  "Hora típica": "Usual time", "la mitad sale antes": "half start earlier", "Distancia típica": "Usual distance",
+  "de {n} carreras": "of {n} runs", "Ritmo de siempre": "Overall pace", "promedio de todas": "average of all",
+  "Trayendo tus carreras de Strava…": "Fetching your runs from Strava…",
+  "Aún no hay suficientes semanas con carreras.": "Not enough weeks with runs yet.",
+  "Semana del {f}: {k} km · {n} {c}": "Week of {f}: {k} km · {n} {c}",
+  "Semana del {f}: {r}": "Week of {f}: {r}", "{m} {a}: {k} km · {n} carreras": "{m} {a}: {k} km · {n} runs",
+  "Cancelaste la conexión con Strava.": "You canceled the Strava connection.",
+  "No se pudo completar la conexión con Strava. Intenta de nuevo.": "The Strava connection couldn't be completed. Try again.",
+  "Strava quedó conectado, pero sin permiso para leer tus actividades: desconecta y vuelve a conectar marcando ese permiso.":
+    "Strava is connected, but without permission to read your activities: disconnect and reconnect allowing it.",
+  "{p}: conecta tu Strava.": "{p}: connect your Strava.",
+  "Perfil · {lo}–{hi} m s. n. m.": "Profile · {lo}–{hi} m above sea level",
+  "Cambiar idioma": "Change language", "Borrar {x}": "Delete {x}",
+};
+const DIAS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MESES_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function t(es, vars) {
+  let s = idioma === "en" ? (EN[es] ?? es) : es;
+  if (vars) s = s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+  return s;
+}
+// Toda llamada a la API lleva el idioma: el servidor responde en él.
+const _fetch = window.fetch.bind(window);
+window.fetch = (u, o = {}) => _fetch(u, { ...o, headers: { ...(o.headers || {}), "X-Idioma": idioma } });
 const mapa = L.map("mapa", { zoomControl: false, zoomSnap: 0.25 }).setView([-33.4258, -70.61], 14);
 // ── Capas del mapa y modo día/noche ─────────────────────────────────────────
-// Mapa (OSM de día, Esri oscuro de noche), Híbrido y Satélite (Esri, sin clave;
-// CARTO pide clave fuera de localhost).
-const baseClara = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19, attribution: "© OpenStreetMap",
-});
-// «Mi ciudad» va sobre un mapa oscuro: el calor brilla. Esri no pide clave
-// (CARTO sí, fuera de localhost).
-const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/";
-const baseOscura = L.layerGroup([
-  // Esri sirve hasta el nivel 16: más cerca, Leaflet estira esas teselas.
-  L.tileLayer(ESRI + "World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19,
-    attribution: "Esri, HERE, Garmin, © OpenStreetMap" }),
-  L.tileLayer(ESRI + "World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 16, maxZoom: 19,
-    opacity: 0.7 }),
-]);
+// Todas de Esri, sin clave (CARTO la pide fuera de localhost; OSM estándar es
+// recargado para una app de deporte). «Claro» es la base por defecto: gris
+// limpio donde la ruta naranja resalta; de noche pasa a su versión oscura.
 const ESRI_SERV = "https://server.arcgisonline.com/ArcGIS/rest/services/";
-const satelite = () => L.tileLayer(ESRI_SERV + "World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-  maxNativeZoom: 19, maxZoom: 19, attribution: "Esri, Maxar, Earthstar Geographics" });
-const capaSatelite = satelite();
-const capaHibrido = L.layerGroup([satelite(),
-  L.tileLayer(ESRI_SERV + "Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, opacity: 0.9 }),
-  L.tileLayer(ESRI_SERV + "Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19 })]);
+const esri = (ruta, extra = {}) => L.tileLayer(ESRI_SERV + ruta + "/MapServer/tile/{z}/{y}/{x}",
+  { maxZoom: 19, attribution: "Esri, HERE, Garmin, © OpenStreetMap", ...extra });
+const CAPAS = {
+  // Las bases «Canvas» llegan hasta el nivel 16: más cerca, Leaflet las estira.
+  claro: () => L.layerGroup([esri("Canvas/World_Light_Gray_Base", { maxNativeZoom: 16 }),
+                             esri("Canvas/World_Light_Gray_Reference", { maxNativeZoom: 16 })]),
+  oscuro: () => L.layerGroup([esri("Canvas/World_Dark_Gray_Base", { maxNativeZoom: 16 }),
+                              esri("Canvas/World_Dark_Gray_Reference", { maxNativeZoom: 16, opacity: 0.8 })]),
+  calles: () => esri("World_Street_Map"),
+  relieve: () => esri("World_Topo_Map"),
+  satelite: () => esri("World_Imagery", { attribution: "Esri, Maxar, Earthstar Geographics" }),
+  // Híbrido: satélite y sólo los nombres (las calles en salmón tapaban la foto).
+  hibrido: () => L.layerGroup([esri("World_Imagery", { attribution: "Esri, Maxar, Earthstar Geographics" }),
+                               esri("Reference/World_Boundaries_and_Places")]),
+};
+// Miniatura de cada capa: la misma tesela de Providencia (z14).
+const MINI = { claro: "Canvas/World_Light_Gray_Base", oscuro: "Canvas/World_Dark_Gray_Base",
+  calles: "World_Street_Map", relieve: "World_Topo_Map", satelite: "World_Imagery", hibrido: "World_Imagery" };
+const mini = (k) => `url(${ESRI_SERV}${MINI[k]}/MapServer/tile/14/9807/4978)`;
+const cacheCapas = {};
+const capa = (k) => (cacheCapas[k] ??= CAPAS[k]());
 const pref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const guardarPref = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-let capaActual = null, nombreCapa = pref("pp_capa", "mapa");
+let capaActual = null, nombreCapa = pref("pp_capa", "claro");
+if (!CAPAS[nombreCapa] || nombreCapa === "oscuro") nombreCapa = "claro";   // nombres antiguos
 let noche = pref("pp_noche", window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
 
 function ponerCapa(nombre) {
   nombreCapa = nombre; guardarPref("pp_capa", nombre);
   if (capaActual) mapa.removeLayer(capaActual);
-  capaActual = nombre === "satelite" ? capaSatelite : nombre === "hibrido" ? capaHibrido
-             : (noche ? baseOscura : baseClara);
+  capaActual = capa(nombre === "claro" && noche ? "oscuro" : nombre);
   capaActual.addTo(mapa);
   capaActual.bringToBack?.();
-  document.querySelectorAll("#menuCapas [data-capa]").forEach((b) => b.classList.toggle("on", b.dataset.capa === nombre));
+  document.querySelectorAll("#menuCapas [data-capa]").forEach((b) => {
+    b.classList.toggle("on", b.dataset.capa === nombre);
+    b.querySelector("i").style.backgroundImage = mini(b.dataset.capa === "claro" && noche ? "oscuro" : b.dataset.capa);
+  });
 }
 const SOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
 const LUNA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
@@ -394,7 +564,7 @@ function ponerNoche(v) {
   document.body.classList.toggle("noche", v);
   document.querySelector('meta[name="theme-color"]').content = v ? "#121216" : "#ffffff";
   $("botonNoche").innerHTML = v ? SOL : LUNA;
-  $("botonNoche").setAttribute("aria-label", v ? "Modo día" : "Modo noche");
+  $("botonNoche").setAttribute("aria-label", t(v ? "Modo día" : "Modo noche"));
   ponerCapa(nombreCapa);
 }
 $("botonNoche").onclick = () => ponerNoche(!noche);
@@ -412,7 +582,7 @@ const esEscritorio = () => window.matchMedia("(min-width: 900px)").matches;
 let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), animacion = null;
 const hoja = (html) => {
   $("hoja").classList.remove("plegada");
-  $("hoja").innerHTML = '<button class="asa" type="button" aria-label="Plegar o desplegar"></button>' + html;
+  $("hoja").innerHTML = '<button class="asa" type="button" aria-label="' + t("Plegar o desplegar") + '"></button>' + html;
   activarPerfil();
 };
 // Plegar y desplegar la hoja: un toque en el asa alterna; arrastrar hacia abajo
@@ -440,38 +610,38 @@ function fijarSalida(lat, lon, nombre, centrar = false) {
     salida = { lat, lon };
     pintarPuntos();
     if (centrar) mapa.setView([lat, lon], 15);
-    return puntos.length > 1 ? recalcular(null) : hoja('<p class="pista">Salida marcada. Toca el mapa para agregar puntos.</p>');
+    return puntos.length > 1 ? recalcular(null) : hoja(`<p class="pista">${t("Salida marcada. Toca el mapa para agregar puntos.")}</p>`);
   }
   salida = { lat, lon };
   $("desde").value = nombre || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
   if (marcaSalida) marcaSalida.setLatLng([lat, lon]);
   else {
     marcaSalida = L.marker([lat, lon], { icon: pin("salida"), draggable: true, zIndexOffset: 1000 }).addTo(mapa);
-    marcaSalida.on("dragend", () => { const p = marcaSalida.getLatLng(); fijarSalida(p.lat, p.lng, "Punto en el mapa"); });
+    marcaSalida.on("dragend", () => { const p = marcaSalida.getLatLng(); fijarSalida(p.lat, p.lng, t("Punto en el mapa")); });
   }
   if (centrar) mapa.setView([lat, lon], 15);
   capas.clearLayers();
-  hoja('<p class="pista">Salida lista. Elige la sesión y pulsa «Crear ruta». Puedes arrastrar el punto.</p>');
+  hoja(`<p class="pista">${t("Salida lista. Elige la sesión y pulsa «Crear ruta». Puedes arrastrar el punto.")}</p>`);
 }
 mapa.on("click", (e) => {
   if (vista === "ciudad") {
     const n = calor.vecesEn(e.containerPoint);
     L.popup({ closeButton: false, className: "popup-calor" }).setLatLng(e.latlng)
-      .setContent(n ? `Pasaste <b>${n}</b> ${n === 1 ? "vez" : "veces"} por aquí` : "Por aquí todavía no has corrido")
+      .setContent(n ? t(n === 1 ? "Pasaste <b>{n}</b> vez por aquí" : "Pasaste <b>{n}</b> veces por aquí", { n }) : t("Por aquí todavía no has corrido"))
       .openOn(mapa);
     return;
   }
   if (modo === "trazar") return agregarPunto(e.latlng.lat, e.latlng.lng);
   if (eligiendoMeta) return fijarMeta({ lat: e.latlng.lat, lon: e.latlng.lng });
-  fijarSalida(e.latlng.lat, e.latlng.lng, "Punto en el mapa");
+  fijarSalida(e.latlng.lat, e.latlng.lng, t("Punto en el mapa"));
 });
 
 $("cerca").onclick = () => {
-  if (!navigator.geolocation) return hoja('<p class="aviso">Este navegador no da la ubicación: escribe una calle o toca el mapa.</p>');
-  hoja('<div class="cargando"><div class="rueda"></div>Buscando tu ubicación…</div>');
+  if (!navigator.geolocation) return hoja(`<p class="aviso">${t("Este navegador no da la ubicación: escribe una calle o toca el mapa.")}</p>`);
+  hoja(`<div class="cargando"><div class="rueda"></div>${t("Buscando tu ubicación…")}</div>`);
   navigator.geolocation.getCurrentPosition(
-    (p) => fijarSalida(p.coords.latitude, p.coords.longitude, "Mi ubicación", true),
-    () => hoja('<p class="aviso">No pude leer tu ubicación (revisa el permiso). Escribe una calle o toca el mapa.</p>'),
+    (p) => fijarSalida(p.coords.latitude, p.coords.longitude, t("Mi ubicación"), true),
+    () => hoja(`<p class="aviso">${t("No pude leer tu ubicación (revisa el permiso). Escribe una calle o toca el mapa.")}</p>`),
     { enableHighAccuracy: true, timeout: 10000 });
 };
 
@@ -487,7 +657,7 @@ function conectarBusqueda(campo, lista, alElegir) {
       if (yo !== busqueda) return;
       $(lista).innerHTML = r.length
         ? r.map((l, i) => `<button type="button" data-i="${i}">${esc(l.nombre)}<small>${esc(l.comuna.replace("_", " "))}</small></button>`).join("")
-        : '<button type="button" disabled>Sin resultados: prueba «Pocuro con Tobalaba» o toca el mapa</button>';
+        : `<button type="button" disabled>${t("Sin resultados: prueba «Pocuro con Tobalaba» o toca el mapa")}</button>`;
       $(lista).style.display = "block";
       for (const b of $(lista).querySelectorAll("button[data-i]")) {
         b.onclick = () => { const l = r[+b.dataset.i]; $(lista).style.display = "none"; alElegir(l); };
@@ -512,9 +682,9 @@ $("texto").addEventListener("input", revisarTipo);
 $("volverSesion").onchange = () => { revisarTipo(); if ($("volverSesion").checked) fijarMeta(null); };
 function fijarMeta(p, nombre) {
   meta = p; eligiendoMeta = false;
-  $("metaMapa").textContent = "En el mapa";
+  $("metaMapa").textContent = t("En el mapa");
   if (!p) { $("meta").value = ""; if (marcaMeta) { marcaMeta.remove(); marcaMeta = null; } return; }
-  $("meta").value = nombre || "Punto en el mapa";
+  $("meta").value = nombre || t("Punto en el mapa");
   if (marcaMeta) marcaMeta.setLatLng([p.lat, p.lon]);
   else {
     marcaMeta = L.marker([p.lat, p.lon], { draggable: true, zIndexOffset: 950, icon: L.divIcon({ className: "",
@@ -525,7 +695,7 @@ function fijarMeta(p, nombre) {
 conectarBusqueda("meta", "sugerenciasMeta", (l) => fijarMeta({ lat: l.lat, lon: l.lon }, l.nombre));
 $("meta").addEventListener("input", () => { if (!$("meta").value.trim()) fijarMeta(null); });
 $("metaMapa").onclick = () => { eligiendoMeta = !eligiendoMeta;
-  $("metaMapa").textContent = eligiendoMeta ? "Toca el mapa…" : "En el mapa"; };
+  $("metaMapa").textContent = t(eligiendoMeta ? "Toca el mapa…" : "En el mapa"); };
 
 // ── Trazar a mano ───────────────────────────────────────────────────────────
 // Cada toque agrega un punto; el servidor une los puntos por la calle. La
@@ -541,8 +711,8 @@ function cambiarModo(m) {
   if (marcaSalida) { marcaSalida.remove(); marcaSalida = null; }
   puntos = salida && m === "trazar" ? [[salida.lat, salida.lon]] : [];
   if (m === "trazar") { pintarPuntos();
-    hoja('<p class="pista">Toca el mapa para ir marcando por dónde quieres pasar. El primer punto es la salida; puedes arrastrar cualquier punto.</p>'); }
-  else { salida = null; hoja('<p class="pista">Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.</p>'); }
+    hoja(`<p class="pista">${t("Toca el mapa para ir marcando por dónde quieres pasar. El primer punto es la salida; puedes arrastrar cualquier punto.")}</p>`); }
+  else { salida = null; hoja(`<p class="pista">${t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.")}</p>`); }
 }
 $("modo-sesion").onclick = () => cambiarModo("sesion");
 $("modo-trazar").onclick = () => cambiarModo("trazar");
@@ -571,7 +741,7 @@ async function recalcular(animarDesde) {
     body: JSON.stringify({ puntos: puntos.map(([lat, lon]) => ({ lat, lon })), volver: $("volver").checked }) });
   const j = await r.json();
   if (yo !== pedidoTrazado) return;
-  if (!r.ok) { puntos.pop(); pintarPuntos(); return hoja(`<p class="aviso">${esc(j.detail || "No pude unir ese punto.")}</p>`); }
+  if (!r.ok) { puntos.pop(); pintarPuntos(); return hoja(`<p class="aviso">${esc(j.detail || t("No pude unir ese punto."))}</p>`); }
   ultimoTrazado = j;
   $("comuna").textContent = j.comuna.replace("_", " ");
   mostrarTrazado(j);
@@ -580,23 +750,23 @@ async function recalcular(animarDesde) {
 
 function mostrarTrazado(j) {
   const r = j.recorrido;
-  hoja(`<div class="tipo">Ruta trazada · ${j.volver ? "vuelve a la salida" : "termina en el último punto"}</div>
+  hoja(`<div class="tipo">${t("Ruta trazada")} · ${t(j.volver ? "vuelve a la salida" : "termina en el último punto")}</div>
     <h2>${km(r.distancia_m)}</h2>
     <div class="donde">${esc((r.calles || []).slice(0, 3).join(" · "))}</div>
-    <div class="cifras">${[[km(r.distancia_m), "Distancia"], [r.semaforos, "Semáforos"],
-      [r.cruces_menores + r.cruces_mayores, "Cruces"], [num(r.subida_m) + " m", "Subida"]].map(([v, e]) =>
+    <div class="cifras">${[[km(r.distancia_m), t("Distancia")], [r.semaforos, t("Semáforos")],
+      [r.cruces_menores + r.cruces_mayores, t("Cruces")], [num(r.subida_m) + " m", t("Subida")]].map(([v, e]) =>
       `<div class="cifra"><span>${e}</span><b class="${v === 0 ? "cero" : ""}">${v}</b></div>`).join("")}</div>
     ${perfilSvg(j)}
     <div class="fila"><button id="gpx" type="button">Descargar GPX</button>
-      <button class="sec" id="favorito" type="button">☆ Guardar como favorito</button></div>`);
+      <button class="sec" id="favorito" type="button">${t("☆ Guardar como favorito")}</button></div>`);
   $("favorito").onclick = () => {
-    const nombre = prompt("Nombre del tramo favorito (por ejemplo, «Ribera Balmaceda–Forestal»):");
+    const nombre = prompt(t("Nombre del tramo favorito (por ejemplo, «Ribera Balmaceda–Forestal»):"));
     if (!nombre) return;
     const todos = j.partes.flatMap((x) => x.coordenadas.map((c) => [c[0], c[1]]));
     const paso = Math.max(1, Math.ceil(todos.length / 1500));
     guardarFavoritos([...favoritos(), { id: Date.now(), nombre: nombre.slice(0, 60),
       km: j.recorrido.distancia_m / 1000, puntos: todos.filter((_, i) => i % paso === 0) }]);
-    $("favorito").textContent = "★ Guardado"; $("favorito").disabled = true;
+    $("favorito").textContent = t("★ Guardado"); $("favorito").disabled = true;
   };
   $("gpx").onclick = async () => {
     const r2 = await fetch("/api/trazar.gpx", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -608,28 +778,29 @@ function mostrarTrazado(j) {
 
 $("volver").onchange = () => recalcular(Math.max(0, puntos.length - 2));
 $("cercaTrazar").onclick = () => $("cerca").click();
-$("deshacer").onclick = () => { puntos.pop(); pintarPuntos(); if (puntos.length < 2) { capas.clearLayers(); hoja('<p class="pista">Toca el mapa para seguir marcando.</p>'); } else recalcular(null); };
+$("deshacer").onclick = () => { puntos.pop(); pintarPuntos(); if (puntos.length < 2) { capas.clearLayers(); hoja(`<p class="pista">${t("Toca el mapa para seguir marcando.")}</p>`); } else recalcular(null); };
 $("borrar").onclick = () => { puntos = []; salida = null; pintarPuntos(); capas.clearLayers();
-  hoja('<p class="pista">Toca el mapa para marcar la salida.</p>'); };
+  hoja(`<p class="pista">${t("Toca el mapa para marcar la salida.")}</p>`); };
 
 $("editar").onclick = () => { document.body.classList.remove("con-ruta"); };
 
 for (const c of document.querySelectorAll(".chip")) {
   c.onclick = () => {
     document.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
-    $("texto").value = c.dataset.t;
+    $("texto").value = idioma === "en" ? c.dataset.tEn : c.dataset.t;
     revisarTipo();
   };
 }
 for (const a of document.querySelectorAll("nav a[data-pronto]")) {
   a.onclick = (e) => { e.preventDefault();
-    hoja(`<p class="pista">${a.dataset.pronto}: llega al conectar Strava (las calles que ya corriste y las que te faltan).</p>`); };
+    hoja(`<p class="pista">${t("{p}: conecta tu Strava.", { p: a.dataset.pronto })}</p>`); };
 }
 
-const num = (x, d = 0) => x.toLocaleString("es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
+const num = (x, d = 0) => x.toLocaleString(idioma === "en" ? "en-US" : "es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
 const km = (m) => m >= 1000 ? num(m / 1000, m < 10000 ? 2 : 1) + " km" : num(m) + " m";
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const TIPOS = { series: "Series", cuestas: "Cuestas", tempo: "Tempo", fondo: "Fondo largo", regenerativo: "Regenerativo" };
+const tipo = (k) => t(TIPOS[k]);
 
 // ── Estilo de cada parte ────────────────────────────────────────────────────
 const TROTE = { color: "#3d5a80", weight: 4, opacity: .85, dashArray: "1 8", lineCap: "round" };
@@ -707,19 +878,19 @@ function dibujarAnimado(plan, alTerminar, desde = 0) {
 function marcas(plan) {
   const t = plan.tramo;
   if (t) {
-    L.marker(t.inicio, { icon: pin("", "#f2541b") }).addTo(capas).bindPopup("Inicio de la repetición");
-    L.marker(t.fin, { icon: pin("", "#1d1d21") }).addTo(capas).bindPopup("Fin de la repetición");
+    L.marker(t.inicio, { icon: pin("", "#f2541b") }).addTo(capas).bindPopup(t("Inicio de la repetición"));
+    L.marker(t.fin, { icon: pin("", "#1d1d21") }).addTo(capas).bindPopup(t("Fin de la repetición"));
   }
   if (plan.volver === false && plan.llegada)
     L.marker(plan.llegada, { icon: L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11],
-      html: '<div class="num primero">M</div>' }) }).addTo(capas).bindPopup("Llegada");
+      html: '<div class="num primero">M</div>' }) }).addTo(capas).bindPopup(t("Llegada"));
   for (const m of plan.marcas || []) {
     if (m.tipo === "extremo") continue;
     // En un fondo o regenerativo, un punto por cruce tapa la ruta: sólo agua.
     if (plan.recorrido && m.tipo !== "agua") continue;
     const color = { semaforo: "#d62828", cruce: "#f4a100", agua: "#1c7ed6" }[m.tipo] || "#666";
     L.circleMarker(m.punto, { radius: 5, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 })
-      .addTo(capas).bindPopup(esc(m.texto) + (m.a_m != null ? ` · km ${num(m.a_m / 1000, 1)}` : ""));
+      .addTo(capas).bindPopup(esc(t(m.texto)) + (m.a_m != null ? ` · km ${num(m.a_m / 1000, 1)}` : ""));
   }
 }
 
@@ -735,11 +906,11 @@ function encuadrar(plan) {
 function cifrasDe(plan) {
   const r = plan.tramo || plan.bloque || plan.recorrido;
   const cruces = (r.cruces_menores || 0) + (r.cruces_mayores || 0);
-  const primera = plan.tramo ? [km(plan.tramo.largo_m), plan.sesion.tipo === "tempo" ? "Tramo" : "Repetición"]
-                             : [km(r.distancia_m), plan.bloque ? "Bloque" : "Distancia"];
-  const ultima = plan.sesion.tipo === "cuestas" ? [num(Math.abs(plan.tramo.pendiente_pct), 1) + " %", "Pendiente"]
-               : r.desnivel_m != null ? [num(r.desnivel_m) + " m", "Desnivel"] : [num(r.subida_m) + " m", "Subida"];
-  return [primera, [r.semaforos, "Semáforos"], [cruces, "Cruces"], ultima];
+  const primera = plan.tramo ? [km(plan.tramo.largo_m), t(plan.sesion.tipo === "tempo" ? "Tramo" : "Repetición")]
+                             : [km(r.distancia_m), t(plan.bloque ? "Bloque" : "Distancia")];
+  const ultima = plan.sesion.tipo === "cuestas" ? [num(Math.abs(plan.tramo.pendiente_pct), 1) + " %", t("Pendiente")]
+               : r.desnivel_m != null ? [num(r.desnivel_m) + " m", t("Desnivel")] : [num(r.subida_m) + " m", t("Subida")];
+  return [primera, [r.semaforos, t("Semáforos")], [cruces, t("Cruces")], ultima];
 }
 
 // ── Altimetría ──────────────────────────────────────────────────────────────
@@ -777,7 +948,7 @@ function perfilSvg(plan) {
   }
   etiquetas += `<span style="left:100%">${num(kmTot, 1)} km</span>`;
   return `<div class="perfil">
-    <div class="perfil-cab">Altimetría · <b>↑ ${num(sube)} m</b> subida · <b>↓ ${num(baja)} m</b> bajada</div>
+    <div class="perfil-cab">${t("Altimetría")} · <b>↑ ${num(sube)} m</b> ${t("subida")} · <b>↓ ${num(baja)} m</b> ${t("bajada")}</div>
     <div class="perfil-graf">
       <div class="ejey"><span>${num(hi)} m</span><span>${num(lo)} m</span></div>
       <div class="lienzo" id="lienzo">
@@ -821,7 +992,7 @@ function activarPerfil() {
 function mostrar(plan) {
   const r = plan.tramo || plan.bloque || plan.recorrido;
   const calles = r.calles?.length ? r.calles.slice(0, 3).join(" · ") : "";
-  hoja(`<div class="tipo">${TIPOS[plan.sesion.tipo]} · ${km(plan.totales.distancia_m)}${plan.volver === false ? " · sin volver a la salida" : " en total"}</div>
+  hoja(`<div class="tipo">${tipo(plan.sesion.tipo)} · ${km(plan.totales.distancia_m)} ${plan.volver === false ? "· " + t("sin volver a la salida") : t("en total")}</div>
     <h2>${esc(plan.sesion.resumen)}</h2>
     <div class="donde">${esc(calles)}</div>
     <div class="cifras">${cifrasDe(plan).map(([v, e]) =>
@@ -829,12 +1000,12 @@ function mostrar(plan) {
     ${perfilSvg(plan)}
     <div class="texto">${plan.explicacion.map((l) => `<p>${esc(l)}</p>`).join("")}
     ${plan.avisos.slice(0, -1).map((a) => `<p class="aviso">${esc(a)}</p>`).join("")}</div>
-    <div class="fila"><button id="gpx" type="button">Descargar GPX</button>
-      <button class="sec" id="otra" type="button">Cambiar salida</button></div>`);
+    <div class="fila"><button id="gpx" type="button">${t("Descargar GPX")}</button>
+      <button class="sec" id="otra" type="button">${t("Cambiar salida")}</button></div>`);
   $("gpx").onclick = descargarGpx;
   $("otra").onclick = () => { capas.clearLayers(); document.body.classList.remove("con-ruta");
     $("desde").focus(); $("desde").select();
-    hoja('<p class="pista">Escribe otra calle, usa «Cerca de mí» o toca el mapa.</p>'); };
+    hoja(`<p class="pista">${t("Escribe otra calle, usa «Cerca de mí» o toca el mapa.")}</p>`); };
 }
 
 async function pedido() {
@@ -864,14 +1035,14 @@ async function descargarGpx() {
 $("form").onsubmit = async (e) => {
   e.preventDefault();
   document.activeElement?.blur();
-  if (!salida) return hoja('<p class="aviso">Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.</p>');
+  if (!salida) return hoja(`<p class="aviso">${t("Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.")}</p>`);
   $("armar").disabled = true;
-  hoja('<div class="cargando"><div class="rueda"></div>Buscando la mejor ruta para tu sesión…</div>');
+  hoja(`<div class="cargando"><div class="rueda"></div>${t("Buscando la mejor ruta para tu sesión…")}</div>`);
   try {
     const r = await fetch("/api/ruta", { method: "POST", headers: { "Content-Type": "application/json" },
                                          body: JSON.stringify(await pedido()) });
     const j = await r.json();
-    if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : "No pude armar la ruta.");
+    if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : t("No pude armar la ruta."));
     if (j.preferencias && !j.preferencias.version_ok) olvidarFrecuentes(j.comuna);
     $("comuna").textContent = j.comuna.replace("_", " ");
     $("resumenForm").innerHTML = `${esc(j.sesion.resumen)} <small>· desde ${esc($("desde").value || "el mapa")}</small>`;
@@ -935,11 +1106,11 @@ function seccionPreferencias(conectado) {
   const favs = favoritos();
   return `<div class="prefs">
     ${conectado ? `<label class="interruptor"><input type="checkbox" id="usarFrec" ${usarFrecuentes() ? "checked" : ""}>
-      Preferir mis calles de siempre al crear rutas</label>` : ""}
-    <div class="tipo" style="margin-top:12px">Tramos favoritos</div>
+      ${t("Preferir mis calles de siempre al crear rutas")}</label>` : ""}
+    <div class="tipo" style="margin-top:12px">${t("Tramos favoritos")}</div>
     ${favs.length ? favs.map((f) => `<div class="fav"><span>★ ${esc(f.nombre)} <small>${num(f.km, 1)} km</small></span>
-        <button class="sec" type="button" data-borrar="${f.id}" aria-label="Borrar ${esc(f.nombre)}">✕</button></div>`).join("")
-      : '<p class="pista">Traza a mano un tramo que te guste (en «Trazar a mano») y guárdalo: los fondos y regenerativos lo van a preferir.</p>'}
+        <button class="sec" type="button" data-borrar="${f.id}" aria-label="${t("Borrar {x}", { x: esc(f.nombre) })}">✕</button></div>`).join("")
+      : `<p class="pista">${t("Traza a mano un tramo que te guste (en «Trazar a mano») y guárdalo: los fondos y regenerativos lo van a preferir.")}</p>`}
   </div>`;
 }
 
@@ -1118,36 +1289,38 @@ let vista = "hoy";
 function cambiarVista(v) {
   vista = v;
   document.body.classList.toggle("vista-ciudad", v === "ciudad");
+  document.body.classList.toggle("vista-perfil", v === "perfil");
   $("tab-hoy").classList.toggle("on", v === "hoy");
   $("tab-ciudad").classList.toggle("on", v === "ciudad");
-  if (v === "ciudad") {
+  $("tab-perfil").classList.toggle("on", v === "perfil");
+  if (v === "ciudad" || v === "perfil") {
     capas.remove(); marcasPuntos.remove(); if (marcaSalida) marcaSalida.remove(); if (marcaMeta) marcaMeta.remove();
-    calor.addTo(mapa); abrirCiudad();
+    calor.addTo(mapa);
+    if (v === "ciudad") abrirCiudad(); else abrirPerfil();
   } else {
     calor.remove();
     capas.addTo(mapa); marcasPuntos.addTo(mapa);
     if (marcaSalida) marcaSalida.addTo(mapa); if (marcaMeta) marcaMeta.addTo(mapa);
-    hoja('<p class="pista">Elige desde dónde sales y la sesión de hoy.</p>');
+    hoja(`<p class="pista">${t("Elige desde dónde sales y la sesión de hoy.")}</p>`);
   }
 }
 $("tab-hoy").onclick = (e) => { e.preventDefault(); cambiarVista("hoy"); };
 $("tab-ciudad").onclick = (e) => { e.preventDefault(); cambiarVista("ciudad"); };
+$("tab-perfil").onclick = (e) => { e.preventDefault(); cambiarVista("perfil"); };
 
 const LOGO_STRAVA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.4 17.9 13.3 13.7h-3l5.1 10 5.1-10h-3zM10.1 0 3.3 13.7h4l2.8-5.5 2.8 5.5h4z"/></svg>';
 
 async function abrirCiudad(aviso) {
-  hoja('<div class="cargando"><div class="rueda"></div>Revisando tu conexión con Strava…</div>');
+  hoja(`<div class="cargando"><div class="rueda"></div>${t("Revisando tu conexión con Strava…")}</div>`);
   const e = await fetch("/api/strava/estado").then((r) => r.json()).catch(() => ({}));
   if (!e.conectado) {
     calor.setRutas([]);
     hoja(`${aviso ? `<p class="aviso">${esc(aviso)}</p>` : ""}
-      <div class="tipo">Mi ciudad</div><h2>Las calles que ya corriste</h2>
-      <p class="pista">Conecta tu Strava y PacePath dibuja todas tus carreras como un mapa de calor:
-      lo que más repites se ve más intenso. Después vendrá «pinta tu ciudad»: qué calles te faltan.</p>
-      ${e.configurado === false ? '<p class="aviso">Strava no está configurado en el servidor.</p>'
-        : `<a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}Conectar con Strava</a>`}
-      <p class="credito">Se leen tus carreras sólo para mostrártelas a ti; quedan guardadas en este
-      teléfono. Al desconectar se borra todo y se revoca el acceso.</p>
+      <div class="tipo">${t("Mi ciudad")}</div><h2>${t("Las calles que ya corriste")}</h2>
+      <p class="pista">${t("Conecta tu Strava y PacePath dibuja todas tus carreras como un mapa de calor: lo que más repites se ve más intenso.")}</p>
+      ${e.configurado === false ? `<p class="aviso">${t("Strava no está configurado en el servidor.")}</p>`
+        : `<a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}${t("Conectar con Strava")}</a>`}
+      <p class="credito">${t("Se leen tus carreras sólo para mostrártelas a ti; quedan guardadas en este teléfono. Al desconectar se borra todo y se revoca el acceso.")}</p>
       ${seccionPreferencias(false)}`);
     activarPreferencias();
     return;
@@ -1166,27 +1339,27 @@ async function dibujarCalor(e, aviso, encuadrar) {
   const km = lista.reduce((t, c) => t + c.distancia_m, 0) / 1000;
   const desde = lista.length ? lista.map((c) => c.fecha).sort()[0].slice(0, 10).split("-").reverse().join("-") : "–";
   hoja(`${aviso ? `<p class="aviso">${esc(aviso)}</p>` : ""}
-    <div class="tipo">Mi ciudad${e.nombre ? " · " + esc(e.nombre) : ""}</div>
-    <h2>Tus carreras</h2>
+    <div class="tipo">${t("Mi ciudad")}${e.nombre ? " · " + esc(e.nombre) : ""}</div>
+    <h2>${t("Tus carreras")}</h2>
     <div class="cifras tres">
-      <div class="cifra"><span>Carreras</span><b>${num(lista.length)}</b></div>
-      <div class="cifra"><span>Kilómetros</span><b>${num(km)}</b></div>
-      <div class="cifra"><span>Desde</span><b style="font-size:15px">${desde}</b></div></div>
-    <p class="pista">Toca el mapa para ver cuántas veces pasaste por ahí.</p>
+      <div class="cifra"><span>${t("Carreras")}</span><b>${num(lista.length)}</b></div>
+      <div class="cifra"><span>${t("Kilómetros")}</span><b>${num(km)}</b></div>
+      <div class="cifra"><span>${t("Desde")}</span><b style="font-size:15px">${desde}</b></div></div>
+    <p class="pista">${t("Toca el mapa para ver cuántas veces pasaste por ahí.")}</p>
     <p class="pista" id="sync"></p>
-    ${e.privadas ? "" : '<p class="aviso">Sólo veo tus actividades públicas: al conectar no se dio permiso para las privadas.</p>'}
+    ${e.privadas ? "" : `<p class="aviso">${t("Sólo veo tus actividades públicas: al conectar no se dio permiso para las privadas.")}</p>`}
     ${seccionPreferencias(true)}
-    <div class="fila"><button class="sec" id="actualizar" type="button">Actualizar</button>
-      <button class="sec" id="desconectar" type="button">Desconectar</button></div>
-    <p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px"')} Con datos de Strava</p>`);
+    <div class="fila"><button class="sec" id="actualizar" type="button">${t("Actualizar")}</button>
+      <button class="sec" id="desconectar" type="button">${t("Desconectar")}</button></div>
+    <p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px"')} ${t("Con datos de Strava")}</p>`);
   activarPreferencias();
   $("actualizar").onclick = () => sincronizar(e);
   $("desconectar").onclick = async () => {
-    if (!confirm("¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso.")) return;
+    if (!confirm(t("¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso."))) return;
     await fetch("/api/strava/desconectar", { method: "POST" });
     await BD.borrar();
     Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_")).forEach((k) => localStorage.removeItem(k));
-    abrirCiudad("Strava desconectado: se borraron tus datos.");
+    abrirCiudad(t("Strava desconectado: se borraron tus datos."));
   };
   if (encuadrar && lista.length) encuadrarCalor(lista);
 }
@@ -1207,38 +1380,235 @@ async function sincronizar(e) {
   if (sincronizando) return;
   sincronizando = true;
   try {
-    const lista = await BD.todas();
+    let lista = await BD.todas();
+    // Carreras guardadas antes de que el perfil pidiera tiempo y desnivel: se
+    // vuelven a traer una vez.
+    if (lista.some((c) => c.tiempo_s === undefined)) { await BD.borrar(); lista = []; }
     const ultima = lista.map((c) => c.fecha).sort().at(-1);
     const despues = ultima ? Math.floor(Date.parse(ultima) / 1000) : null;
     let pagina = 1, nuevas = 0;
     for (;;) {
-      if ($("sync")) $("sync").textContent = `Trayendo carreras de Strava… (${nuevas} nuevas)`;
+      if ($("sync")) $("sync").textContent = t("Trayendo carreras de Strava… ({n} nuevas)", { n: nuevas });
       const r = await fetch(`/api/strava/actividades?pagina=${pagina}${despues ? "&despues=" + despues : ""}`);
       const j = await r.json();
-      if (!r.ok) throw new Error(j.detail || "No pude leer Strava.");
+      if (!r.ok) throw new Error(j.detail || t("No pude leer Strava."));
       await BD.guardar(j.carreras);
       nuevas += j.carreras.length;
       if (j.ultima) break;
       pagina++;
     }
-    await dibujarCalor(e, null, !lista.length && nuevas > 0);
-    if ($("sync")) $("sync").textContent = nuevas ? `${nuevas} carreras nuevas.` : "Al día.";
+    if (vista === "perfil") await abrirPerfil(true);
+    else await dibujarCalor(e, null, !lista.length && nuevas > 0);
+    if ($("sync")) $("sync").textContent = nuevas ? t("{n} carreras nuevas.", { n: nuevas }) : t("Al día.");
   } catch (err) {
     if ($("sync")) $("sync").textContent = err.message;
   } finally { sincronizando = false; }
 }
 
+// ── Perfil: tu Strava en números ────────────────────────────────────────────
+// Los totales (4 semanas, año, histórico) son los oficiales de Strava. El resto
+// sale de tus carreras con GPS guardadas en este teléfono.
+const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const ritmo = (s_km) => !isFinite(s_km) || s_km <= 0 ? "–" :
+  `${Math.floor(s_km / 60)}:${String(Math.round(s_km % 60)).padStart(2, "0")} /km`;
+const lunes = (d) => { const x = new Date(d); const k = (x.getDay() + 6) % 7; x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - k); return x; };
+const mesN = (i) => (idioma === "en" ? MESES_EN : MESES)[i];
+const fechaCorta = (d) => idioma === "en" ? `${mesN(d.getMonth())} ${d.getDate()}` : `${d.getDate()} ${mesN(d.getMonth())}`;
+const localDe = (c) => new Date((c.fecha_local || c.fecha).replace("Z", ""));
+
+function kpi(titulo, tt) {
+  return `<div class="kpi"><span>${titulo}</span><b>${num(tt.km)} km</b>
+    <small>${num(tt.carreras)} ${t("carreras")}<br>${num(tt.horas)} h · ${num(tt.desnivel_m)} m ↑</small></div>`;
+}
+
+// Barras (una serie): eje y con 3 marcas, barras finas con borde superior
+// redondeado, valor al tocar.
+function barras(id, datos, { formato, etiquetaX, alto = 120 }) {
+  const W = Math.max(280, $("hoja").clientWidth - 40), H = alto, abajo = 18, izq = 30;
+  const max = Math.max(1, ...datos.map((d) => d.v));
+  const paso = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500].find((p) => max / p <= 4) || 1000;
+  const tope = Math.ceil(max / paso) * paso;
+  const y = (v) => (H - abajo) - v / tope * (H - abajo - 6);
+  const bw = (W - izq) / datos.length, ancho = Math.max(3, Math.min(22, bw - 4));
+  let svg = "";
+  for (let v = 0; v <= tope; v += paso)
+    svg += `<line x1="${izq}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--linea)"/>
+      <text x="${izq - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="var(--suave)">${num(v)}</text>`;
+  datos.forEach((d, i) => {
+    const x = izq + i * bw + (bw - ancho) / 2, h = Math.max(0, (H - abajo) - y(d.v)), r = Math.min(4, ancho / 2, h);
+    if (d.v > 0) svg += `<path data-i="${i}" fill="var(--acento)" d="M${x},${H - abajo} v${-(h - r)} q0,${-r} ${r},${-r} h${ancho - 2 * r} q${r},0 ${r},${r} v${h - r} z"/>`;
+    const et = etiquetaX(d, i);
+    if (et) svg += `<text x="${x + ancho / 2}" y="${H - 4}" text-anchor="middle" font-size="10" fill="var(--suave)">${et}</text>`;
+  });
+  return `<div class="grafico" id="${id}" data-w="${W}" data-izq="${izq}" data-n="${datos.length}">
+    <svg viewBox="0 0 ${W} ${H}" height="${H}">${svg}</svg><div class="tip"></div></div>`;
+}
+
+function linea(id, datos, { formato, alto = 110, invertir = false }) {
+  const W = Math.max(280, $("hoja").clientWidth - 40), H = alto, abajo = 18, izq = 40;
+  const vals = datos.filter((d) => d.v != null).map((d) => d.v);
+  if (vals.length < 2) return `<p class="sub">${t("Aún no hay suficientes semanas con carreras.")}</p>`;
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const m = Math.max((hi - lo) * 0.15, 5); lo -= m; hi += m;
+  // Ritmo: más rápido (menos s/km) arriba.
+  const y = (v) => { const f = (v - lo) / (hi - lo); return 6 + (invertir ? f : 1 - f) * (H - abajo - 12); };
+  const bw = (W - izq) / datos.length, x = (i) => izq + i * bw + bw / 2;
+  let svg = "";
+  for (const v of [lo + m, (lo + hi) / 2, hi - m])
+    svg += `<line x1="${izq}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--linea)"/>
+      <text x="${izq - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="var(--suave)">${formato(v).replace(" /km", "")}</text>`;
+  const pts = datos.map((d, i) => d.v == null ? null : [x(i), y(d.v)]).filter(Boolean);
+  svg += `<path d="${pts.map((p, i) => (i ? "L" : "M") + p.join(",")).join("")}" fill="none" stroke="var(--acento)" stroke-width="2" stroke-linejoin="round"/>`;
+  datos.forEach((d, i) => { if (d.v != null) svg += `<circle cx="${x(i)}" cy="${y(d.v)}" r="3" fill="var(--acento)" stroke="var(--panel)" stroke-width="2"/>`; });
+  return `<div class="grafico" id="${id}" data-w="${W}" data-izq="${izq}" data-n="${datos.length}">
+    <svg viewBox="0 0 ${W} ${H}" height="${H}">${svg}</svg><div class="tip"></div></div>`;
+}
+
+function activarGrafico(id, textos) {
+  const g = $(id);
+  if (!g) return;
+  const W = +g.dataset.w, izq = +g.dataset.izq, n = +g.dataset.n, tip = g.querySelector(".tip");
+  const mover = (e) => {
+    const r = g.getBoundingClientRect(), xv = (e.clientX - r.left) / r.width * W;
+    const i = Math.min(n - 1, Math.max(0, Math.floor((xv - izq) / ((W - izq) / n))));
+    if (!textos[i]) return;
+    tip.textContent = textos[i]; tip.style.display = "block";
+    tip.style.left = ((izq + (i + 0.5) * (W - izq) / n) / W * 100) + "%";
+    g.querySelectorAll("path[data-i]").forEach((b) => b.style.opacity = +b.dataset.i === i ? 1 : 0.45);
+  };
+  const salir = () => { tip.style.display = "none"; g.querySelectorAll("path[data-i]").forEach((b) => b.style.opacity = 1); };
+  g.addEventListener("pointerdown", mover); g.addEventListener("pointermove", mover);
+  g.addEventListener("pointerleave", salir); g.addEventListener("pointerup", () => setTimeout(salir, 1500));
+}
+
+async function abrirPerfil(sinSincronizar) {
+  if (!sinSincronizar) hoja(`<div class="cargando"><div class="rueda"></div>${t("Cargando tu perfil de Strava…")}</div>`);
+  const e = await fetch("/api/strava/estado").then((r) => r.json()).catch(() => ({}));
+  if (!e.conectado) {
+    hoja(`<div class="tipo">${t("Perfil")}</div><h2>${t("Tu historial de carrera")}</h2>
+      <p class="pista">${t("Conecta tu Strava para ver tus kilómetros de las últimas semanas, del año y de siempre, tus récords y tus hábitos.")}</p>
+      <a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}${t("Conectar con Strava")}</a>`);
+    return;
+  }
+  const pf = await fetch("/api/strava/perfil").then((r) => r.ok ? r.json() : null).catch(() => null);
+  const lista = (await BD.todas()).filter((c) => c.tiempo_s !== undefined);
+  if (!lista.length && !sinSincronizar) sincronizar(e);
+  const hoy = new Date();
+
+  // Volumen y ritmo de las últimas 12 semanas
+  const sem0 = lunes(hoy); sem0.setDate(sem0.getDate() - 7 * 11);
+  const semanas = [...Array(12)].map((_, k) => { const d = new Date(sem0); d.setDate(d.getDate() + 7 * k);
+    return { ini: d, m: 0, s: 0, n: 0 }; });
+  for (const c of lista) {
+    const k = Math.floor((lunes(localDe(c)) - sem0) / (7 * 864e5));
+    if (k >= 0 && k < 12) { semanas[k].m += c.distancia_m; semanas[k].s += c.tiempo_s; semanas[k].n++; }
+  }
+  const promSem = semanas.reduce((t, w) => t + w.m, 0) / 12 / 1000;
+  // Este año, mes a mes
+  const anio = hoy.getFullYear();
+  const meses = [...Array(hoy.getMonth() + 1)].map(() => ({ m: 0, n: 0 }));
+  for (const c of lista) { const d = localDe(c); if (d.getFullYear() === anio) { meses[d.getMonth()].m += c.distancia_m; meses[d.getMonth()].n++; } }
+  // Récords
+  const larga = lista.reduce((a, c) => (!a || c.distancia_m > a.distancia_m ? c : a), null);
+  const subida = lista.reduce((a, c) => (!a || c.desnivel_m > a.desnivel_m ? c : a), null);
+  const rapida = lista.filter((c) => c.distancia_m >= 5000 && c.tiempo_s > 0)
+    .reduce((a, c) => (!a || c.tiempo_s / c.distancia_m < a.tiempo_s / a.distancia_m ? c : a), null);
+  const porSemana = {};
+  for (const c of lista) { const k = lunes(localDe(c)).toISOString().slice(0, 10); porSemana[k] = (porSemana[k] || 0) + c.distancia_m; }
+  const mejorSem = Object.entries(porSemana).sort((a, b) => b[1] - a[1])[0];
+  // Rachas de semanas seguidas con al menos una carrera
+  const conCarrera = new Set(Object.keys(porSemana));
+  let actual = 0, d = lunes(hoy);
+  if (!conCarrera.has(d.toISOString().slice(0, 10))) d.setDate(d.getDate() - 7);   // la semana en curso aún puede llegar
+  while (conCarrera.has(d.toISOString().slice(0, 10))) { actual++; d.setDate(d.getDate() - 7); }
+  let maxima = 0, corrida = 0, prev = null;
+  for (const k of [...conCarrera].sort()) {
+    const t = new Date(k); corrida = prev && (t - prev) / 864e5 === 7 ? corrida + 1 : 1; maxima = Math.max(maxima, corrida); prev = t;
+  }
+  // Hábitos
+  const dias = Array(7).fill(0); lista.forEach((c) => dias[localDe(c).getDay()]++);
+  const horas = lista.map((c) => localDe(c).getHours()).sort((a, b) => a - b);
+  const dist = lista.map((c) => c.distancia_m).sort((a, b) => a - b);
+  const mediana = (a) => a.length ? a[a.length >> 1] : 0;
+  const fecha = (c) => c ? localDe(c).toLocaleDateString(idioma === "en" ? "en-US" : "es-CL", { day: "numeric", month: "short", year: "numeric" }) : "";
+  const record = (t, v, sub) => `<div class="record"><span>${t}</span><b>${v}</b><small>${sub}</small></div>`;
+
+  hoja(`
+    <div class="atleta">${pf?.foto ? `<img src="${esc(pf.foto)}" alt="">` : '<div class="sin-foto"></div>'}
+      <div><h2>${esc(pf ? `${pf.nombre} ${pf.apellido}` : e.nombre || t("Tú"))}</h2>
+      <small>${esc([pf?.ciudad, pf?.desde ? t("en Strava desde {a}", { a: pf.desde.slice(0, 4) }) : ""].filter(Boolean).join(" · "))}</small></div></div>
+    ${pf ? `<div class="kpis">${kpi(t("4 semanas"), pf.recientes)}${kpi(String(anio), pf.anio)}${kpi(t("Histórico"), pf.historico)}</div>`
+         : `<p class="aviso">${t("No pude leer tus totales de Strava ahora.")}</p>`}
+    ${lista.length ? `
+    <div class="bloque"><h3>${t("Volumen semanal")}</h3>
+      <p class="sub">${t("Últimas 12 semanas · promedio {x} km por semana", { x: num(promSem, 1) })}</p>
+      ${barras("g-semanas", semanas.map((w) => ({ v: w.m / 1000 })), { etiquetaX: (_, i) => i % 3 === 0 ? fechaCorta(semanas[i].ini) : "" })}</div>
+    <div class="bloque"><h3>${t("Ritmo medio")}</h3>
+      <p class="sub">${t("Por semana, ponderado por distancia (más arriba, más rápido)")}</p>
+      ${linea("g-ritmo", semanas.map((w) => ({ v: w.m ? w.s / (w.m / 1000) : null })), { formato: ritmo, invertir: true })}</div>
+    <div class="bloque"><h3>${t("{a}, mes a mes", { a: anio })}</h3>
+      <p class="sub">${t("{k} km en {n} carreras con GPS", { k: num(meses.reduce((s, x) => s + x.m, 0) / 1000), n: num(meses.reduce((s, x) => s + x.n, 0)) })}</p>
+      ${barras("g-meses", meses.map((x) => ({ v: x.m / 1000 })), { etiquetaX: (_, i) => mesN(i) })}</div>
+    <div class="bloque"><h3>${t("Récords")}</h3><div class="records">
+      ${record(t("Más larga"), larga ? `${num(larga.distancia_m / 1000, 1)} km` : "–", fecha(larga))}
+      ${record(t("Mejor ritmo (≥5 km)"), rapida ? ritmo(rapida.tiempo_s / (rapida.distancia_m / 1000)) : "–", rapida ? `${num(rapida.distancia_m / 1000, 1)} km · ${fecha(rapida)}` : "")}
+      ${record(t("Mayor desnivel"), subida ? `${num(subida.desnivel_m)} m` : "–", fecha(subida))}
+      ${record(t("Semana con más km"), mejorSem ? `${num(mejorSem[1] / 1000, 1)} km` : "–", mejorSem ? t("semana del {f}", { f: fechaCorta(new Date(mejorSem[0])) }) : "")}
+      ${record(t("Racha actual"), `${actual} ${t(actual === 1 ? "semana" : "semanas")}`, t("seguidas corriendo"))}
+      ${record(t("Racha máxima"), `${maxima} ${t(maxima === 1 ? "semana" : "semanas")}`, t("seguidas corriendo"))}
+    </div></div>
+    <div class="bloque"><h3>${t("Hábitos")}</h3><div class="records">
+      ${record(t("Día favorito"), (idioma === "en" ? DIAS_EN : DIAS)[dias.indexOf(Math.max(...dias))], `${Math.max(...dias)} ${t("carreras")}`)}
+      ${record(t("Hora típica"), `${String(mediana(horas)).padStart(2, "0")}:00`, t("la mitad sale antes"))}
+      ${record(t("Distancia típica"), `${num(mediana(dist) / 1000, 1)} km`, t("de {n} carreras", { n: num(lista.length) }))}
+      ${record(t("Ritmo de siempre"), ritmo(lista.reduce((t, c) => t + c.tiempo_s, 0) / (lista.reduce((t, c) => t + c.distancia_m, 0) / 1000)), t("promedio de todas"))}
+    </div></div>` : `<p class="pista" id="sync">${t("Trayendo tus carreras de Strava…")}</p>`}
+    <p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px"')} ${t("Con datos de Strava")}</p>`);
+  activarGrafico("g-semanas", semanas.map((w) => t("Semana del {f}: {k} km · {n} {c}", { f: fechaCorta(w.ini), k: num(w.m / 1000, 1), n: w.n, c: t(w.n === 1 ? "carrera" : "carreras") })));
+  activarGrafico("g-ritmo", semanas.map((w) => w.m ? t("Semana del {f}: {r}", { f: fechaCorta(w.ini), r: ritmo(w.s / (w.m / 1000)) }) : ""));
+  activarGrafico("g-meses", meses.map((x, i) => t("{m} {a}: {k} km · {n} carreras", { m: mesN(i), a: anio, k: num(x.m / 1000, 1), n: x.n })));
+}
+
 // Vuelta de Strava: /#ciudad, /#ciudad-cancelado, /#ciudad-error, /#ciudad-sin-permiso
 if (location.hash.startsWith("#ciudad")) {
-  const motivo = { "#ciudad-cancelado": "Cancelaste la conexión con Strava.",
-                   "#ciudad-error": "No se pudo completar la conexión con Strava. Intenta de nuevo.",
-                   "#ciudad-sin-permiso": "Strava quedó conectado, pero sin permiso para leer tus actividades: desconecta y vuelve a conectar marcando ese permiso." }[location.hash];
+  const motivo = { "#ciudad-cancelado": t("Cancelaste la conexión con Strava."),
+                   "#ciudad-error": t("No se pudo completar la conexión con Strava. Intenta de nuevo."),
+                   "#ciudad-sin-permiso": t("Strava quedó conectado, pero sin permiso para leer tus actividades: desconecta y vuelve a conectar marcando ese permiso.") }[location.hash];
   history.replaceState(null, "", location.pathname);
   cambiarVista("ciudad");
   if (motivo) setTimeout(() => abrirCiudad(motivo), 0);
 }
 
+// ── Botón ES/EN ─────────────────────────────────────────────────────────────
+function aplicarIdioma() {
+  document.documentElement.lang = idioma;
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.dataset.es ??= el.textContent.trim();
+    el.textContent = t(el.dataset.es);
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => el.placeholder = t(el.dataset.i18nPh));
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+    el.setAttribute("aria-label", t(el.dataset.i18nAria)); el.title = t(el.dataset.i18nAria); });
+  $("botonIdioma").textContent = idioma === "en" ? "ES" : "EN";
+  $("botonIdioma").setAttribute("aria-label", idioma === "en" ? "Cambiar a español" : "Switch to English");
+  $("botonNoche").setAttribute("aria-label", t(noche ? "Modo día" : "Modo noche"));
+}
+$("botonIdioma").onclick = () => {
+  idioma = idioma === "en" ? "es" : "en";
+  try { localStorage.setItem("pp_lang", JSON.stringify(idioma)); } catch {}
+  aplicarIdioma();
+  // Lo que está en pantalla se vuelve a pedir/dibujar en el idioma nuevo.
+  if (vista === "ciudad") abrirCiudad();
+  else if (vista === "perfil") abrirPerfil(true);
+  else if (modo === "trazar" && puntos.length > 1) recalcular(null);
+  else if (document.body.classList.contains("con-ruta")) $("form").requestSubmit();
+  else hoja(`<p class="pista">${t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.")}</p>`);
+};
+
 // Tema y capa iniciales (lo último: usa todo lo de arriba).
+aplicarIdioma();
 ponerNoche(noche);
 medirCabecera();
 </script>

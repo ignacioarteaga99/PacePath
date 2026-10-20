@@ -15,6 +15,7 @@
     GET  /api/strava/estado
     GET  /api/strava/actividades?pagina=&despues=
     POST /api/strava/frecuencia  tus carreras → calles de siempre (no se guarda)
+    GET  /api/strava/perfil      perfil y totales (4 semanas, año, histórico)
     POST /api/strava/desconectar revoca el acceso en Strava y borra la cookie
 """
 from __future__ import annotations
@@ -30,7 +31,8 @@ from pydantic import BaseModel, Field, model_validator
 
 import numpy as np
 
-from . import comunas, frecuencia, lugares, strava
+from . import comunas, frecuencia, idioma, lugares, strava
+from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
 from .planificador import planificar
@@ -44,6 +46,13 @@ app = FastAPI(title="PacePath", version="0.1.0")
 # seguro entre hilos) y en 512 MB tampoco caben dos comunas cargando a la vez.
 _motor = threading.Lock()
 app.mount("/vendor", StaticFiles(directory=WEB / "vendor"), name="vendor")
+
+
+@app.middleware("http")
+async def _idioma(request: Request, call_next):
+    """Idioma de la respuesta: cabecera X-Idioma (la app) o ?lang= (enlaces)."""
+    idioma.usar(request.headers.get("x-idioma") or request.query_params.get("lang"))
+    return await call_next(request)
 
 
 class Punto(BaseModel):
@@ -129,7 +138,8 @@ def _plan(body: PedidoRuta) -> dict:
         s = s.model_copy(update={"max_subida_m": body.max_subida_m})
     comuna = body.comuna or comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
-        raise HTTPException(422, "Ese punto no está en ninguna comuna con mapa todavía.")
+        raise HTTPException(422, tr("Ese punto no está en ninguna comuna con mapa todavía.",
+                                 "That point isn't in any area with a map yet."))
     try:
         with _motor:
             ctx = comunas.contexto(comuna)
@@ -180,7 +190,8 @@ def strava_frecuencia(body: PedidoFrecuencia) -> dict:
     al teléfono, que la adjunta al pedir rutas."""
     comuna = comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
-        raise HTTPException(422, "Ese punto no está en ninguna comuna con mapa todavía.")
+        raise HTTPException(422, tr("Ese punto no está en ninguna comuna con mapa todavía.",
+                                 "That point isn't in any area with a map yet."))
     with _motor:
         ctx = comunas.contexto(comuna)
         trazados = [frecuencia.decodificar(p) for p in body.polilineas if p]
@@ -201,7 +212,8 @@ def _trazado(body: PedidoTrazado) -> dict:
     p0 = body.puntos[0]
     comuna = comunas.comuna_para(p0.lat, p0.lon)
     if comuna is None:
-        raise HTTPException(422, "Ese punto no está en ninguna comuna con mapa todavía.")
+        raise HTTPException(422, tr("Ese punto no está en ninguna comuna con mapa todavía.",
+                                 "That point isn't in any area with a map yet."))
     try:
         with _motor:
             ctx = comunas.contexto(comuna)
@@ -251,7 +263,8 @@ def _poner_cookie(resp: Response, request: Request, nombre: str, valor: str,
 @app.get("/api/strava/conectar", include_in_schema=False)
 def strava_conectar(request: Request) -> Response:
     if not strava.configurado():
-        raise HTTPException(503, "Strava no está configurado en el servidor.")
+        raise HTTPException(503, tr("Strava no está configurado en el servidor.",
+                                    "Strava isn't configured on the server."))
     estado = strava.nuevo_estado()
     resp = RedirectResponse(strava.url_autorizar(f"{_base(request)}/api/strava/vuelta", estado))
     _poner_cookie(resp, request, strava.COOKIE_ESTADO, estado, 600)
@@ -291,13 +304,31 @@ def strava_estado(request: Request) -> dict:
 def strava_actividades(request: Request, pagina: int = 1, despues: int | None = None) -> Response:
     s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
     if s is None:
-        raise HTTPException(401, "Conecta tu cuenta de Strava.")
+        raise HTTPException(401, tr("Conecta tu cuenta de Strava.",
+                                    "Connect your Strava account."))
     try:
         s, renovada = strava.vigente(s)
         lista, crudas = strava.carreras(s, max(1, pagina), despues)
     except strava.StravaError as exc:
         raise HTTPException(502, str(exc)) from exc
     resp = JSONResponse({"carreras": lista, "ultima": crudas < 100, "pagina": pagina})
+    if renovada:
+        _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
+    return resp
+
+
+@app.get("/api/strava/perfil")
+def strava_perfil(request: Request) -> Response:
+    s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
+    if s is None:
+        raise HTTPException(401, tr("Conecta tu cuenta de Strava.",
+                                    "Connect your Strava account."))
+    try:
+        s, renovada = strava.vigente(s)
+        datos = strava.perfil(s)
+    except strava.StravaError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    resp = JSONResponse(datos)
     if renovada:
         _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
     return resp
