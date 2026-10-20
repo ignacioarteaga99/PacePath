@@ -65,6 +65,36 @@ def overpass(query: str) -> dict:
     raise RuntimeError("Overpass no respondió")
 
 
+def anillos(miembros: list[dict]) -> list[list[list[float]]]:
+    """Une los tramos exteriores de una relación (multipolígono) en anillos.
+
+    Parque Balmaceda, el Parque de las Esculturas o Inés de Suárez no son una
+    vía cerrada en OSM sino una relación de varias vías: sin esto quedaban
+    fuera y la ribera del Mapocho no contaba como parque."""
+    tramos = [[(round(p["lat"], 5), round(p["lon"], 5)) for p in m["geometry"]]
+              for m in miembros
+              if m.get("type") == "way" and m.get("role", "outer") in ("outer", "")
+              and m.get("geometry")]
+    out = []
+    while tramos:
+        anillo = tramos.pop(0)
+        while anillo[0] != anillo[-1]:
+            for i, t in enumerate(tramos):
+                if t[0] == anillo[-1]:
+                    anillo += t[1:]
+                elif t[-1] == anillo[-1]:
+                    anillo += t[-2::-1]
+                else:
+                    continue
+                tramos.pop(i)
+                break
+            else:
+                break           # no cierra: se usa igual (el ray casting lo cierra)
+        if len(anillo) >= 4:
+            out.append([list(p) for p in anillo])
+    return out
+
+
 def main(comuna: str, salida: Path) -> None:
     man = {e["id"]: e for e in json.loads(_get(MANIFEST))["regions"]}
     e = man[comuna]
@@ -78,6 +108,8 @@ out body geom;
 way["leisure"="park"]["name"](around:{r},{lat},{lon});
 out center tags;
 way["leisure"~"^(park|garden)$"](around:{r},{lat},{lon});
+out geom;
+relation["leisure"~"^(park|garden)$"](around:{r},{lat},{lon});
 out geom;"""
     data = overpass(q)
     nombres: list[str] = []
@@ -88,6 +120,14 @@ out geom;"""
     coord_nodo: dict[int, tuple[float, float]] = {}
     for el in data.get("elements", []):
         tags = el.get("tags", {})
+        if el["type"] == "relation":
+            if tags.get("leisure") in ("park", "garden"):
+                parques.extend(anillos(el.get("members", [])))
+                b = el.get("bounds")
+                if tags.get("name") and b:
+                    lugares.append([tags["name"], round((b["minlat"] + b["maxlat"]) / 2, 6),
+                                    round((b["minlon"] + b["maxlon"]) / 2, 6), "parque"])
+            continue
         if el["type"] == "way" and tags.get("leisure") in ("park", "garden"):
             c = el.get("center")
             if c:
