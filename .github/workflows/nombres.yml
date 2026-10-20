@@ -1,0 +1,44 @@
+name: Nombres de calle
+# Descarga de Overpass los nombres de calle (y puntos de agua/baños) de cada
+# comuna y los publica en la Release «nombres». El servidor los baja de ahí.
+on:
+  workflow_dispatch:
+    inputs:
+      comunas:
+        description: "Comunas separadas por coma"
+        required: true
+        default: "santiago_centro,providencia,las_condes,nunoa,vitacura,lo_barnechea"
+  push:
+    paths: [".github/workflows/nombres.yml", "scripts/ci_nombres.py"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nombres
+  cancel-in-progress: false
+
+jobs:
+  nombres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COMUNAS: ${{ inputs.comunas || 'santiago_centro,providencia,las_condes,nunoa,vitacura,lo_barnechea' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Descargar y publicar
+        run: |
+          gh release view nombres >/dev/null 2>&1 || gh release create nombres \
+            --title "Nombres de calle por comuna" --latest=false --target "$GITHUB_SHA" \
+            --notes "Generado por el workflow «Nombres de calle». No borrar: el servidor los descarga desde aquí."
+          IFS=',' read -ra LISTA <<< "$COMUNAS"
+          for c in "${LISTA[@]}"; do
+            c="$(echo "$c" | xargs)"; [ -z "$c" ] && continue
+            python scripts/ci_nombres.py "$c" dist | tee -a resumen.txt
+            gh release upload nombres "dist/$c.nombres.json.gz" --clobber
+            sleep 5
+          done
+          cat resumen.txt >> "$GITHUB_STEP_SUMMARY"

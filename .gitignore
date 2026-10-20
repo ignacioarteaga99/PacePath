@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Grafos descargados de la Release y cachés del motor: nunca al repo.
+data/

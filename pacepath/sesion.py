@@ -1,0 +1,197 @@
+"""La sesión de entrenamiento y lo que le exige a una ruta.
+
+Dos piezas:
+
+  · `Sesion`: lo que el corredor tiene que hacer hoy («6×1000 m, pausa 90 s»).
+  · `Requisitos`: lo que eso le pide a la calle. Es la traducción de la sesión a
+    restricciones duras y pesos blandos; el generador de cada tipo sólo lee esto.
+
+Separarlas permite discutir los números de cada tipo de sesión en un solo sitio
+y probarlos sin grafo.
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from enum import Enum
+
+from pydantic import BaseModel, Field, model_validator
+
+
+class TipoSesion(str, Enum):
+    SERIES = "series"
+    TEMPO = "tempo"
+    FONDO = "fondo"
+    CUESTAS = "cuestas"
+    REGENERATIVO = "regenerativo"
+
+
+class Sesion(BaseModel):
+    tipo: TipoSesion
+    # Series y cuestas
+    repeticiones: int | None = Field(default=None, ge=1, le=40)
+    distancia_rep_m: float | None = Field(default=None, ge=100, le=5000)
+    pausa_s: int | None = Field(default=None, ge=0, le=900)
+    pendiente_pct: float | None = Field(default=None, ge=1, le=20)
+    # Tempo, fondo, regenerativo: distancia del bloque principal
+    distancia_m: float | None = Field(default=None, ge=1000, le=60_000)
+    # Calentamiento y vuelta a la calma (trote suave hasta y desde el tramo)
+    calentamiento_m: float = Field(default=2000, ge=0, le=10_000)
+    vuelta_calma_m: float = Field(default=1500, ge=0, le=10_000)
+
+    @model_validator(mode="after")
+    def _completa(self) -> "Sesion":
+        if self.tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS):
+            if not self.repeticiones or not self.distancia_rep_m:
+                raise ValueError("las series y cuestas necesitan repeticiones y distancia")
+            if self.pausa_s is None:
+                self.pausa_s = 90 if self.tipo is TipoSesion.SERIES else 0
+            if self.tipo is TipoSesion.CUESTAS and self.pendiente_pct is None:
+                self.pendiente_pct = 6.0
+        elif not self.distancia_m:
+            raise ValueError(f"una sesión de {self.tipo.value} necesita distancia")
+        return self
+
+    @property
+    def resumen(self) -> str:
+        t = self.tipo
+        if t is TipoSesion.SERIES:
+            return (f"{self.repeticiones}×{_m(self.distancia_rep_m)}"
+                    f" (pausa {self.pausa_s} s)")
+        if t is TipoSesion.CUESTAS:
+            return (f"cuestas {self.repeticiones}×{_m(self.distancia_rep_m)}"
+                    f" al {self.pendiente_pct:g} %")
+        return f"{t.value} {_m(self.distancia_m)}"
+
+
+def _m(metros: float | None) -> str:
+    if metros is None:
+        return "?"
+    if metros >= 1000 and metros % 100 == 0:
+        return f"{metros / 1000:g} km".replace(".", ",")
+    return f"{metros:.0f} m"
+
+
+# ── Escritura rápida: «6x1k», «8x400 r60», «fondo 18k», «cuestas 8x300 6%» ──
+
+_DIST = r"(\d+(?:[.,]\d+)?)\s*(k|km|m)?"
+_TIPOS = {
+    "series": TipoSesion.SERIES, "serie": TipoSesion.SERIES,
+    "intervalos": TipoSesion.SERIES,
+    "tempo": TipoSesion.TEMPO, "umbral": TipoSesion.TEMPO,
+    "fondo": TipoSesion.FONDO, "largo": TipoSesion.FONDO, "tirada": TipoSesion.FONDO,
+    "cuestas": TipoSesion.CUESTAS, "cuesta": TipoSesion.CUESTAS,
+    "regenerativo": TipoSesion.REGENERATIVO, "suave": TipoSesion.REGENERATIVO,
+    "rodaje": TipoSesion.REGENERATIVO,
+}
+
+
+def _metros(num: str, unidad: str | None) -> float:
+    v = float(num.replace(",", "."))
+    if unidad in ("k", "km"):
+        return v * 1000
+    if unidad == "m":
+        return v
+    # Sin unidad: «6x1» son kilómetros, «8x400» son metros.
+    return v * 1000 if v < 50 else v
+
+
+def interpretar(texto: str) -> Sesion:
+    """Convierte lo que el corredor escribe en una `Sesion`.
+
+    >>> interpretar("6x1k").resumen
+    '6×1 km (pausa 90 s)'
+    """
+    t = texto.strip().lower().replace("×", "x")
+    tipo = next((v for k, v in _TIPOS.items() if re.search(rf"\b{k}\b", t)), None)
+
+    reps = re.search(rf"(\d+)\s*x\s*{_DIST}", t)
+    if reps:
+        n = int(reps.group(1))
+        d = _metros(reps.group(2), reps.group(3))
+        pausa = re.search(r"\b(?:r|p|pausa|rec)\s*(\d+)\s*(s|seg|min|')?", t)
+        pausa_s = None
+        if pausa:
+            pausa_s = int(pausa.group(1)) * (60 if pausa.group(2) in ("min", "'") else 1)
+        pend = re.search(r"(\d+(?:[.,]\d+)?)\s*%", t)
+        return Sesion(
+            tipo=tipo if tipo is TipoSesion.CUESTAS else TipoSesion.SERIES,
+            repeticiones=n, distancia_rep_m=d, pausa_s=pausa_s,
+            pendiente_pct=float(pend.group(1).replace(",", ".")) if pend else None,
+        )
+
+    dist = re.search(rf"\b{_DIST}\b", t)
+    if tipo is None or tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS) or not dist:
+        raise ValueError(f"no entiendo la sesión «{texto}». Prueba «6x1k», "
+                         "«tempo 8k», «fondo 18k», «cuestas 8x300 6%» o «regenerativo 6k»")
+    return Sesion(tipo=tipo, distancia_m=_metros(dist.group(1), dist.group(2) or "k"))
+
+
+# ── Traducción a requisitos de la calle ─────────────────────────────────────
+
+# Coste de cruzar una vía según su clase (OSM `highway`). Sendas, veredas y
+# ciclovías no cortan una serie: valen 0. Una avenida sin semáforo es peor que
+# una calle residencial: hay que frenar y mirar.
+COSTE_CRUCE = {
+    "primary": 3.0, "primary_link": 3.0, "trunk": 3.0, "trunk_link": 3.0,
+    "secondary": 3.0, "secondary_link": 3.0,
+    "tertiary": 2.0, "tertiary_link": 2.0,
+    "residential": 1.0, "unclassified": 1.0, "living_street": 0.6,
+    "service": 0.3,
+}
+CRUCE_MAYOR = 2.0       # desde aquí, un cruce rompe la repetición
+
+
+@dataclass(frozen=True)
+class Requisitos:
+    """Lo que una sesión le pide a la calle.
+
+    Los campos `max_*` son restricciones duras (un tramo que las viola no se
+    ofrece, salvo como último recurso y avisando). Los `peso_*` son blandos:
+    puntos de penalización para ordenar los tramos que sí cumplen.
+    """
+
+    tipo: TipoSesion
+    largo_tramo_m: float = 0.0
+    # Duras
+    max_semaforos: int = 0
+    max_cruces_mayores: int = 0
+    max_desnivel_tramo_m: float = 12.0      # máx − mín dentro de la repetición
+    min_rectitud: float = 0.85              # cuerda / largo
+    # Blandas (puntos)
+    peso_cruce: float = 25.0                # por cruce menor (× coste de la vía)
+    peso_desnivel_m: float = 4.0            # por metro de máx − mín
+    peso_curvatura: float = 100.0           # × (1 − rectitud)
+    peso_lejania_100m: float = 4.0          # por cada 100 m de acercamiento extra
+    bonus_parque: float = 10.0
+    peso_sin_pavimento: float = 5.0
+    # Vías por las que puede ir la repetición además de las de correr
+    sendas_de_parque: bool = True
+    notas: tuple[str, ...] = field(default_factory=tuple)
+
+
+def requisitos(s: Sesion) -> Requisitos:
+    """Traduce la sesión a lo que se busca en la calle."""
+    if s.tipo is TipoSesion.SERIES:
+        largo = float(s.distancia_rep_m)
+        return Requisitos(
+            tipo=s.tipo,
+            largo_tramo_m=largo,
+            # Plano: en 1 km, más de ~1 % de desnivel ya cambia el ritmo. Para
+            # repeticiones cortas se tolera algo más en proporción (el GPS y el
+            # modelo de elevación SRTM tienen ±2–3 m de ruido).
+            max_desnivel_tramo_m=max(6.0, 0.012 * largo),
+            # Una recta perfecta de 2 km no existe en casi ninguna comuna: se
+            # pide menos rectitud cuanto más larga es la repetición.
+            min_rectitud=0.90 if largo <= 600 else 0.85 if largo <= 1200 else 0.75,
+            notas=("Las repeticiones van en ida y vuelta por el mismo tramo: "
+                   "la pendiente que quede se compensa.",),
+        )
+    # El resto de tipos aún no tiene generador propio (siguiente paso de la
+    # Fase 1). Sus requisitos quedan escritos para discutirlos.
+    if s.tipo is TipoSesion.CUESTAS:
+        return Requisitos(tipo=s.tipo, largo_tramo_m=float(s.distancia_rep_m),
+                          max_desnivel_tramo_m=1e9, min_rectitud=0.6,
+                          max_cruces_mayores=0, peso_desnivel_m=0.0)
+    return Requisitos(tipo=s.tipo, largo_tramo_m=0.0, max_semaforos=99,
+                      max_cruces_mayores=99)
