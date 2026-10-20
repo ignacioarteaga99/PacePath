@@ -7,8 +7,13 @@ el grafo (propuesta para RaceEngine: un `ename` por arista), se publica aparte:
     <comuna>.nombres.json.gz = {
         "comuna", "fecha", "nombres": [str],
         "vias":   [[indice_nombre, highway, [id_nodo_osm, ...]], ...],
-        "puntos": [[tipo, lat, lon], ...]       # drinking_water, toilets
+        "puntos": [[tipo, lat, lon], ...],      # drinking_water, toilets
+        "lugares": [[nombre, lat, lon, tipo], ...]   # calle, esquina, parque
     }
+
+`lugares` sirve para buscar desde dónde sale el corredor sin depender de un
+geocodificador externo: cada calle (punto medio de su tramo más largo), cada
+esquina con nombre («Pocuro con Tobalaba») y cada parque con nombre.
 
 Se usa el mismo centro y radio que el grafo (manifiesto de RaceEngine), y los
 ids de nodo de OSM, que el grafo también guarda: así cada arista del grafo
@@ -64,32 +69,66 @@ def main(comuna: str, salida: Path) -> None:
   way["highway"]["name"](around:{r},{lat},{lon});
   node["amenity"~"^(drinking_water|toilets)$"](around:{r},{lat},{lon});
 );
-out body;"""
+out body geom;
+way["leisure"="park"]["name"](around:{r},{lat},{lon});
+out center tags;"""
     data = overpass(q)
     nombres: list[str] = []
     idx: dict[str, int] = {}
-    vias, puntos = [], []
+    vias, puntos, lugares = [], [], []
+    mitad: dict[str, tuple[float, float, float]] = {}      # nombre → (largo, lat, lon)
+    nombres_nodo: dict[int, set[str]] = {}
+    coord_nodo: dict[int, tuple[float, float]] = {}
     for el in data.get("elements", []):
         tags = el.get("tags", {})
+        if el["type"] == "way" and tags.get("leisure") == "park":
+            c = el.get("center")
+            if c:
+                lugares.append([tags["name"], round(c["lat"], 6), round(c["lon"], 6), "parque"])
+            continue
         if el["type"] == "way":
             n = tags["name"]
+            geom = el.get("geometry") or []
+            if geom:
+                largo = len(geom)
+                m = geom[len(geom) // 2]
+                if largo > mitad.get(n, (0, 0, 0))[0]:
+                    mitad[n] = (largo, m["lat"], m["lon"])
+                for nid, g in zip(el["nodes"], geom):
+                    nombres_nodo.setdefault(nid, set()).add(n)
+                    coord_nodo[nid] = (g["lat"], g["lon"])
             if n not in idx:
                 idx[n] = len(nombres)
                 nombres.append(n)
             vias.append([idx[n], tags.get("highway", ""), el["nodes"]])
         elif el["type"] == "node":
             puntos.append([tags["amenity"], round(el["lat"], 6), round(el["lon"], 6)])
+    for n, (_, la, lo) in mitad.items():
+        lugares.append([n, round(la, 6), round(lo, 6), "calle"])
+    vistas = set()
+    for nid, ns in nombres_nodo.items():
+        if len(ns) < 2:
+            continue
+        orden = sorted(ns)
+        for i, a in enumerate(orden):
+            for b in orden[i + 1:]:
+                if (a, b) in vistas:
+                    continue
+                vistas.add((a, b))
+                la, lo = coord_nodo[nid]
+                lugares.append([f"{a} con {b}", round(la, 6), round(lo, 6), "esquina"])
     out = {
         "comuna": comuna,
         "fecha": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "grafo": e.get("version", ""),
-        "nombres": nombres, "vias": vias, "puntos": puntos,
+        "nombres": nombres, "vias": vias, "puntos": puntos, "lugares": lugares,
     }
     salida.mkdir(parents=True, exist_ok=True)
     f = salida / f"{comuna}.nombres.json.gz"
     with gzip.open(f, "wt", encoding="utf-8") as fh:
         json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
-    print(f"{comuna}: {len(vias)} vías, {len(nombres)} nombres, {len(puntos)} puntos "
+    print(f"{comuna}: {len(vias)} vías, {len(nombres)} nombres, {len(puntos)} puntos, "
+          f"{len(lugares)} lugares "
           f"→ {f} ({f.stat().st_size / 1e6:.1f} MB)")
 
 
