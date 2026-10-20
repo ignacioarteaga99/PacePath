@@ -150,6 +150,25 @@
   .pin.salida { width: 22px; height: 22px; background: var(--tinta); display: grid; place-items: center; }
   .pin.salida::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
 
+  /* ── Cabecera compacta: el mapa es lo importante ───────────────────────── */
+  header { padding: calc(env(safe-area-inset-top) + 6px) 12px 8px; }
+  .marca { gap: 10px; }
+  .marca svg { width: 30px; height: 30px; flex: none; }
+  .marca .modos { flex: 1; margin-top: 0; }
+  .modos button { font-size: 13px; padding: 6px 4px; }
+  .chips { margin: 8px -12px 0; padding: 0 12px; gap: 6px; }
+  .chip { padding: 5px 12px; font-size: 13px; }
+  .campo { margin-top: 6px; }
+  .campo input { padding: 8px 10px 8px 58px; border-radius: 10px; }
+  .campo label { font-size: 11px; }
+  button { font-size: 15px; padding: 8px 14px; border-radius: 10px; }
+  button.icono.solo { padding: 8px 10px; }
+  button.icono.solo svg { width: 20px; height: 20px; }
+  .continuo, .trazar { margin-top: 6px; }
+  .interruptor { font-size: 13px; }
+  .interruptor input { width: 18px; height: 18px; }
+  /* En «trazar» el primer toque ya es la salida: el campo «Desde» sobra. */
+  body.modo-trazar #form > .campo:first-child { display: none; }
   /* ── Mi ciudad ─────────────────────────────────────────────────────────── */
   body.vista-ciudad #form, body.vista-ciudad .modos, body.vista-ciudad .chips,
   body.vista-ciudad .plegado { display: none !important; }
@@ -183,14 +202,15 @@
 
 <header>
   <div class="marca">
-    <svg viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="#f2541b"/>
+    <svg viewBox="0 0 26 26" role="img" aria-label="PacePath"><rect width="26" height="26" rx="7" fill="#f2541b"/>
       <path d="M6 18 L11 8 L14 14 L16.5 10 L20 18" fill="none" stroke="#fff" stroke-width="2.4"
             stroke-linecap="round" stroke-linejoin="round"/></svg>
-    PacePath <span class="titulo-ciudad">· Mi ciudad</span> <small id="comuna"></small>
-  </div>
-  <div class="modos" role="tablist">
-    <button type="button" class="on" id="modo-sesion">Ruta para mi sesión</button>
-    <button type="button" id="modo-trazar">Trazar a mano</button>
+    <div class="modos" role="tablist">
+      <button type="button" class="on" id="modo-sesion">Para mi sesión</button>
+      <button type="button" id="modo-trazar">Trazar a mano</button>
+    </div>
+    <span class="titulo-ciudad">Mi ciudad</span>
+    <small id="comuna" hidden></small>
   </div>
   <div class="chips solo-sesion" id="chips">
     <button class="chip on" type="button" data-t="6x1k">Series</button>
@@ -205,10 +225,9 @@
     <div class="campo">
       <label for="desde">Desde</label>
       <input id="desde" placeholder="Calle, esquina o lugar" aria-label="Desde dónde sales">
-      <button class="sec icono" id="cerca" type="button" aria-label="Cerca de mí">
+      <button class="sec icono solo" id="cerca" type="button" aria-label="Cerca de mí" title="Cerca de mí">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-             stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-        Cerca de mí</button>
+             stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
       <div class="sugerencias" id="sugerencias"></div>
     </div>
     <div class="campo solo-sesion">
@@ -229,8 +248,15 @@
     </div>
     <div class="trazar">
       <label class="interruptor"><input type="checkbox" id="volver" checked> Volver a la salida</label>
-      <button class="sec" type="button" id="deshacer">Deshacer</button>
-      <button class="sec" type="button" id="borrar">Borrar</button>
+      <button class="sec icono solo" type="button" id="cercaTrazar" aria-label="Salir desde mi ubicación"
+              title="Salir desde mi ubicación"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+      <button class="sec icono solo" type="button" id="deshacer" aria-label="Deshacer el último punto" title="Deshacer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+             stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+      <button class="sec icono solo" type="button" id="borrar" aria-label="Borrar la ruta" title="Borrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+             stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
     </div>
   </form>
 </header>
@@ -446,6 +472,7 @@ function mostrarTrazado(j) {
 }
 
 $("volver").onchange = () => recalcular(Math.max(0, puntos.length - 2));
+$("cercaTrazar").onclick = () => $("cerca").click();
 $("deshacer").onclick = () => { puntos.pop(); pintarPuntos(); if (puntos.length < 2) { capas.clearLayers(); hoja('<p class="pista">Toca el mapa para seguir marcando.</p>'); } else recalcular(null); };
 $("borrar").onclick = () => { puntos = []; salida = null; pintarPuntos(); capas.clearLayers();
   hoja('<p class="pista">Toca el mapa para marcar la salida.</p>'); };
