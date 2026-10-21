@@ -4,12 +4,12 @@ from pacepath.sesion import Sesion, TipoSesion, interpretar, requisitos
 
 
 @pytest.mark.parametrize("texto,reps,dist,pausa", [
-    ("6x1k", 6, 1000, 90),
-    ("6×1000", 6, 1000, 90),
+    ("6x1k", 6, 1000, None),          # sin pausa escrita, no se inventa
+    ("6×1000", 6, 1000, None),
     ("8x400 r60", 8, 400, 60),
     ("series 5 x 2km p2min", 5, 2000, 120),
-    ("10x200m", 10, 200, 90),
-    ("4x1,5k", 4, 1500, 90),
+    ("10x200m", 10, 200, None),
+    ("4x1,5k", 4, 1500, None),
 ])
 def test_interpreta_series(texto, reps, dist, pausa):
     s = interpretar(texto)
@@ -32,7 +32,7 @@ def test_no_entiende():
 
 
 def test_resumen():
-    assert interpretar("6x1k").resumen == "6×1 km (pausa 90 s)"
+    assert interpretar("6x1k").resumen == "6×1 km"
     assert interpretar("8x400 r60").resumen == "8×400 m (pausa 60 s)"
 
 

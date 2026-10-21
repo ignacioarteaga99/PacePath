@@ -116,7 +116,7 @@ def test_idioma_ingles():
     en = cli.post("/api/ruta", json=body, headers={"X-Idioma": "en"}).json()
     assert es["explicacion"][0].startswith("Las series van por")
     assert en["explicacion"][0].startswith("The intervals go along")
-    assert en["sesion"]["resumen"] == "5×400 m (90 s rest)"
+    assert en["sesion"]["resumen"] == "5×400 m"           # sin pausa inventada
     assert "SRTM" in en["avisos"][-1] and "approximate" in en["avisos"][-1]
     assert cli.post("/api/sesion", json={"texto": "long run 18k"}).json()["tipo"] == "fondo"
     assert cli.post("/api/sesion", json={"texto": "hills 8x300 6%"}).json()["tipo"] == "cuestas"

@@ -1166,13 +1166,16 @@ function alternarGuardada(e) {
   guardarPref("pp_guardadas", [e, ...l]);
   return true;
 }
+// Las guardadas antes de dejar de inventar la pausa traen «(pausa 90 s)».
+const sinPausaInventada = (e) => /\b(r|p|pausa|rec)\s*\d/i.test(e.texto)
+  ? e.resumen : e.resumen.replace(/ \((pausa 90 s|90 s rest)\)$/, "");
 function itemSesion(e, i, lista) {
   const fecha = new Date(e.fecha);
   const detalle = [e.calle, e.salida.nombre && t("desde {d}", { d: e.salida.nombre }), km(e.distancia),
     e.volver ? "" : t("sin volver"), lista === "recientes" ? fechaCorta(fecha) : ""].filter(Boolean).join(" · ");
   return `<div class="item"><button type="button" class="abrir" data-l="${lista}" data-i="${i}">
       <span class="ico">${ICONO[e.tipo] || "·"}</span>
-      <span style="min-width:0"><b>${esc(e.resumen)}</b><small>${esc(detalle)}</small></span></button>
+      <span style="min-width:0"><b>${esc(sinPausaInventada(e))}</b><small>${esc(detalle)}</small></span></button>
     <button type="button" class="estrella${estaGuardada(e) ? " on" : ""}" data-l="${lista}" data-i="${i}"
       aria-label="${t(estaGuardada(e) ? "Quitar de guardadas" : "Guardar sesión")}">${estaGuardada(e) ? "★" : "☆"}</button></div>`;
 }

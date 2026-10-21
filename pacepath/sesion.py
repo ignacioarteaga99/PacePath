@@ -2,7 +2,8 @@
 
 Dos piezas:
 
-  · `Sesion`: lo que el corredor tiene que hacer hoy («6×1000 m, pausa 90 s»).
+  · `Sesion`: lo que el corredor tiene que hacer hoy («6×1000 m»; la pausa,
+    sólo si la escribe: «6x1k r60»).
   · `Requisitos`: lo que eso le pide a la calle. Es la traducción de la sesión a
     restricciones duras y pesos blandos; el generador de cada tipo sólo lee esto.
 
@@ -48,8 +49,6 @@ class Sesion(BaseModel):
         if self.tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS):
             if not self.repeticiones or not self.distancia_rep_m:
                 raise ValueError("las series y cuestas necesitan repeticiones y distancia")
-            if self.pausa_s is None:
-                self.pausa_s = 90 if self.tipo is TipoSesion.SERIES else 0
             if self.tipo is TipoSesion.CUESTAS and self.pendiente_pct is None:
                 self.pendiente_pct = 6.0
         elif not self.distancia_m:
@@ -61,8 +60,10 @@ class Sesion(BaseModel):
         from .idioma import tr
         t = self.tipo
         if t is TipoSesion.SERIES:
-            return (f"{self.repeticiones}×{_m(self.distancia_rep_m)}"
-                    + tr(f" (pausa {self.pausa_s} s)", f" ({self.pausa_s} s rest)"))
+            # La pausa sólo si el corredor la escribió: no se inventa.
+            pausa = (tr(f" (pausa {self.pausa_s} s)", f" ({self.pausa_s} s rest)")
+                     if self.pausa_s else "")
+            return f"{self.repeticiones}×{_m(self.distancia_rep_m)}{pausa}"
         if t is TipoSesion.CUESTAS:
             return tr(f"cuestas {self.repeticiones}×{_m(self.distancia_rep_m)}"
                       f" al {self.pendiente_pct:g} %",
@@ -128,7 +129,7 @@ def interpretar(texto: str) -> Sesion:
     """Convierte lo que el corredor escribe en una `Sesion`.
 
     >>> interpretar("6x1k").resumen
-    '6×1 km (pausa 90 s)'
+    '6×1 km'
     """
     t = texto.strip().lower().replace("×", "x")
     tipo = next((v for k, v in _TIPOS.items() if re.search(rf"\b{k}\b", t)), None)

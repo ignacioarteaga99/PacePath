@@ -102,10 +102,10 @@ def explicar_series(plan: dict) -> list[str]:
            f"{'straight' if recto else 'almost straight'}, {_sem(t['semaforos'])}, {cruces}, "
            f"{num(t['desnivel_m'])} m of elevation range (average grade "
            f"{num(t['pendiente_media_pct'], 1)} %)."),
-        tr(f"Haz las {n} repeticiones en ida y vuelta: la 1.ª de ida, la 2.ª de vuelta, y así. "
-           f"Pausa de {s['pausa_s']} s en cada extremo.",
-           f"Run the {n} reps back and forth: the 1st one out, the 2nd one back, and so on. "
-           f"{s['pausa_s']} s rest at each end."),
+        tr(f"Haz las {n} repeticiones en ida y vuelta: la 1.ª de ida, la 2.ª de vuelta, y así."
+           + (f" Pausa de {s['pausa_s']} s en cada extremo." if s.get("pausa_s") else ""),
+           f"Run the {n} reps back and forth: the 1st one out, the 2nd one back, and so on."
+           + (f" {s['pausa_s']} s rest at each end." if s.get("pausa_s") else "")),
     ]
     if t["parque_pct"] >= 30:
         lineas.append(tr(f"El {t['parque_pct']} % del tramo va por parque.",

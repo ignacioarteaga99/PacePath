@@ -564,7 +564,7 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
         else:
             partes.append({
                 "tipo": "serie", "numero": k + 1, "distancia_m": round(m.largo_m),
-                "pausa_s": sesion.pausa_s if k < n - 1 else 0,
+                "pausa_s": (sesion.pausa_s or 0) if k < n - 1 else 0,
                 "coordenadas": coords if k % 2 == 0 else coords[::-1],
             })
     partes.append({"tipo": "vuelta_calma", **vuelta})
