@@ -452,7 +452,7 @@ const EN = {
   "Inicio de la repetición": "Rep start", "Fin de la repetición": "Rep end", "Llegada": "Finish",
   "Semáforo": "Traffic light", "Cruce": "Crossing", "Fuente de agua": "Water fountain", "Baño": "Toilet",
   "Altimetría": "Elevation", "subida": "up", "bajada": "down",
-  "en total": "in total", "sin volver a la salida": "one way", "Cambiar salida": "Change start",
+  "en total": "in total", "de series": "of intervals", "de subida": "uphill", "sin volver a la salida": "one way", "Cambiar salida": "Change start",
   "Escribe otra calle, usa «Cerca de mí» o toca el mapa.": "Type another street, use «Near me» or tap the map.",
   "Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.":
     "First choose where you start: type a street, use «Near me» or tap the map.",
@@ -1015,7 +1015,12 @@ function activarPerfil() {
 function mostrar(plan) {
   const r = plan.tramo || plan.bloque || plan.recorrido;
   const calles = r.calles?.length ? r.calles.slice(0, 3).join(" · ") : "";
-  hoja(`<div class="tipo">${tipo(plan.sesion.tipo)} · ${km(plan.totales.distancia_m)} ${plan.volver === false ? "· " + t("sin volver a la salida") : t("en total")}</div>
+  // Series y cuestas: lo que cuenta es el bloque; el trote de ida y vuelta es
+  // traslado (calentamiento y vuelta a la calma) y va en la explicación.
+  const bloque = plan.sesion.tipo === "series" ? `${km(plan.totales.series_m)} ${t("de series")}`
+    : plan.sesion.tipo === "cuestas" ? `${km(plan.totales.series_m)} ${t("de subida")}`
+    : `${km(plan.totales.distancia_m)}${plan.volver === false ? "" : " " + t("en total")}`;
+  hoja(`<div class="tipo">${tipo(plan.sesion.tipo)} · ${bloque}${plan.volver === false ? " · " + t("sin volver a la salida") : ""}</div>
     <h2>${esc(plan.sesion.resumen)}</h2>
     <div class="donde">${esc(calles)}</div>
     <div class="cifras">${cifrasDe(plan).map(([v, e]) =>

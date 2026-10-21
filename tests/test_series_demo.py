@@ -72,3 +72,12 @@ def test_sin_tramo_imposible(ctx):
     req = requisitos(interpretar("2x5000"))
     with pytest.raises(SinTramo):
         buscar_tramos(ctx, casa, req, holgura_m=500)
+
+
+def test_explicacion_series_sin_traslado_en_el_total(plan):
+    # El total es el bloque; ida y vuelta se cuentan aparte, como traslado.
+    ex = plan["explicacion"]
+    assert "Series: 5 × 400 m = 2,00 km." in ex
+    assert any(l.startswith("Para llegar:") and "calentamiento" in l for l in ex)
+    assert any(l.startswith("Para volver:") for l in ex)
+    assert not any(l.startswith("Total") for l in ex)
