@@ -71,6 +71,11 @@ def _traslado_final(plan: dict, vc: dict) -> str:
     """Series y cuestas: el trote después del bloque es traslado, no parte del total."""
     d = metros(vc["distancia_m"])
     if plan.get("volver", True):
+        if plan.get("forma", "auto") != "auto":
+            return tr(f"Para volver: {d} de trote suave hasta la salida por otras calles, "
+                      "cerrando el círculo (vuelta a la calma).",
+                      f"To get back: {d} easy jog to the start along other streets, "
+                      "closing the loop (cool-down).")
         return tr(f"Para volver: {d} de trote suave hasta la salida (vuelta a la calma).",
                   f"To get back: {d} easy jog to the start (cool-down).")
     if plan.get("con_meta"):
@@ -175,6 +180,15 @@ def explicar_tempo(plan: dict) -> list[str]:
             f"The tempo runs along {_donde(t)}: a {metros(t['largo_m'])} stretch with no traffic "
             f"lights or crossings, back and forth {v} times ({v - 1} U-turns), "
             f"{num(t['desnivel_m'])} m of elevation range."))
+    elif plan.get("forma") == "vueltas":
+        b, v = plan["bloque"], plan["vueltas_bloque"]
+        lineas.append(tr(
+            f"El tempo son {v} vueltas a un circuito de {metros(plan['vuelta_m'])} "
+            f"({metros(b['distancia_m'])}): {_paradas(b)}, {num(b['subida_m'])} m de subida. "
+            "Calentamiento y vuelta a la calma, por el mismo circuito.",
+            f"The tempo is {v} laps of a {metros(plan['vuelta_m'])} loop "
+            f"({metros(b['distancia_m'])}): {_paradas(b)}, {num(b['subida_m'])} m of climbing. "
+            "Warm-up and cool-down on the same loop."))
     else:
         b = plan["bloque"]
         donde = (tr(" por ", " along ") + lista(b["calles"][:4])) if b.get("calles") else ""
@@ -221,6 +235,9 @@ def explicar_continuo(plan: dict) -> list[str]:
         "favoritos": ("por tus tramos favoritos y calles de siempre",
                       "along your favorite stretches and usual streets"),
     }
+    if r.get("forma") == "vueltas":
+        formas["vueltas"] = (f"en {r['vueltas']} vueltas a un circuito de {metros(r['vuelta_m'])}",
+                             f"as {r['vueltas']} laps of a {metros(r['vuelta_m'])} loop")
     es, en_ = formas.get(r.get("forma"), ("en circuito", "loop"))
     lineas = [
         tr(f"{nombre} de {metros(r['distancia_m'])} {es}{por}.",
@@ -230,6 +247,18 @@ def explicar_continuo(plan: dict) -> list[str]:
            f"On the way: {_paradas(r)}; {num(r['subida_m'])} m of climbing; "
            f"{r['parque_pct']} % through parks."),
     ]
+    rep = r.get("vuelta_repetido_pct") if r.get("forma") == "vueltas" else r.get("repetido_pct")
+    if r.get("pedida") in ("circuito", "vueltas") and rep is not None:
+        donde = tr("cada vuelta", "each lap") if r.get("forma") == "vueltas" else tr("el circuito",
+                                                                                     "the loop")
+        lineas.append(tr(f"{donde[0].upper() + donde[1:]} cierra un círculo sin repetir calles."
+                         if rep < 5 else
+                         f"{donde[0].upper() + donde[1:]} repite calle en un {rep} % (lo mínimo "
+                         "que encontré para cerrar el círculo).",
+                         f"{donde[0].upper() + donde[1:]} closes a circle without repeating streets."
+                         if rep < 5 else
+                         f"{donde[0].upper() + donde[1:]} repeats streets for {rep} % of it (the "
+                         "least I could find to close the circle)."))
     if r.get("preferidas_pct"):
         lineas.append(tr(f"Va un {r['preferidas_pct']} % por tus calles de siempre y tramos "
                          "favoritos.",

@@ -157,3 +157,53 @@ def test_radio_demasiado_chico_avisa(ctx):
     from pacepath.planificador import planificar
     with pytest.raises(SinTramo, match="sube el radio"):
         planificar(ctx, interpretar("fondo 20k"), D.lat, D.lon, radio_max_m=300)
+
+
+def test_fondo_en_circuito_repite_poco(ctx):
+    from pacepath.planificador import planificar
+    auto = planificar(ctx, interpretar("fondo 8k"), D.lat, D.lon)
+    p = planificar(ctx, interpretar("fondo 8k"), D.lat, D.lon, forma="circuito")
+    r = p["recorrido"]
+    assert r["forma"] == "circuito" and r["pedida"] == "circuito"
+    assert r["repetido_pct"] <= auto["recorrido"]["repetido_pct"]
+    assert r["repetido_pct"] < 30
+    assert abs(r["distancia_m"] - 8000) <= 0.06 * 8000
+    print("repetido auto", auto["recorrido"]["repetido_pct"], "→ circuito", r["repetido_pct"])
+
+
+def test_fondo_en_vueltas(ctx):
+    from pacepath.planificador import planificar
+    p = planificar(ctx, interpretar("fondo 9k"), D.lat, D.lon, forma="vueltas", n_vueltas=3)
+    r = p["recorrido"]
+    assert r["forma"] == "vueltas" and r["vueltas"] == 3
+    assert abs(r["distancia_m"] - 3 * r["vuelta_m"]) <= 3
+    assert abs(r["distancia_m"] - 9000) <= 0.06 * 9000
+    c = p["partes"][0]["coordenadas"]
+    assert not _lejos(c[0], c[-1], 30)                     # cierra en la salida
+    assert "3 vueltas" in p["explicacion"][0]
+
+
+def test_tempo_en_vueltas(ctx):
+    from pacepath.planificador import planificar
+    p = planificar(ctx, interpretar("tempo 4k"), D.lat, D.lon, forma="vueltas", n_vueltas=4)
+    tempo = [x for x in p["partes"] if x["tipo"] == "tempo"]
+    assert len(tempo) == 4 and p["forma"] == "vueltas"
+    assert abs(p["totales"]["tempo_m"] - 4000) <= 0.1 * 4000     # grafo sintético: aristas de ~60 m
+    _encadenado(p)
+    assert any("4 vueltas" in x for x in p["explicacion"])
+
+
+def test_vueltas_demasiado_cortas_avisa(ctx):
+    from pacepath.planificador import planificar
+    with pytest.raises(SinTramo, match="Pide menos vueltas"):
+        planificar(ctx, interpretar("fondo 5k"), D.lat, D.lon, forma="vueltas", n_vueltas=10)
+
+
+def test_series_en_circuito_vuelven_por_otro_lado(ctx):
+    from pacepath.planificador import planificar
+    p = planificar(ctx, interpretar("5x400"), D.lat, D.lon, forma="circuito")
+    ida = {tuple(c[:2]) for c in p["partes"][0]["coordenadas"]}
+    vuelta = [tuple(c[:2]) for c in p["partes"][-1]["coordenadas"]]
+    comunes = sum(c in ida for c in vuelta) / max(len(vuelta), 1)
+    assert comunes < 0.5, comunes
+    assert any("por otras calles" in x for x in p["explicacion"])

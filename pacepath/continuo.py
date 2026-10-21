@@ -183,6 +183,38 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     return todos[0][0], todos[0][1], todos[1:]
 
 
+# ── Forma pedida: circuito sin repetir calles, o vueltas a un circuito ──────
+FORMAS = ("auto", "circuito", "vueltas")
+PENAL_REPETIDO_CIRCUITO = 120.0     # puntos por fracción repetida (auto: 8–25)
+VUELTA_MIN_M = 800.0
+
+
+def solo_circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos
+                  ) -> tuple[list[int], Medida, list[tuple]]:
+    """Un circuito que cierra un círculo: sólo bucles del motor (ni ida y vuelta
+    ni corredores) y repetir calle pesa mucho más que en «auto»."""
+    aristas, med, otros = circuito(ctx, casa, distancia_m, req, k=8, afinar=3,
+                                   con_ida_y_vuelta=False)
+    todos = [(aristas, med, puntuar(med, req, distancia_m))] + list(otros)
+    # Primero los que miden lo pedido (±4 %: en vueltas el error se multiplica);
+    # entre ellos, el que menos repite.
+    fuera = lambda m: abs(m.distancia_m - distancia_m) > 0.04 * distancia_m  # noqa: E731
+    todos.sort(key=lambda c: (fuera(c[1]), c[2] + PENAL_REPETIDO_CIRCUITO * c[1].repetido))
+    return todos[0][0], todos[0][1], todos[1:]
+
+
+def vuelta_de(ctx: GraphContext, casa: int, largo_m: float, req: Requisitos
+              ) -> tuple[list[int], Medida]:
+    """El circuito de una vuelta (empieza y termina en la salida)."""
+    if largo_m < VUELTA_MIN_M:
+        raise SinTramo(tr(f"Cada vuelta mediría {largo_m:.0f} m: muy poco para un circuito. "
+                          "Pide menos vueltas.",
+                          f"Each lap would be {largo_m:.0f} m: too short for a loop. "
+                          "Ask for fewer laps."))
+    aristas, med, _ = solo_circuito(ctx, casa, largo_m, req)
+    return list(aristas), med
+
+
 def _radio_busqueda(distancia_m: float) -> float:
     """Hasta dónde busca anclas el motor: lo de siempre, o el radio máximo."""
     r = distancia_m * 0.6 + 1500
@@ -527,18 +559,29 @@ def _marcas(ctx: GraphContext, aristas: list[int], med: Medida,
 def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                         volver: bool = True,
                         meta: tuple[float, float] | None = None,
-                        preferidas: np.ndarray | None = None) -> dict:
+                        preferidas: np.ndarray | None = None,
+                        forma: str = "auto", n_vueltas: int | None = None) -> dict:
     """Fondo o regenerativo.
 
     · `volver` (lo habitual): circuito o ida y vuelta desde la salida.
     · sin volver y con `meta`: de la salida a la meta midiendo lo pedido.
-    · sin volver y sin meta: termina donde se cumplen los km."""
+    · sin volver y sin meta: termina donde se cumplen los km.
+    Volviendo, `forma` «circuito» cierra un círculo repitiendo lo menos posible y
+    «vueltas» da `n_vueltas` a un circuito más corto."""
     if sesion.tipo not in (TipoSesion.FONDO, TipoSesion.REGENERATIVO):
         raise ValueError("planificar_circuito arma fondos y regenerativos")
     req = con_preferidas(requisitos(sesion), preferidas)
     casa = nodo_salida(ctx, lat, lon)
     D = req.distancia_m
-    if volver:
+    pedida, vuelta_med = forma, None
+    if volver and pedida == "vueltas" and (n_vueltas or 0) >= 2:
+        una, vuelta_med = vuelta_de(ctx, casa, D / n_vueltas, req)
+        aristas = una * n_vueltas
+        med, otros, forma = medir(ctx, aristas, req.radio_agua_m), [], "vueltas"
+    elif volver and pedida in ("circuito", "vueltas"):
+        aristas, med, otros = solo_circuito(ctx, casa, D, req)
+        forma = "circuito"
+    elif volver:
         aristas, med, otros = circuito(ctx, casa, D, req)
         forma = getattr(med, "forma", None) or (
             "ida y vuelta" if med.repetido > 0.9 else "circuito")
@@ -563,7 +606,11 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
         forma = "favoritos"
     info = _resumen_medida(med) | {"calles": _calles_trote(ctx, aristas), "forma": forma,
                                    "preferidas_pct": round(100 * fraccion_preferida(med, req)),
-                                   "corredor": getattr(med, "detalle", None)}
+                                   "corredor": getattr(med, "detalle", None),
+                                   "pedida": pedida if volver else "auto"}
+    if vuelta_med is not None:
+        info |= {"vueltas": n_vueltas, "vuelta_m": round(vuelta_med.distancia_m),
+                 "vuelta_repetido_pct": round(100 * vuelta_med.repetido)}
     avisos = []
     if abs(med.distancia_m - D) > 0.05 * D:
         avisos.append(tr(f"El recorrido mide {med.distancia_m / 1000:.1f} km: no encontré uno "
@@ -626,7 +673,8 @@ def _ventana_circuito(med: Medida, X: float, cal: float, vc: float) -> tuple[flo
 
 def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                      preferidas: np.ndarray | None = None, volver: bool = True,
-                     meta: tuple[float, float] | None = None) -> dict:
+                     meta: tuple[float, float] | None = None,
+                     forma: str = "auto", n_vueltas: int | None = None) -> dict:
     """Tempo: circuito (o, sin volver, recorrido hasta la meta o de solo ida)
     partido en calentamiento, bloque y vuelta a la calma; o corredor limpio en
     ida y vuelta, si tiene menos detenciones."""
@@ -637,7 +685,19 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     fin_nodo = None if volver or meta is None else nodo_salida(ctx, *meta)
 
     # Opción circuito (o, sin volver, de la salida a la meta / de solo ida)
-    if volver:
+    vueltas_bloque = n_vueltas if volver and forma == "vueltas" and (n_vueltas or 0) >= 2 else 0
+    largo_vuelta = 0.0
+    if vueltas_bloque:
+        # El bloque son vueltas enteras; calentamiento y vuelta a la calma también
+        # (las que más se acerquen a lo pedido) por el mismo circuito.
+        una, vmed = vuelta_de(ctx, casa, X / vueltas_bloque, req)
+        largo_vuelta = vmed.distancia_m
+        v_cal, v_vc = round(cal / largo_vuelta), round(vc / largo_vuelta)
+        aristas = una * (v_cal + vueltas_bloque + v_vc)
+        med = medir(ctx, aristas, req.radio_agua_m)
+    elif volver and forma in ("circuito", "vueltas"):
+        aristas, med, _ = solo_circuito(ctx, casa, cal + X + vc, req)
+    elif volver:
         aristas, med, _ = circuito(ctx, casa, cal + X + vc, req, k=8, afinar=2,
                                    con_ida_y_vuelta=False)
     else:
@@ -651,7 +711,12 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                               f"I couldn't fit a {D / 1000:.0f} km one-way route inside this "
                               "area's map: try returning to the start."))
         aristas, med, _ = min(cands, key=lambda c: c[2])
-    ini, det_circ = _ventana_circuito(med, X, cal, vc)
+    if vueltas_bloque:
+        ini, Xb = v_cal * largo_vuelta, vueltas_bloque * largo_vuelta
+        det_circ = med.detenciones(ini, ini + Xb)
+    else:
+        ini, det_circ = _ventana_circuito(med, X, cal, vc)
+        Xb = X
 
     # Opción corredor
     corr = _opcion_corredor(ctx, casa, sesion, req)
@@ -660,7 +725,8 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
         tramo, vueltas = corr
         det_corr = (vueltas - 1) * DETENCION_VUELTA_U
 
-    usar_corredor = bool(corr) and det_corr <= det_circ
+    # Con una forma pedida (circuito, vueltas) no se cambia a un corredor de ida y vuelta.
+    usar_corredor = bool(corr) and det_corr <= det_circ and (forma == "auto" or not volver)
     if usar_corredor and req.max_subida_m is not None:
         # Con tope de desnivel: estimar la subida del corredor (trote de ida y
         # vuelta + la mitad del desnivel del tramo por pasada) y, si se pasa y
@@ -708,20 +774,31 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
         # Partir el circuito en calentamiento, bloque y vuelta.
         cum = med.cum
         i0 = int(np.searchsorted(cum, ini))
-        i1 = int(np.searchsorted(cum, ini + X))
+        i1 = int(np.searchsorted(cum, ini + Xb - 0.5))
         a1, a2, a3 = aristas[:i0], aristas[i0:i1], aristas[i1:]
         mb = medir(ctx, a2, 0)
+        if vueltas_bloque:
+            # Una parte por vuelta: la altimetría marca cada una.
+            n1 = len(una)
+            bloque_partes = [{"tipo": "tempo", "numero": k + 1, "distancia_m": round(largo_vuelta),
+                              "coordenadas": _coords(ctx, a2[k * n1:(k + 1) * n1])}
+                             for k in range(vueltas_bloque)]
+        else:
+            bloque_partes = [{"tipo": "tempo", "numero": 1, "distancia_m": round(mb.distancia_m),
+                              "coordenadas": _coords(ctx, a2)}]
         partes = [
             {"tipo": "calentamiento", "distancia_m": round(cum[i0]),
              "coordenadas": _coords(ctx, a1), "calles": _calles_trote(ctx, a1)},
-            {"tipo": "tempo", "numero": 1, "distancia_m": round(mb.distancia_m),
-             "coordenadas": _coords(ctx, a2)},
+            *bloque_partes,
             {"tipo": "vuelta_calma", "distancia_m": round(med.distancia_m - cum[i1]),
              "coordenadas": _coords(ctx, a3), "calles": _calles_trote(ctx, a3)},
         ]
         bloque, total = mb.distancia_m, med.distancia_m
         info = _resumen_medida(mb) | {"calles": _calles_trote(ctx, a2)}
-        forma = {"forma": "circuito", "bloque": info,
+        forma = {"forma": "vueltas" if vueltas_bloque else "circuito", "bloque": info,
+                 "vueltas_bloque": vueltas_bloque or None,
+                 "vuelta_m": round(largo_vuelta) or None,
+                 "repetido_pct": round(100 * med.repetido),
                  "detenciones_bloque": round(det_circ, 1),
                  "alternativa": ({"forma": "corredor",
                                   "detenciones_bloque": round(det_corr, 1)}

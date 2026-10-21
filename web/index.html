@@ -66,6 +66,26 @@
   body.modo-trazar #hoja { max-height: 28vh; }
   .continuo { display: none; gap: 8px 12px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
   .radio { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+  /* Opciones plegables: en el teléfono el mapa no se achica por ellas */
+  .opciones { margin-top: 6px; }
+  body.modo-trazar .opciones { display: none; }
+  .opciones summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 700; padding: 4px 0; min-width: 0; }
+  .opciones summary::-webkit-details-marker { display: none; }
+  .opciones summary::after { content: "▾"; margin-left: auto; color: var(--suave); transition: transform .2s; }
+  .opciones[open] summary::after { transform: rotate(180deg); }
+  #resumenOpciones { color: var(--suave); font-weight: 500; font-size: 13px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  /* Forma: auto (lo mejor), circuito (cerrar un círculo) o vueltas a un circuito */
+  .forma { display: none; align-items: center; gap: 2px; background: var(--gris); border-radius: 10px; padding: 2px; }
+  body.volver:not(.modo-trazar) .forma { display: flex; }
+  .forma button { background: transparent; color: var(--suave); font-size: 13px; font-weight: 600;
+    padding: 6px 10px; border-radius: 8px; }
+  .forma button.on { background: var(--panel); color: var(--tinta); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .forma input { display: none; width: 52px; font-size: 16px; padding: 4px 6px; border-radius: 8px;
+    border: 1px solid var(--linea); background: var(--panel); color: var(--tinta); }
+  body.forma-vueltas .forma input { display: block; }
+  body.sesion-series .forma [data-forma="vueltas"] { display: none; }
   body:not(.modo-trazar) .continuo { display: flex; }
   .campo.meta { display: none; }
   .tope { display: none; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
@@ -379,8 +399,17 @@
       <input id="texto" value="6x1k" aria-label="Sesión de hoy" placeholder="6x1k · tempo 8k · fondo 18k" data-i18n-ph="6x1k · tempo 8k · fondo 18k">
       <button id="armar" type="submit" data-i18n>Crear ruta</button>
     </div>
+    <details class="opciones" id="opciones">
+    <summary><span data-i18n>Opciones</span> <small id="resumenOpciones"></small></summary>
     <div class="continuo">
       <label class="interruptor"><input type="checkbox" id="volverSesion" checked> <span data-i18n>Volver a la salida</span></label>
+      <div class="forma" role="group" aria-label="Forma de la ruta" data-i18n-aria="Forma de la ruta">
+        <button type="button" data-forma="auto" class="on" data-i18n>Auto</button>
+        <button type="button" data-forma="circuito" data-i18n>Circuito</button>
+        <button type="button" data-forma="vueltas" data-i18n>Vueltas</button>
+        <input id="nVueltas" type="number" inputmode="numeric" min="2" max="30" step="1" value="3"
+          aria-label="Número de vueltas" data-i18n-aria="Número de vueltas">
+      </div>
       <label class="tope"><span data-i18n>Desnivel máx.</span> <input id="tope" type="number" inputmode="numeric" min="0"
         step="10" placeholder="sin límite" data-i18n-ph="sin límite" aria-label="Desnivel positivo máximo en metros"> m</label>
       <button type="button" class="plano" id="plano" aria-pressed="false"
@@ -389,6 +418,7 @@
         min="0.3" max="30" step="any" placeholder="sin límite" data-i18n-ph="sin límite"
         aria-label="Distancia máxima desde la salida, en km" data-i18n-aria="Distancia máxima desde la salida, en km"> km</label>
     </div>
+    </details>
     <div class="campo meta">
       <label for="meta" data-i18n>Meta</label>
       <input id="meta" placeholder="Opcional: dónde terminar" aria-label="Meta" data-i18n-ph="Opcional: dónde terminar">
@@ -490,7 +520,11 @@ const EN = {
   "Elige desde dónde sales y la sesión de hoy.": "Choose where you start and today's session.",
   "Sesiones guardadas": "Saved sessions", "Recientes": "Recent", "Borrar": "Clear",
   "Guardar sesión": "Save session", "Quitar de guardadas": "Remove from saved", "desde {d}": "from {d}",
-  "sin volver": "one way",
+  "Opciones": "Options", "Vuelve a la salida": "Back to start", "Hasta la meta": "To the finish",
+  "Sin volver": "One way",
+  "sin volver": "one way", "Auto": "Auto", "Circuito": "Loop", "Vueltas": "Laps",
+  "circuito": "loop", "{n} vueltas": "{n} laps", "Forma de la ruta": "Route shape",
+  "Número de vueltas": "Number of laps",
   "Ya tienes {n} sesiones guardadas: quita alguna primero.": "You already have {n} saved sessions: remove one first.",
   "Revisando tu conexión con Strava…": "Checking your Strava connection…",
   "Las calles que ya corriste": "The streets you've run",
@@ -736,11 +770,52 @@ let meta = null, marcaMeta = null, eligiendoMeta = false;
 const CON_TOPE = /\b(fondo|largo|tirada|regenerativo|suave|rodaje|tempo|umbral|long|easy|recovery|threshold)\b/i;
 // «plano» en la sesión = máx. 5 m de subida por km (lo interpreta el servidor).
 const PLANO = /\s*\b(plano|llano|flat)\b/i;
+// Forma de la ruta (volviendo a la salida). En series y cuestas las repeticiones
+// van siempre por su tramo recto: ahí «circuito» hace que la vuelta vaya por
+// otras calles, y «vueltas» no aplica.
+let forma = pref("pp_forma", "auto");
+const SERIES_TXT = /\d+\s*[x×]/i;
+function ponerForma(f) {
+  forma = ["auto", "circuito", "vueltas"].includes(f) ? f : "auto";
+  guardarPref("pp_forma", forma);
+  document.querySelectorAll(".forma button").forEach((b) => b.classList.toggle("on", b.dataset.forma === forma));
+  document.body.classList.toggle("forma-vueltas", forma === "vueltas" && !SERIES_TXT.test($("texto").value));
+  if ($("resumenOpciones")) resumirOpciones();
+}
+document.querySelectorAll(".forma button").forEach((b) => { b.onclick = () => ponerForma(b.dataset.forma); });
+function formaPedida() {
+  if (!$("volverSesion").checked) return {};
+  const series = SERIES_TXT.test($("texto").value);
+  if (forma === "vueltas" && !series) {
+    const n = parseInt($("nVueltas").value, 10);
+    return Number.isFinite(n) && n >= 2 ? { forma: "vueltas", vueltas: Math.min(n, 30) } : { forma: "circuito" };
+  }
+  return forma === "auto" ? {} : { forma: "circuito" };
+}
+// Resumen de las opciones en la fila plegada: «Vuelve · 3 vueltas · ≤ 3 km».
+function resumirOpciones() {
+  const volver = $("volverSesion").checked, f = formaPedida(), tope = parseFloat($("tope").value);
+  const partes = [volver ? t("Vuelve a la salida") : meta ? t("Hasta la meta") : t("Sin volver")];
+  if (f.forma === "vueltas") partes.push(t("{n} vueltas", { n: f.vueltas }));
+  else if (f.forma === "circuito") partes.push(t("Circuito"));
+  if (document.body.classList.contains("sesion-tope")) {
+    if (Number.isFinite(tope)) partes.push(`+${num(tope)} m`);
+    else if (PLANO.test($("texto").value)) partes.push(t("Plano"));
+  }
+  if (radioKm()) partes.push(`≤ ${num(radioKm(), radioKm() % 1 ? 1 : 0)} km`);
+  $("resumenOpciones").textContent = partes.join(" · ");
+}
 function revisarTipo() {
+  document.body.classList.toggle("sesion-series", SERIES_TXT.test($("texto").value));
+  ponerForma(forma);
   document.body.classList.toggle("sesion-tope", CON_TOPE.test($("texto").value));
   $("plano").setAttribute("aria-pressed", PLANO.test($("texto").value));
   document.body.classList.toggle("volver", $("volverSesion").checked);
+  resumirOpciones();
 }
+for (const id of ["tope", "radioMax", "nVueltas"]) $(id).addEventListener("input", resumirOpciones);
+// En computador hay espacio: las opciones parten abiertas.
+if (window.matchMedia("(min-width: 900px)").matches) $("opciones").open = true;
 $("texto").addEventListener("input", revisarTipo);
 $("plano").onclick = () => {
   const v = $("texto").value;
@@ -750,6 +825,7 @@ $("plano").onclick = () => {
 $("volverSesion").onchange = () => { revisarTipo(); if ($("volverSesion").checked) fijarMeta(null); };
 function fijarMeta(p, nombre) {
   meta = p; eligiendoMeta = false;
+  resumirOpciones();
   $("metaMapa").textContent = t("En el mapa");
   if (!p) { $("meta").value = ""; if (marcaMeta) { marcaMeta.remove(); marcaMeta = null; } return; }
   $("meta").value = nombre || t("Punto en el mapa");
@@ -1119,6 +1195,7 @@ async function pedido() {
   const tope = parseFloat($("tope").value);
   if (CON_TOPE.test(p.texto) && Number.isFinite(tope) && tope >= 0) p.max_subida_m = tope;
   if (radioKm()) p.radio_max_m = radioKm() * 1000;
+  Object.assign(p, formaPedida());
   // Preferencias del corredor: viajan con cada pedido; el servidor no las guarda.
   const favs = favoritos();
   if (favs.length) p.favoritos = favs.map((f) => f.puntos);
@@ -1146,12 +1223,14 @@ const ICONO = { series: "S", tempo: "T", fondo: "F", cuestas: "C", regenerativo:
 const leerLista = (k) => { const v = pref(k, []); return Array.isArray(v) ? v : []; };
 let ultimaEntrada = null;
 const claveSesion = (e) => [e.texto.trim().toLowerCase(), e.salida.lat.toFixed(4), e.salida.lon.toFixed(4),
-  e.volver, e.meta ? e.meta.lat.toFixed(4) + "," + e.meta.lon.toFixed(4) : "", e.tope ?? "", e.radio ?? ""].join("|");
+  e.volver, e.meta ? e.meta.lat.toFixed(4) + "," + e.meta.lon.toFixed(4) : "", e.tope ?? "", e.radio ?? "",
+  e.forma || "auto", e.vueltas || ""].join("|");
 function entradaDe(p, plan) {
   const r = plan.tramo || plan.bloque || plan.recorrido || {};
   return { fecha: Date.now(), texto: p.texto, salida: { lat: p.lat, lon: p.lon, nombre: $("desde").value },
     volver: p.volver !== false, meta: p.meta || null, metaNombre: p.meta ? $("meta").value : "",
     tope: p.max_subida_m ?? null, radio: p.radio_max_m ?? null, tipo: plan.sesion.tipo,
+    forma: p.forma || "auto", vueltas: p.vueltas || null,
     resumen: plan.sesion.resumen, distancia: plan.totales.distancia_m, calle: (r.calles || [])[0] || "" };
 }
 function guardarReciente(e) {
@@ -1172,7 +1251,8 @@ const sinPausaInventada = (e) => /\b(r|p|pausa|rec)\s*\d/i.test(e.texto)
 function itemSesion(e, i, lista) {
   const fecha = new Date(e.fecha);
   const detalle = [e.calle, e.salida.nombre && t("desde {d}", { d: e.salida.nombre }), km(e.distancia),
-    e.volver ? "" : t("sin volver"), lista === "recientes" ? fechaCorta(fecha) : ""].filter(Boolean).join(" · ");
+    e.volver ? "" : t("sin volver"), e.forma === "vueltas" ? t("{n} vueltas", { n: e.vueltas })
+    : e.forma === "circuito" ? t("circuito") : "", lista === "recientes" ? fechaCorta(fecha) : ""].filter(Boolean).join(" · ");
   return `<div class="item"><button type="button" class="abrir" data-l="${lista}" data-i="${i}">
       <span class="ico">${ICONO[e.tipo] || "·"}</span>
       <span style="min-width:0"><b>${esc(sinPausaInventada(e))}</b><small>${esc(detalle)}</small></span></button>
@@ -1200,6 +1280,8 @@ function repetir(e) {
   fijarMeta(e.volver ? null : e.meta, e.metaNombre);
   $("tope").value = e.tope ?? "";
   $("radioMax").value = e.radio ? e.radio / 1000 : "";
+  if (e.vueltas) $("nVueltas").value = e.vueltas;
+  ponerForma(e.forma || "auto");
   revisarTipo();
   fijarSalida(e.salida.lat, e.salida.lon, e.salida.nombre, true);
   $("form").requestSubmit();
@@ -1780,6 +1862,7 @@ function aplicarIdioma() {
     el.setAttribute("aria-label", t(el.dataset.i18nAria)); el.title = t(el.dataset.i18nAria); });
   $("botonIdioma").textContent = idioma === "en" ? "ES" : "EN";
   $("botonIdioma").setAttribute("aria-label", idioma === "en" ? "Cambiar a español" : "Switch to English");
+  resumirOpciones();
   $("botonNoche").setAttribute("aria-label", t(noche ? "Modo día" : "Modo noche"));
 }
 $("botonIdioma").onclick = () => {

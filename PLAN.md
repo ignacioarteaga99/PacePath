@@ -63,6 +63,12 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
 - [x] Radio máximo (cualquier sesión): nada de la ruta sale del círculo
       alrededor de la salida (calles permitidas en los pesos, tramos de series
       con ambos extremos dentro, corredores recortados); se dibuja en el mapa.
+- [x] Forma de la ruta (volviendo a la salida): auto (lo mejor; a menudo ida y
+      vuelta), **circuito** (sólo bucles del motor, repetir calle pesa ×5–15;
+      fondo 12k en Providencia: de 100 % repetido a 5 %) o **vueltas ×N** a un
+      circuito más corto (en tempo, bloque y calentamiento en vueltas enteras).
+      En series, «circuito» hace que el trote de vuelta vaya por otras calles.
+- [x] Opciones plegables en el teléfono, con un resumen de lo elegido.
 - [x] Altimetría con cada intervalo marcado (banda, líneas y número).
 - [x] Recientes (10) y sesiones guardadas (30) en el teléfono: se guardan los
       parámetros y, como el motor es determinista, repetir da la misma ruta.

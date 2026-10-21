@@ -11,13 +11,14 @@ from .series import SinTramo, nodo_salida, planificar_series, radio_max
 
 def planificar(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                volver: bool = True, meta: tuple[float, float] | None = None,
-               preferidas=None, radio_max_m: float | None = None) -> dict:
+               preferidas=None, radio_max_m: float | None = None,
+               forma: str = "auto", n_vueltas: int | None = None) -> dict:
     """Como `_planificar`, sin salir de `radio_max_m` alrededor de la salida."""
     if not radio_max_m:
-        return _planificar(ctx, sesion, lat, lon, volver, meta, preferidas)
+        return _planificar(ctx, sesion, lat, lon, volver, meta, preferidas, forma, n_vueltas)
     with radio_max(ctx, nodo_salida(ctx, lat, lon), radio_max_m):
         try:
-            plan = _planificar(ctx, sesion, lat, lon, volver, meta, preferidas)
+            plan = _planificar(ctx, sesion, lat, lon, volver, meta, preferidas, forma, n_vueltas)
         except SinTramo as exc:
             km = radio_max_m / 1000
             raise SinTramo(f"{exc} " + tr(f"(Buscando a menos de {km:g} km de la salida: "
@@ -30,16 +31,16 @@ def planificar(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
 
 def _planificar(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                 volver: bool = True, meta: tuple[float, float] | None = None,
-                preferidas=None) -> dict:
+                preferidas=None, forma: str = "auto", n_vueltas: int | None = None) -> dict:
     """`preferidas`: float32[E] con calles de siempre y tramos favoritos (o None).
     Por ahora pesan en tempo, fondo y regenerativo.
 
     Sin `volver`, la ruta termina en `meta` o, sin meta, donde se cumple lo pedido
     (en series, cuestas y tempo, al final de la vuelta a la calma)."""
     if sesion.tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS):
-        return planificar_series(ctx, sesion, lat, lon, volver=volver, meta=meta)
+        return planificar_series(ctx, sesion, lat, lon, volver=volver, meta=meta, forma=forma)
     if sesion.tipo is TipoSesion.TEMPO:
         return planificar_tempo(ctx, sesion, lat, lon, preferidas=preferidas,
-                                volver=volver, meta=meta)
+                                volver=volver, meta=meta, forma=forma, n_vueltas=n_vueltas)
     return planificar_circuito(ctx, sesion, lat, lon, volver=volver, meta=meta,
-                               preferidas=preferidas)
+                               preferidas=preferidas, forma=forma, n_vueltas=n_vueltas)

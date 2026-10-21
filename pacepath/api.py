@@ -23,6 +23,7 @@ from __future__ import annotations
 import os
 import threading
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
@@ -90,6 +91,10 @@ class PedidoRuta(BaseModel):
     max_subida_m: float | None = Field(default=None, ge=0, le=5000)
     # Cualquier sesión: nada de la ruta a más de este radio de la salida.
     radio_max_m: float | None = Field(default=None, ge=300, le=30_000)
+    # Volviendo a la salida: «auto» (lo mejor, a menudo ida y vuelta), «circuito»
+    # (cerrar un círculo repitiendo lo menos posible) o «vueltas» a un circuito.
+    forma: Literal["auto", "circuito", "vueltas"] = "auto"
+    vueltas: int | None = Field(default=None, ge=2, le=30)
     # Preferencias del corredor (vienen de su teléfono; no se guardan).
     frecuentes: Frecuentes | None = None
     favoritos: list[list[tuple[float, float]]] | None = Field(default=None, max_length=20)
@@ -148,7 +153,8 @@ def _plan(body: PedidoRuta) -> dict:
             meta = (body.meta.lat, body.meta.lon) if body.meta else None
             pref, info = _preferidas(ctx, body)
             plan = planificar(ctx, s, body.lat, body.lon, volver=body.volver, meta=meta,
-                              preferidas=pref, radio_max_m=body.radio_max_m)
+                              preferidas=pref, radio_max_m=body.radio_max_m,
+                              forma=body.forma, n_vueltas=body.vueltas)
             plan["preferencias"] = info
             return plan
     except SinTramo as exc:
