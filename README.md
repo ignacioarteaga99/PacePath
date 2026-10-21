@@ -25,7 +25,9 @@ posible, no sólo una que mida lo que pides:
 Con tu historial de Strava: un mapa de calor de por dónde has corrido (cuántas
 veces por cada calle), los países y ciudades donde has corrido (al tocarlos, el
 mapa te lleva ahí), tus calles de siempre y tramos favoritos como preferencia
-al crear rutas, y un perfil con tus indicadores e historial.
+al crear rutas, y un perfil con tus indicadores e historial (por año) y tu
+**Pasaporte**: nivel, sellos de países y logros (leyenda local de tu comuna,
+ciudades, continentes, rachas…).
 
 ## Requisito
 El usuario conecta su cuenta de Strava (OAuth). Sin Strava la app genera rutas

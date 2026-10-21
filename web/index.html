@@ -224,6 +224,61 @@
     background: var(--gris); flex: none; }
   .atleta h2 { margin: 0; }
   .atleta small { color: var(--suave); }
+  /* ── Pasaporte: tarjeta oscura (igual de día y de noche) ── */
+  .pasaporte { margin: 16px 0 4px; padding: 16px; border-radius: 18px; color: #fff;
+    background: radial-gradient(420px 260px at 100% 0, rgba(242,84,27,.45), rgba(242,84,27,0) 70%), #17171d; }
+  .pas-cab { display: flex; align-items: center; gap: 14px; }
+  .nivel { flex: none; width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center;
+    background: conic-gradient(#ff8a4f, #f2541b, #ffb36b, #ff8a4f); padding: 3px; }
+  .nivel span { width: 100%; height: 100%; border-radius: 50%; background: #17171d; display: grid; place-items: center;
+    font-size: 26px; font-weight: 800; }
+  .pas-nivel { flex: 1; min-width: 0; }
+  .pas-nivel small { display: block; font-size: 11px; color: rgba(255,255,255,.65); text-transform: uppercase; letter-spacing: .6px; }
+  .pas-nivel b { display: block; font-size: 22px; letter-spacing: -.4px; margin: 1px 0 6px; }
+  .pas-nivel small:last-child { text-transform: none; letter-spacing: 0; margin-top: 4px; }
+  .xp { height: 7px; border-radius: 4px; background: rgba(255,255,255,.14); overflow: hidden; }
+  .xp i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #f2541b, #ffb36b); }
+  .proximo { margin: 12px 0 0; font-size: 13.5px; color: rgba(255,255,255,.85); }
+  .proximo:empty { display: none; }
+  .sellos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .sello { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 20px;
+    border: 1.5px dashed rgba(255,255,255,.4); transform: rotate(-8deg); }
+  .sello:nth-child(even) { transform: rotate(6deg); }
+  .conts { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+  .cont { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; color: rgba(255,255,255,.4);
+    border: 1px solid rgba(255,255,255,.14); }
+  .cont.on { color: #fff; background: rgba(242,84,27,.35); border-color: rgba(255,138,79,.6); }
+  .pasaporte h3 { font-size: 16px; margin: 18px 0 2px; }
+  .pasaporte h4 { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.6); text-transform: uppercase;
+    letter-spacing: .6px; margin: 12px 0 6px; }
+  .logros { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .logro { position: relative; background: rgba(255,255,255,.06); border-radius: 12px; padding: 10px 10px 12px; overflow: hidden; }
+  .logro .medalla { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 19px;
+    background: rgba(255,255,255,.1); margin-bottom: 6px; }
+  .logro.t0 .medalla { filter: grayscale(1); opacity: .5; }
+  .logro.t1 .medalla { background: radial-gradient(circle at 30% 30%, #e4a46a, #a35f27); }
+  .logro.t2 .medalla { background: radial-gradient(circle at 30% 30%, #eef1f4, #8d969f); }
+  .logro.t3 .medalla { background: radial-gradient(circle at 30% 30%, #ffe27a, #c8930f); box-shadow: 0 0 14px rgba(230,180,34,.55); }
+  .logro b { display: block; font-size: 13px; line-height: 1.2; }
+  .logro.t0 b { color: rgba(255,255,255,.7); }
+  .logro small { display: block; font-size: 11px; color: rgba(255,255,255,.6); margin-top: 3px; }
+  .logro i { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,.08); }
+  .logro i::after { content: ""; display: block; width: var(--p); height: 100%; background: linear-gradient(90deg, #f2541b, #ffb36b); }
+  .logro .tier { position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: rgba(255,255,255,.6); }
+  .pasaporte .como { margin-top: 14px; font-size: 12.5px; color: rgba(255,255,255,.7); }
+  .pasaporte .como summary { cursor: pointer; font-weight: 600; color: #fff; }
+  .pasaporte .como p { margin: 6px 0 0; }
+  .pasaporte #compartirPasaporte { width: 100%; margin-top: 14px; background: #fff; color: #17171d; }
+  @media (min-width: 900px) { .logros { grid-template-columns: repeat(3, 1fr); } }
+  .toast-logro { position: fixed; z-index: 3000; left: 50%; top: calc(env(safe-area-inset-top) + 14px);
+    transform: translateX(-50%); background: #17171d; color: #fff; border-radius: 16px; padding: 12px 18px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.35); border: 1px solid rgba(255,138,79,.5); min-width: 240px;
+    animation: logroEntra .5s cubic-bezier(.2,1.4,.4,1) both; transition: opacity .6s, transform .6s; }
+  .toast-logro b { display: block; color: #ffb36b; font-size: 15px; margin-bottom: 4px; }
+  .toast-logro span { display: block; font-size: 14px; }
+  .toast-logro.fuera { opacity: 0; transform: translate(-50%, -20px); }
+  @keyframes logroEntra { from { opacity: 0; transform: translate(-50%, -30px) scale(.9); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
   .anios { display: flex; gap: 6px; overflow-x: auto; margin: 4px -16px 10px; padding: 0 16px; scrollbar-width: none; }
   .anios::-webkit-scrollbar { display: none; }
   .anios .chip { padding: 5px 12px; font-size: 13px; }
@@ -544,6 +599,89 @@ const EN = {
   "Dónde has corrido": "Where you've run", "{n} carrera": "{n} run", "{n} carreras": "{n} runs",
   "Otros lugares": "Other places", "cerca de {c}": "near {c}", "Sin ciudad cerca": "No city nearby",
   "Ciudades: GeoNames (CC BY 4.0)": "Cities: GeoNames (CC BY 4.0)",
+  "Trotador": "Jogger",
+  "Corredor": "Runner",
+  "Fondista": "Distance runner",
+  "Maratonista": "Marathoner",
+  "Ultra": "Ultra",
+  "Leyenda": "Legend",
+  "ciudades": "cities",
+  "Viajero": "Traveler",
+  "Trotamundos": "Globetrotter",
+  "Nómada": "Nomad",
+  "países": "countries",
+  "Pasaporte sellado": "Stamped passport",
+  "Ciudadano del mundo": "Citizen of the world",
+  "Embajador": "Ambassador",
+  "continentes": "continents",
+  "Intercontinental": "Intercontinental",
+  "Cuatro continentes": "Four continents",
+  "Los seis continentes": "All six continents",
+  "Turista en {p}": "Tourist in {p}",
+  "Conoce {p}": "Knows {p}",
+  "{p} de punta a punta": "{p} end to end",
+  "Conoce tu país": "Know your country",
+  "ciudades en un país": "cities in one country",
+  "Antártica": "Antarctica",
+  "Vecino de {b}": "Neighbor of {b}",
+  "Leyenda local de {b}": "Local legend of {b}",
+  "Ícono de {b}": "Icon of {b}",
+  "Vecino": "Neighbor",
+  "Leyenda local": "Local legend",
+  "Ícono del barrio": "Neighborhood icon",
+  "carreras en {b}": "runs in {b}",
+  "carreras en tu barrio": "runs in your neighborhood",
+  "Corredor de {c}": "{c} runner",
+  "Dueño de {c}": "Owner of {c}",
+  "{c} es tuyo": "{c} is yours",
+  "Corredor local": "Local runner",
+  "Dueño de tu ciudad": "Owner of your city",
+  "Tu ciudad es tuya": "Your city is yours",
+  "carreras en {c}": "runs in {c}",
+  "carreras en tu ciudad": "runs in your city",
+  "Habitual de {s}": "Regular on {s}",
+  "Experto en {s}": "Expert on {s}",
+  "Rey de {s}": "King of {s}",
+  "Tu calle": "Your street",
+  "veces por {s}": "times on {s}",
+  "veces por tu calle": "times on your street",
+  "Mil kilómetros": "A thousand kilometers",
+  "Cinco mil": "Five thousand",
+  "Vuelta al mundo": "Around the world",
+  "Constante": "Consistent",
+  "Imparable": "Unstoppable",
+  "Un año sin parar": "A year non-stop",
+  "semanas seguidas": "weeks in a row",
+  "Madrugador": "Early bird",
+  "carreras antes de las 7:00": "runs before 7:00",
+  "Nocturno": "Night owl",
+  "carreras después de las 21:00": "runs after 21:00",
+  "Te faltan {n} {u} para «{l}».": "{n} more {u} to reach “{l}”.",
+  "África": "Africa",
+  "Asia": "Asia",
+  "Europa": "Europe",
+  "Norteamérica": "North America",
+  "Sudamérica": "South America",
+  "Oceanía": "Oceania",
+  "bronce": "bronze",
+  "plata": "silver",
+  "oro": "gold",
+  "calculando…": "calculating…",
+  "Pasaporte": "Passport",
+  "Nivel {n}": "Level {n}",
+  "puntos": "points",
+  "Logros": "Achievements",
+  "Explorador": "Explorer",
+  "Local": "Local",
+  "Constancia": "Consistency",
+  "Cómo se ganan los puntos": "How points are earned",
+  "1 punto por km · 25 por ciudad nueva · 100 por país · 500 por continente · 50, 150 y 400 por logro de bronce, plata y oro.": "1 point per km · 25 per new city · 100 per country · 500 per continent · 50, 150 and 400 per bronze, silver and gold achievement.",
+  "Tus puntos: {km} por km, {c} por ciudades, {p} por países, {o} por continentes y {l} por logros.": "Your points: {km} from km, {c} from cities, {p} from countries, {o} from continents and {l} from achievements.",
+  "Compartir mi pasaporte": "Share my passport",
+  "¡Nuevo logro!": "New achievement!",
+  "¡Nuevos logros!": "New achievements!",
+  "PASAPORTE DEL CORREDOR": "RUNNER'S PASSPORT",
+  "Mi pasaporte PacePath": "My PacePath passport",
   "Todo": "All time", "Año": "Year", "vs {a}": "vs {a}", "{k} km en {a}": "{k} km in {a}", "{k} km a esta fecha en {a}": "{k} km by this date in {a}",
   "sin carreras en {a}": "no runs in {a}", "Por semana": "Per week", "{n} carreras por semana": "{n} runs per week",
   "Tus carreras con GPS guardadas en este teléfono.": "Your GPS runs saved on this phone.",
@@ -1379,14 +1517,15 @@ async function comunaDe(lat, lon) {
 
 function olvidarFrecuentes(comuna) { try { localStorage.removeItem("pp_frec_" + comuna); } catch {} }
 
-async function frecuentesPara(lat, lon) {
-  if (!usarFrecuentes()) return null;
+// `siempre`: también si el corredor no quiere usarlas al crear rutas (Pasaporte).
+async function frecuentesPara(lat, lon, siempre = false) {
+  if (!siempre && !usarFrecuentes()) return null;
   const carreras = await BD.todas();
   if (!carreras.length) return null;
   const c = await comunaDe(lat, lon);
   if (!c) return null;
   const guardado = leer("pp_frec_" + c.id, null);
-  if (guardado && guardado.n === carreras.length) return guardado;
+  if (guardado && guardado.n === carreras.length && guardado.calles) return guardado;
   // Sólo las carreras que empiezan en esta comuna o cerca.
   const cerca = carreras.filter((x) => {
     const p = (x.puntos ||= decodificar(x.polilinea))[0];
@@ -1397,7 +1536,7 @@ async function frecuentesPara(lat, lon) {
     body: JSON.stringify({ lat, lon, polilineas: cerca.map((x) => x.polilinea) }) });
   if (!r.ok) return null;
   const j = await r.json();
-  const f = { version: j.version, n: carreras.length, aristas: j.aristas, veces: j.veces };
+  const f = { version: j.version, n: carreras.length, aristas: j.aristas, veces: j.veces, calles: j.calles || [] };
   escribir("pp_frec_" + c.id, f);
   return f;
 }
@@ -1663,7 +1802,7 @@ async function dibujarCalor(e, aviso, encuadrar) {
     if (!confirm(t("¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso."))) return;
     await fetch("/api/strava/desconectar", { method: "POST" });
     await BD.borrar();
-    Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_") || k === "pp_donde")
+    Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_") || ["pp_donde", "pp_lugares", "pp_logros_vistos"].includes(k))
       .forEach((k) => localStorage.removeItem(k));
     abrirCiudad(t("Strava desconectado: se borraron tus datos."));
   };
@@ -1672,55 +1811,48 @@ async function dibujarCalor(e, aviso, encuadrar) {
 }
 
 // ── Dónde has corrido: países y ciudades ────────────────────────────────────
-// El teléfono agrupa las salidas (a menos de 20 km del centro de cada grupo) y
-// el servidor nombra cada grupo con la ciudad más importante cerca (GeoNames,
-// sin servicios externos). Los nombres quedan guardados aquí.
-const RADIO_GRUPO_M = 20000;
+// Cada carrera se nombra por dónde empieza (celdas de ~100 m): el servidor da
+// ciudad (la más importante cerca), país, continente y barrio (la comuna, con
+// límites de OpenStreetMap), sin servicios externos. Quedan guardados aquí y
+// se vuelven a preguntar cada semana. Lo usan esta lista y el Pasaporte.
+const LUGARES_DIAS = 7;
 const bandera = (cc) => cc && cc.length === 2
   ? String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) : "🌐";
 const nombrePais = (cc) => { try { return new Intl.DisplayNames([idioma], { type: "region" }).of(cc); }
   catch { return cc; } };
-function gruposDeSalidas(lista) {
-  const grupos = [];
-  for (const c of [...lista].sort((a, b) => (a.fecha < b.fecha ? -1 : 1))) {
-    const p = c.puntos?.[0];
-    if (!p) continue;
-    let g = grupos.find((x) => distM(x.centro, p) < RADIO_GRUPO_M);
-    if (!g) grupos.push(g = { suma: [0, 0], carreras: [], centro: p });
-    g.carreras.push(c); g.suma[0] += p[0]; g.suma[1] += p[1];
-    g.centro = [g.suma[0] / g.carreras.length, g.suma[1] / g.carreras.length];
-  }
-  return grupos;
-}
-async function nombresDeGrupos(grupos) {
-  const cache = pref("pp_donde", {}) || {};
-  const clave = (g) => `${g.centro[0].toFixed(2)},${g.centro[1].toFixed(2)}`;
-  const faltan = grupos.filter((g) => !(clave(g) in cache));
-  if (faltan.length) {
+async function lugaresDeCarreras(lista) {
+  const cache = pref("pp_lugares", {}) || {}, ahora = Date.now();
+  const clave = (p) => `${p[0].toFixed(3)},${p[1].toFixed(3)}`;
+  const deCarrera = new Map();
+  for (const c of lista) { const p = (c.puntos ||= decodificar(c.polilinea))[0]; if (p) deCarrera.set(c.id, clave(p)); }
+  const faltan = [...new Set(deCarrera.values())].filter((k) => !cache[k] || ahora - cache[k].t > LUGARES_DIAS * 864e5);
+  for (let i = 0; i < faltan.length; i += 2000) {
+    const lote = faltan.slice(i, i + 2000);
     const r = await fetch("/api/donde", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ puntos: faltan.map((g) => g.centro) }) }).then((x) => x.json()).catch(() => null);
-    if (Array.isArray(r)) { faltan.forEach((g, i) => { cache[clave(g)] = r[i]; }); guardarPref("pp_donde", cache); }
+      body: JSON.stringify({ puntos: lote.map((k) => k.split(",").map(Number)) }) }).then((x) => x.json()).catch(() => null);
+    if (!Array.isArray(r)) break;
+    lote.forEach((k, j) => { cache[k] = { t: ahora, l: r[j] }; });
   }
-  return grupos.map((g) => cache[clave(g)] || null);
+  if (faltan.length) guardarPref("pp_lugares", cache);
+  return new Map([...deCarrera].map(([id, k]) => [id, cache[k]?.l || null]));
 }
 let lugaresCorridos = [];
 async function pintarDondeCorri(lista) {
   const caja = $("dondeCorri");
   if (!caja || !lista.length) return;
-  const grupos = gruposDeSalidas(lista), nombres = await nombresDeGrupos(grupos);
-  // Juntar grupos con el mismo nombre (dos zonas de la misma ciudad) y por país.
+  const lugares = await lugaresDeCarreras(lista);
+  // Por país y ciudad.
   const paises = new Map();
-  grupos.forEach((g, i) => {
-    const n = nombres[i] || { ciudad: null, pais: "", cerca: false };
+  for (const c of lista) {
+    const n = lugares.get(c.id) || { ciudad: null, pais: "", cerca: false };
     if (!paises.has(n.pais)) paises.set(n.pais, { pais: n.pais, ciudades: new Map(), carreras: 0, km: 0, caja: null });
     const P = paises.get(n.pais), k = (n.ciudad || "?") + (n.cerca ? "~" : "");
-    if (!P.ciudades.has(k)) P.ciudades.set(k, { ...n, carreras: 0, km: 0, caja: null });
+    if (!P.ciudades.has(k)) P.ciudades.set(k, { ciudad: n.ciudad, pais: n.pais, cerca: n.cerca, carreras: 0, km: 0, caja: null });
     const C = P.ciudades.get(k);
-    for (const c of g.carreras) {
-      for (const X of [P, C]) { X.carreras++; X.km += c.distancia_m / 1000;
-        X.caja = X.caja ? X.caja.extend(c.caja) : L.latLngBounds(c.caja.getSouthWest(), c.caja.getNorthEast()); }
-    }
-  });
+    c.caja ||= L.latLngBounds(c.puntos);
+    for (const X of [P, C]) { X.carreras++; X.km += c.distancia_m / 1000;
+      X.caja = X.caja ? X.caja.extend(c.caja) : L.latLngBounds(c.caja.getSouthWest(), c.caja.getNorthEast()); }
+  }
   lugaresCorridos = [...paises.values()].sort((a, b) => b.carreras - a.carreras)
     .map((P) => ({ ...P, ciudades: [...P.ciudades.values()].sort((a, b) => b.carreras - a.carreras) }));
   if (!$("dondeCorri")) return;
@@ -1782,6 +1914,222 @@ async function sincronizar(e) {
   } catch (err) {
     if ($("sync")) $("sync").textContent = err.message;
   } finally { sincronizando = false; }
+}
+
+// ── Pasaporte: logros, puntos y nivel ───────────────────────────────────────
+// Todo se calcula en este teléfono con tus carreras (no hay rankings: los
+// datos de Strava son sólo para su dueño). Los lugares vienen de
+// lugaresDeCarreras; «Tu calle», de las calles de siempre del servidor.
+const TIER = ["", "bronce", "plata", "oro"];
+const PUNTOS_TIER = [0, 50, 150, 400];          // al llegar a cada nivel (se suman)
+const CONTINENTES = ["AF", "AS", "EU", "NA", "SA", "OC"];      // los seis habitados
+const NOMBRE_CONT = { AF: "África", AS: "Asia", EU: "Europa", NA: "Norteamérica", SA: "Sudamérica", OC: "Oceanía", AN: "Antártica" };
+const NIVELES = ["Trotador", "Corredor", "Fondista", "Maratonista", "Ultra", "Leyenda"];
+const nivelDe = (xp) => Math.floor(Math.sqrt(Math.max(0, xp) / 50)) + 1;           // nivel L desde 50·(L−1)² puntos
+const xpDeNivel = (L) => 50 * (L - 1) ** 2;
+const nombreNivel = (L) => t(NIVELES[Math.min(NIVELES.length - 1, Math.floor((L - 1) / 5))]);
+
+function rachaMaxima(lista) {
+  const sem = new Set(lista.map((c) => lunes(localDe(c)).getTime()));
+  let max = 0, corrida = 0, prev = null;
+  for (const k of [...sem].sort((a, b) => a - b)) {
+    corrida = prev !== null && Math.round((k - prev) / (7 * 864e5)) === 1 ? corrida + 1 : 1;
+    max = Math.max(max, corrida); prev = k;
+  }
+  return max;
+}
+
+function calcularPasaporte(lista, lugares, pf, calles) {
+  const ciudades = new Set(), paises = new Set(), conts = new Set();
+  const ciudadesPorPais = new Map(), porBarrio = new Map(), porCiudad = new Map();
+  let madrugadas = 0, noches = 0;
+  for (const c of lista) {
+    const h = localDe(c).getHours();
+    if (h < 7) madrugadas++; else if (h >= 21) noches++;
+    const L = lugares.get(c.id);
+    if (!L) continue;
+    if (L.continente) conts.add(L.continente);
+    if (L.pais) paises.add(L.pais);
+    if (L.ciudad && !L.cerca) {
+      const k = L.pais + "|" + L.ciudad;
+      ciudades.add(k);
+      if (!ciudadesPorPais.has(L.pais)) ciudadesPorPais.set(L.pais, new Set());
+      ciudadesPorPais.get(L.pais).add(L.ciudad);
+      porCiudad.set(k, (porCiudad.get(k) || 0) + 1);
+    }
+    if (L.barrio) { const k = L.pais + "|" + L.barrio; porBarrio.set(k, (porBarrio.get(k) || 0) + 1); }
+  }
+  const top = (m) => [...m.entries()].sort((a, b) => b[1] - a[1])[0] || null;
+  const tb = top(porBarrio), tc = top(porCiudad);
+  const tp = [...ciudadesPorPais.entries()].sort((a, b) => b[1].size - a[1].size)[0];
+  const km = Math.max(lista.reduce((s, c) => s + c.distancia_m, 0) / 1000, pf?.historico?.km || 0);
+  const barrio = tb ? tb[0].split("|")[1] : null, ciudad = tc ? tc[0].split("|")[1] : null;
+  const calle = calles?.[0] || null, paisTop = tp ? nombrePais(tp[0]) : null;
+  const L = (id, icono, grupo, valor, umbrales, nombres, extra = {}) => {
+    const tier = umbrales.filter((u) => valor >= u).length;
+    return { id, icono, grupo, valor, umbrales, nombres, tier, ...extra };
+  };
+  const logros = [
+    // Explorador
+    L("ciudades", "🏙️", "explorador", ciudades.size, [5, 15, 40], [t("Viajero"), t("Trotamundos"), t("Nómada")], { unidad: t("ciudades") }),
+    L("paises", "🛂", "explorador", paises.size, [3, 10, 25], [t("Pasaporte sellado"), t("Ciudadano del mundo"), t("Embajador")], { unidad: t("países") }),
+    L("continentes", "🌍", "explorador", CONTINENTES.filter((x) => conts.has(x)).length, [2, 4, 6],
+      [t("Intercontinental"), t("Cuatro continentes"), t("Los seis continentes")], { unidad: t("continentes") }),
+    L("pais", "🗺️", "explorador", tp ? tp[1].size : 0, [5, 10, 20],
+      paisTop ? [t("Turista en {p}", { p: paisTop }), t("Conoce {p}", { p: paisTop }), t("{p} de punta a punta", { p: paisTop })]
+              : [t("Conoce tu país"), t("Conoce tu país"), t("Conoce tu país")], { unidad: t("ciudades en un país") }),
+    L("antartica", "🐧", "explorador", conts.has("AN") ? 1 : 0, [1, 1, 1], [t("Antártica"), t("Antártica"), t("Antártica")],
+      { secreto: true, unidad: "" }),
+    // Local
+    L("barrio", "🏘️", "local", tb ? tb[1] : 0, [25, 100, 300], barrio
+      ? [t("Vecino de {b}", { b: barrio }), t("Leyenda local de {b}", { b: barrio }), t("Ícono de {b}", { b: barrio })]
+      : [t("Vecino"), t("Leyenda local"), t("Ícono del barrio")], { unidad: barrio ? t("carreras en {b}", { b: barrio }) : t("carreras en tu barrio") }),
+    L("ciudad", "📍", "local", tc ? tc[1] : 0, [100, 300, 1000], ciudad
+      ? [t("Corredor de {c}", { c: ciudad }), t("Dueño de {c}", { c: ciudad }), t("{c} es tuyo", { c: ciudad })]
+      : [t("Corredor local"), t("Dueño de tu ciudad"), t("Tu ciudad es tuya")], { unidad: ciudad ? t("carreras en {c}", { c: ciudad }) : t("carreras en tu ciudad") }),
+    L("calle", "🛣️", "local", calle ? calle.veces : 0, [20, 50, 100], calle
+      ? [t("Habitual de {s}", { s: calle.nombre }), t("Experto en {s}", { s: calle.nombre }), t("Rey de {s}", { s: calle.nombre })]
+      : [t("Tu calle"), t("Tu calle"), t("Tu calle")], { unidad: calle ? t("veces por {s}", { s: calle.nombre }) : t("veces por tu calle"),
+        pendiente: calles === undefined }),
+    // Constancia y volumen
+    L("km", "🌐", "constancia", Math.round(km), [1000, 5000, 40075], [t("Mil kilómetros"), t("Cinco mil"), t("Vuelta al mundo")], { unidad: "km" }),
+    L("racha", "🔥", "constancia", rachaMaxima(lista), [4, 12, 52], [t("Constante"), t("Imparable"), t("Un año sin parar")], { unidad: t("semanas seguidas") }),
+    L("madrugador", "🌅", "constancia", madrugadas, [10, 50, 150], [t("Madrugador"), t("Madrugador"), t("Madrugador")], { unidad: t("carreras antes de las 7:00") }),
+    L("nocturno", "🌙", "constancia", noches, [10, 50, 150], [t("Nocturno"), t("Nocturno"), t("Nocturno")], { unidad: t("carreras después de las 21:00") }),
+  ];
+  const puntos = { km: Math.round(km), ciudades: 25 * ciudades.size, paises: 100 * paises.size, continentes: 500 * conts.size,
+                   logros: logros.reduce((s, x) => s + PUNTOS_TIER.slice(0, x.tier + 1).reduce((a, b) => a + b, 0), 0) };
+  const xp = Object.values(puntos).reduce((a, b) => a + b, 0);
+  return { logros, xp, puntos, nivel: nivelDe(xp), paises: [...paises], conts, ciudades: ciudades.size };
+}
+
+// Lo próximo: el logro al que le falta menos (en proporción) para subir.
+function loProximo(P) {
+  const c = P.logros.filter((x) => !x.secreto && x.tier < 3 && !x.pendiente)
+    .map((x) => ({ x, sig: x.umbrales[x.tier], f: x.valor / x.umbrales[x.tier] })).sort((a, b) => b.f - a.f)[0];
+  if (!c) return "";
+  return t("Te faltan {n} {u} para «{l}».", { n: num(c.sig - c.x.valor), u: c.x.unidad, l: c.x.nombres[c.x.tier] });
+}
+
+function htmlPasaporte(P) {
+  const L = P.nivel, desde = xpDeNivel(L), hasta = xpDeNivel(L + 1);
+  const avance = Math.round((P.xp - desde) / (hasta - desde) * 100);
+  const sellos = P.paises.filter((x) => x && x !== "AQ").map((cc) => `<span class="sello" title="${esc(nombrePais(cc))}">${bandera(cc)}</span>`).join("");
+  const conts = [...CONTINENTES, ...(P.conts.has("AN") ? ["AN"] : [])]
+    .map((x) => `<span class="cont${P.conts.has(x) ? " on" : ""}">${t(NOMBRE_CONT[x])}</span>`).join("");
+  const tarjeta = (x) => {
+    if (x.secreto && !x.tier) return "";
+    const sig = x.tier < 3 ? x.umbrales[x.tier] : null;
+    const nombre = x.nombres[Math.max(0, x.tier - 1)];
+    const pct = sig ? Math.min(100, Math.round(x.valor / sig * 100)) : 100;
+    return `<div class="logro t${x.tier}" title="${esc(x.unidad)}">
+      <div class="medalla">${x.icono}</div>
+      <b>${esc(x.tier ? nombre : x.nombres[0])}</b>
+      <small>${x.pendiente ? t("calculando…") : sig ? `${num(x.valor)} / ${num(sig)} ${esc(x.unidad)}` : `${num(x.valor)} ${esc(x.unidad)}`}</small>
+      <i style="--p:${pct}%"></i>${x.tier ? `<span class="tier">${t(TIER[x.tier])}</span>` : ""}</div>`;
+  };
+  const grupo = (g, titulo) => `<h4>${titulo}</h4><div class="logros">${P.logros.filter((x) => x.grupo === g).map(tarjeta).join("")}</div>`;
+  return `<div class="pasaporte">
+    <div class="pas-cab"><div class="nivel"><span>${L}</span></div>
+      <div class="pas-nivel"><small>${t("Pasaporte")} · ${t("Nivel {n}", { n: L })}</small><b>${nombreNivel(L)}</b>
+        <div class="xp"><i style="width:${avance}%"></i></div>
+        <small>${num(P.xp)} / ${num(hasta)} ${t("puntos")}</small></div></div>
+    <p class="proximo">${loProximo(P)}</p>
+    ${sellos ? `<div class="sellos">${sellos}</div>` : ""}
+    <div class="conts">${conts}</div>
+    <h3>${t("Logros")}</h3>
+    ${grupo("explorador", "🌍 " + t("Explorador"))}${grupo("local", "📍 " + t("Local"))}${grupo("constancia", "🔥 " + t("Constancia"))}
+    <details class="como"><summary>${t("Cómo se ganan los puntos")}</summary>
+      <p>${t("1 punto por km · 25 por ciudad nueva · 100 por país · 500 por continente · 50, 150 y 400 por logro de bronce, plata y oro.")}</p>
+      <p>${t("Tus puntos: {km} por km, {c} por ciudades, {p} por países, {o} por continentes y {l} por logros.",
+        { km: num(P.puntos.km), c: num(P.puntos.ciudades), p: num(P.puntos.paises), o: num(P.puntos.continentes), l: num(P.puntos.logros) })}</p></details>
+    <button class="sec" id="compartirPasaporte" type="button">${t("Compartir mi pasaporte")}</button>
+  </div>`;
+}
+
+// Logros nuevos desde la última vez: un aviso (la primera vez, sólo se guardan).
+function avisarLogrosNuevos(P) {
+  const ahora = P.logros.filter((x) => x.tier).map((x) => `${x.id}:${x.tier}`);
+  const vistos = pref("pp_logros_vistos", null);
+  guardarPref("pp_logros_vistos", ahora);
+  if (!Array.isArray(vistos)) return;
+  const nuevos = P.logros.filter((x) => x.tier && !vistos.includes(`${x.id}:${x.tier}`));
+  if (!nuevos.length) return;
+  const d = document.createElement("div");
+  d.className = "toast-logro";
+  d.innerHTML = `<b>${t(nuevos.length === 1 ? "¡Nuevo logro!" : "¡Nuevos logros!")}</b>` +
+    nuevos.slice(0, 3).map((x) => `<span>${x.icono} ${esc(x.nombres[x.tier - 1])} · ${t(TIER[x.tier])}</span>`).join("");
+  document.body.appendChild(d);
+  setTimeout(() => d.classList.add("fuera"), 4200);
+  setTimeout(() => d.remove(), 5000);
+}
+
+// Tarjeta para compartir (sólo si tú lo decides): imagen 1080×1350.
+async function compartirPasaporte(P, nombre) {
+  const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const fondo = g.createRadialGradient(W, 0, 50, W, 0, 1000);
+  fondo.addColorStop(0, "#7a2a10"); fondo.addColorStop(1, "#121216");
+  g.fillStyle = fondo; g.fillRect(0, 0, W, H);
+  const f = (peso, px) => `${peso} ${px}px Inter, -apple-system, system-ui, sans-serif`;
+  // Logo: el mismo trazo del ícono (viewBox 26×26)
+  g.fillStyle = "#f2541b"; g.beginPath(); g.roundRect(72, 72, 64, 64, 16); g.fill();
+  g.save(); g.translate(72, 72); g.scale(64 / 26, 64 / 26);
+  g.strokeStyle = "#fff"; g.lineCap = "round"; g.lineWidth = 2.4;
+  g.stroke(new Path2D("M7.5 19.5c0-4 4-4 5.5-6.5s-1.5-4.5 0-6.5c.7-.8 1.6-1 2.5-1"));
+  g.fillStyle = "#fff"; g.beginPath(); g.arc(7.5, 19.5, 2.2, 0, 7); g.fill();
+  g.lineWidth = 1.8; g.beginPath(); g.arc(18.6, 5.6, 2.1, 0, 7); g.stroke(); g.restore();
+  const recortar = (txt, max) => { if (g.measureText(txt).width <= max) return txt;
+    while (txt.length > 1 && g.measureText(txt + "…").width > max) txt = txt.slice(0, -1);
+    return txt.trimEnd() + "…"; };
+  g.fillStyle = "#fff"; g.font = f(800, 40); g.fillText("PacePath", 156, 118);
+  g.fillStyle = "#ff9a6b"; g.font = f(700, 26); g.fillText(t("PASAPORTE DEL CORREDOR"), 72, 230);
+  g.fillStyle = "#fff"; g.font = f(800, 72); g.fillText(recortar(nombre || "", W - 144), 72, 316);
+  g.font = f(800, 150); g.fillStyle = "#ff8a4f"; g.fillText(String(P.nivel), 72, 500);
+  const ancho = g.measureText(String(P.nivel)).width;
+  g.fillStyle = "#fff"; g.font = f(800, 56); g.fillText(nombreNivel(P.nivel), 72 + ancho + 30, 440);
+  g.fillStyle = "rgba(255,255,255,.7)"; g.font = f(500, 30); g.fillText(`${num(P.xp)} ${t("puntos")}`, 72 + ancho + 30, 488);
+  const datos = [[P.paises.filter((x) => x !== "AQ").length, t("países")], [P.ciudades, t("ciudades")],
+                 [CONTINENTES.filter((x) => P.conts.has(x)).length, t("continentes")], [P.puntos.km, "km"]];
+  datos.forEach(([v, e], i) => { const x = 72 + i * 240;
+    g.fillStyle = "#fff"; g.font = f(800, 60); g.fillText(num(v), x, 640);
+    g.fillStyle = "rgba(255,255,255,.65)"; g.font = f(600, 26); g.fillText(e, x, 680); });
+  g.font = f(400, 64); g.fillText(P.paises.filter((x) => x !== "AQ").slice(0, 12).map(bandera).join(" "), 72, 800);
+  const top = P.logros.filter((x) => x.tier).sort((a, b) => b.tier - a.tier).slice(0, 6);
+  const color = ["", "#c47a3a", "#b8c0c8", "#e6b422"];
+  top.forEach((x, i) => { const cx = 72 + (i % 2) * 470, cy = 880 + Math.floor(i / 2) * 110;
+    g.fillStyle = color[x.tier]; g.beginPath(); g.arc(cx + 34, cy + 34, 34, 0, 7); g.fill();
+    g.font = f(400, 36); g.fillText(x.icono, cx + 14, cy + 48);
+    g.fillStyle = "#fff"; g.font = f(700, 30); g.fillText(recortar(x.nombres[x.tier - 1], 370), cx + 86, cy + 44); });
+  g.fillStyle = "#ff8a4f"; g.font = f(800, 34); g.fillText("pacepath.onrender.com", 72, H - 72);
+  const blob = await new Promise((ok) => c.toBlob(ok, "image/png"));
+  const archivo = new File([blob], "pasaporte-pacepath.png", { type: "image/png" });
+  if (navigator.canShare?.({ files: [archivo] })) {
+    try { await navigator.share({ files: [archivo], title: t("Mi pasaporte PacePath") }); return; } catch { /* cancelado */ }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = archivo.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+// Pinta el Pasaporte en #pasaporte; «Tu calle» llega después (map-matching en el servidor).
+async function pintarPasaporte(todas, pf, nombre) {
+  if (!$("pasaporte") || !todas.length) return;
+  const lugares = await lugaresDeCarreras(todas);
+  const dibujar = (calles) => {
+    if (!$("pasaporte")) return null;
+    const P = calcularPasaporte(todas, lugares, pf, calles);
+    $("pasaporte").innerHTML = htmlPasaporte(P);
+    $("compartirPasaporte").onclick = () => compartirPasaporte(P, nombre);
+    return P;
+  };
+  dibujar(undefined);
+  // Tu calle: las calles de siempre alrededor de donde más sales.
+  const cuenta = new Map();
+  for (const c of todas) { const p = c.puntos?.[0]; if (p) { const k = `${p[0].toFixed(2)},${p[1].toFixed(2)}`; cuenta.set(k, (cuenta.get(k) || 0) + 1); } }
+  const centro = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]?.split(",").map(Number);
+  const f = centro ? await frecuentesPara(centro[0], centro[1], true).catch(() => null) : null;
+  const P = dibujar(f?.calles || null);
+  if (P) avisarLogrosNuevos(P);
 }
 
 // ── Perfil: tu Strava en números ────────────────────────────────────────────
@@ -1960,6 +2308,7 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
     ${anioPerfil ? kpisAnio(todas, anioPerfil, anios, promSem, nSem)
       : pf ? `<div class="kpis">${kpi(t("4 semanas"), pf.recientes)}${kpi(String(anio), pf.anio)}${kpi(t("Histórico"), pf.historico)}</div>`
          : `<p class="aviso">${t("No pude leer tus totales de Strava ahora.")}</p>`}
+    ${!anioPerfil && todas.length ? '<div id="pasaporte"></div>' : ""}
     ${lista.length ? `
     <div class="bloque"><h3>${t("Volumen semanal")}</h3>
       <p class="sub">${anioPerfil ? t("Semanas de {a} · promedio {x} km por semana", { a: anioPerfil, x: num(promSem, 1) })
@@ -1994,6 +2343,7 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
     : semanas.map((w) => w.m ? t("Semana del {f}: {r}", { f: fechaCorta(w.ini), r: ritmo(w.s / (w.m / 1000)) }) : ""));
   document.querySelectorAll(".anios .chip").forEach((b) => { b.onclick = () => {
     anioPerfil = b.dataset.a ? +b.dataset.a : null; abrirPerfil(true, true); }; });
+  if (!anioPerfil) pintarPasaporte(todas, pf, pf ? `${pf.nombre} ${pf.apellido}`.trim() : e.nombre);
   activarGrafico("g-meses", meses.map((x, i) => t("{m} {a}: {k} km · {n} carreras", { m: mesN(i), a: anio, k: num(x.m / 1000, 1), n: x.n })));
 }
 

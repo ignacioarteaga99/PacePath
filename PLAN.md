@@ -106,6 +106,12 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
       más que las calles de siempre.
 - [x] Mapa de calor con conteo real de veces por calle y escala.
 - [x] Perfil: indicadores de Strava (4 semanas, año, histórico) e historial.
+- [x] **Pasaporte**: nivel (puntos: 1/km, 25/ciudad, 100/país, 500/continente,
+      50/150/400 por logro) y **Logros** bronce/plata/oro — Explorador (ciudades,
+      países, continentes, conoce tu país, Antártica secreta), Local (barrio =
+      comuna con límites de OSM, ciudad, tu calle más repetida) y Constancia
+      (km, racha, madrugador, nocturno). Sellos por país, «lo próximo», aviso de
+      logro nuevo y tarjeta para compartir. Todo en el teléfono; sin rankings.
 - [x] Perfil por año: totales, comparación con el año anterior (el año en curso,
       a la misma fecha), semanas del año, ritmo por mes, récords y hábitos.
 - [x] Dónde has corrido: países y ciudades (salidas agrupadas a 20 km en el
