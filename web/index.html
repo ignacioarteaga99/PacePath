@@ -64,7 +64,8 @@
   body.modo-trazar .trazar { display: flex; }
   body.modo-trazar .solo-sesion { display: none; }
   body.modo-trazar #hoja { max-height: 28vh; }
-  .continuo { display: none; gap: 8px; margin-top: 8px; align-items: center; }
+  .continuo { display: none; gap: 8px 12px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+  .radio { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
   body:not(.modo-trazar) .continuo { display: flex; }
   .campo.meta { display: none; }
   .tope { display: none; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
@@ -73,7 +74,7 @@
     border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
   body.sesion-tope:not(.modo-trazar) .plano { display: inline-block; }
   .plano[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #fff; }
-  .tope input { width: 84px; font-size: 16px; padding: 8px 10px; border-radius: 10px;
+  .tope input, .radio input { width: 84px; font-size: 16px; padding: 8px 10px; border-radius: 10px;
     border: 1px solid var(--linea); background: var(--gris); color: var(--tinta); }
   body:not(.modo-trazar):not(.volver) .campo.meta { display: flex; }
   .interruptor { display: flex; align-items: center; gap: 8px; flex: 1; font-size: 14px; font-weight: 600; }
@@ -121,6 +122,9 @@
     color: var(--suave); text-align: right; min-width: 30px; padding: 2px 0; }
   .lienzo { position: relative; flex: 1; height: 80px; touch-action: none; }
   .lienzo svg { width: 100%; height: 100%; display: block; }
+  .reps { position: absolute; left: 0; right: 0; top: 2px; height: 0; pointer-events: none; }
+  .reps span { position: absolute; transform: translateX(-50%); font-size: 9px; font-weight: 700;
+    color: var(--acento); line-height: 1; }
   .ejex { position: relative; height: 16px; margin-left: 36px; font-size: 11px; color: var(--suave); }
   .ejex span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
   .ejex span:last-child { transform: translateX(-100%); }
@@ -233,6 +237,23 @@
   .fav { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0;
     border-bottom: 1px solid var(--linea); font-size: 14px; }
   .fav small { color: var(--suave); }
+  /* Recientes y sesiones guardadas */
+  .hist h3 { font-size: 12px; font-weight: 700; color: var(--suave); text-transform: uppercase;
+    letter-spacing: .5px; margin: 16px 0 4px; display: flex; justify-content: space-between; align-items: center; }
+  .hist h3 button { padding: 0; background: none; color: var(--suave); font-size: 12px; font-weight: 600;
+    text-transform: none; letter-spacing: 0; }
+  .item { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--linea); }
+  .item:last-child { border-bottom: 0; }
+  .item .abrir { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; text-align: left;
+    padding: 10px 0; background: none; color: var(--tinta); border-radius: 0; font-weight: 400; }
+  .item .ico { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+    background: var(--gris); color: var(--acento); font: 800 11px/1 -apple-system, sans-serif; }
+  .item b { display: block; font-size: 15px; }
+  .item small { display: block; color: var(--suave); font-size: 13px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  .item .estrella { flex: none; width: 40px; height: 40px; padding: 0; background: none; font-size: 20px;
+    color: #b8b8c0; border-radius: 50%; }
+  .item .estrella.on, #guardarSesion.on { color: #f5a623; }
   .fav button { padding: 4px 10px; font-size: 13px; }
   .leyenda { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--suave); margin: 10px 0 2px; }
   .leyenda i { flex: 1; height: 6px; border-radius: 3px;
@@ -364,6 +385,9 @@
         step="10" placeholder="sin límite" data-i18n-ph="sin límite" aria-label="Desnivel positivo máximo en metros"> m</label>
       <button type="button" class="plano" id="plano" aria-pressed="false"
         data-i18n-aria="Plano: máx. 5 m de subida por km" data-i18n>Plano</button>
+      <label class="radio"><span data-i18n>Radio máx.</span> <input id="radioMax" type="number" inputmode="decimal"
+        min="0.3" max="30" step="any" placeholder="sin límite" data-i18n-ph="sin límite"
+        aria-label="Distancia máxima desde la salida, en km" data-i18n-aria="Distancia máxima desde la salida, en km"> km</label>
     </div>
     <div class="campo meta">
       <label for="meta" data-i18n>Meta</label>
@@ -414,11 +438,12 @@ const EN = {
   "Tipo de mapa": "Map type", "Plano": "Flat", "Plano: máx. 5 m de subida por km": "Flat: max 5 m of climb per km", "Claro": "Light", "Calles": "Streets", "Relieve": "Terrain",
   "Híbrido": "Hybrid", "Satélite": "Satellite", "veces": "times",
   "Para mi sesión": "For my session", "Trazar a mano": "Draw by hand", "Mi ciudad": "My city",
-  "Perfil": "Profile", "Hoy": "Today", "Series": "Intervals", "Tempo": "Tempo",
+  "Perfil": "Profile", "Hoy": "Today", "Series": "Intervals", "Tempo": "Tempo", "Serie": "Rep",
   "Fondo largo": "Long run", "Cuestas": "Hills", "Regenerativo": "Easy run", "Editar": "Edit",
   "Desde": "From", "Calle, esquina o lugar": "Street, corner or place", "Sesión": "Session",
   "6x1k · tempo 8k · fondo 18k": "6x1k · tempo 8k · long run 18k", "Crear ruta": "Create route",
-  "Volver a la salida": "Back to start", "Desnivel máx.": "Max climb", "sin límite": "no limit",
+  "Volver a la salida": "Back to start", "Desnivel máx.": "Max climb", "Radio máx.": "Max radius",
+  "Distancia máxima desde la salida, en km": "Maximum distance from the start, in km", "sin límite": "no limit",
   "Meta": "Finish", "Opcional: dónde terminar": "Optional: where to finish", "En el mapa": "On the map",
   "Toca el mapa…": "Tap the map…", "Capas del mapa": "Map layers", "Modo día": "Day mode",
   "Modo noche": "Night mode", "Plegar o desplegar": "Collapse or expand",
@@ -463,6 +488,10 @@ const EN = {
   "Traza a mano un tramo que te guste (en «Trazar a mano») y guárdalo: los fondos y regenerativos lo van a preferir.":
     "Draw a stretch you like (in «Draw by hand») and save it: long and easy runs will prefer it.",
   "Elige desde dónde sales y la sesión de hoy.": "Choose where you start and today's session.",
+  "Sesiones guardadas": "Saved sessions", "Recientes": "Recent", "Borrar": "Clear",
+  "Guardar sesión": "Save session", "Quitar de guardadas": "Remove from saved", "desde {d}": "from {d}",
+  "sin volver": "one way",
+  "Ya tienes {n} sesiones guardadas: quita alguna primero.": "You already have {n} saved sessions: remove one first.",
   "Revisando tu conexión con Strava…": "Checking your Strava connection…",
   "Las calles que ya corriste": "The streets you've run",
   "Conecta tu Strava y PacePath dibuja todas tus carreras como un mapa de calor: lo que más repites se ve más intenso.":
@@ -608,6 +637,21 @@ const pin = (clase, color) => L.divIcon({ className: "", iconSize: [22, 22], ico
   html: `<div class="pin ${clase}" style="${color ? "background:" + color : ""}"></div>` });
 
 // ── Desde dónde se sale ─────────────────────────────────────────────────────
+// ── Radio máximo: nada de la ruta sale de este círculo alrededor de la salida ─
+let circuloRadio = null;
+const radioKm = () => { const v = parseFloat(String($("radioMax").value).replace(",", "."));
+  return Number.isFinite(v) && v >= 0.3 ? Math.min(v, 30) : null; };
+function pintarRadio() {
+  const r = radioKm();
+  if (!r || !salida || modo === "trazar") { if (circuloRadio) { circuloRadio.remove(); circuloRadio = null; } return; }
+  const opciones = { radius: r * 1000, color: "#f2541b", weight: 2, dashArray: "6 6", fillColor: "#f2541b",
+    fillOpacity: 0.04, interactive: false };
+  if (circuloRadio) circuloRadio.setLatLng([salida.lat, salida.lon]).setRadius(r * 1000);
+  else circuloRadio = L.circle([salida.lat, salida.lon], opciones).addTo(mapa);
+}
+$("radioMax").value = pref("pp_radio", "") ?? "";
+$("radioMax").addEventListener("input", () => { guardarPref("pp_radio", $("radioMax").value); pintarRadio(); });
+
 function fijarSalida(lat, lon, nombre, centrar = false) {
   if (modo === "trazar") {
     // En el modo trazar, buscar o «Cerca de mí» fija el primer punto (la salida).
@@ -627,6 +671,7 @@ function fijarSalida(lat, lon, nombre, centrar = false) {
   }
   if (centrar) mapa.setView([lat, lon], 15);
   capas.clearLayers();
+  pintarRadio();
   hoja(`<p class="pista">${t("Salida lista. Elige la sesión y pulsa «Crear ruta». Puedes arrastrar el punto.")}</p>`);
 }
 mapa.on("click", (e) => {
@@ -728,6 +773,7 @@ let modo = "sesion", puntos = [], marcasPuntos = L.layerGroup().addTo(mapa), ped
 function cambiarModo(m) {
   modo = m;
   document.body.classList.toggle("modo-trazar", m === "trazar");
+  pintarRadio();
   $("modo-sesion").classList.toggle("on", m === "sesion");
   $("modo-trazar").classList.toggle("on", m === "trazar");
   capas.clearLayers(); marcasPuntos.clearLayers();
@@ -735,7 +781,7 @@ function cambiarModo(m) {
   puntos = salida && m === "trazar" ? [[salida.lat, salida.lon]] : [];
   if (m === "trazar") { pintarPuntos();
     hoja(`<p class="pista">${t("Toca el mapa para ir marcando por dónde quieres pasar. El primer punto es la salida; puedes arrastrar cualquier punto.")}</p>`); }
-  else { salida = null; hoja(`<p class="pista">${t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.")}</p>`); }
+  else { salida = null; inicioHoja(t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.")); }
 }
 $("modo-sesion").onclick = () => cambiarModo("sesion");
 $("modo-trazar").onclick = () => cambiarModo("trazar");
@@ -939,16 +985,23 @@ function cifrasDe(plan) {
 // ── Altimetría ──────────────────────────────────────────────────────────────
 // Eje de km, altitudes mínima y máxima, subida y bajada totales. Al deslizar el
 // dedo por el gráfico se ve el km y la altitud, y un punto lo sigue en el mapa.
-let perfilPts = [], perfilTotal = 0, cursorMapa = null;
+let perfilPts = [], perfilTotal = 0, cursorMapa = null, perfilBloques = [];
+// Partes que son trabajo (cada serie, el bloque de tempo): se marcan en el perfil.
+const TRABAJO = { serie: "Serie", tempo: "Tempo" };
 
 function perfilSvg(plan) {
-  const pts = [];
+  const pts = [], bloques = [];
   let d = 0, prev = null;
-  for (const p of plan.partes) for (const c of p.coordenadas || []) {
-    if (prev) d += distM(prev, c);
-    pts.push([d, c[2], c[0], c[1]]); prev = c;
+  for (const p of plan.partes) {
+    let d0 = null;
+    for (const c of p.coordenadas || []) {
+      if (prev) d += distM(prev, c);
+      if (d0 === null) d0 = d;
+      pts.push([d, c[2], c[0], c[1]]); prev = c;
+    }
+    if (TRABAJO[p.tipo] && d0 !== null && d > d0) bloques.push({ tipo: p.tipo, n: p.numero, d0, d1: d });
   }
-  perfilPts = pts; perfilTotal = d;
+  perfilPts = pts; perfilTotal = d; perfilBloques = bloques;
   if (pts.length < 2 || d <= 0) return "";
   // Igual que el servidor: sólo cuentan cambios de más de 2 m (el ruido del
   // modelo de elevación no son repechos).
@@ -958,7 +1011,9 @@ function perfilSvg(plan) {
     else if (ref - p[1] >= 2) { baja += ref - p[1]; ref = p[1]; }
   }
   const zs = pts.map((p) => p[1]), lo = Math.min(...zs), hi = Math.max(...zs);
-  const rango = Math.max(hi - lo, 10), base = lo - rango * 0.08, techo = hi + rango * 0.08;
+  // Con intervalos se deja aire arriba para sus números.
+  const rango = Math.max(hi - lo, 10), base = lo - rango * 0.08,
+    techo = hi + rango * (bloques.length > 1 && bloques.length <= 20 ? 0.32 : 0.08);
   const W = 300, H = 80;
   const x = (v) => v / d * W, y = (z) => H - (z - base) / (techo - base) * H;
   const linea = pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
@@ -970,13 +1025,24 @@ function perfilSvg(plan) {
     etiquetas += `<span style="left:${(k / kmTot * 100).toFixed(2)}%">${num(k, paso < 1 ? 1 : 0)}</span>`;
   }
   etiquetas += `<span style="left:100%">${num(kmTot, 1)} km</span>`;
+  // Intervalos: banda suave y una línea al inicio y al final de cada uno; el
+  // número encima si hay espacio (hasta 20 repeticiones).
+  let bandas = "", numeros = "";
+  for (const b of bloques) {
+    const x0 = x(b.d0).toFixed(1), x1 = x(b.d1).toFixed(1);
+    bandas += `<rect x="${x0}" y="0" width="${(x1 - x0).toFixed(1)}" height="${H}" fill="#f2541b" fill-opacity=".09"/>`
+      + [x0, x1].map((v) => `<line x1="${v}" x2="${v}" y1="0" y2="${H}" stroke="#f2541b" stroke-opacity=".55"
+          stroke-width="1" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>`).join("");
+    if (bloques.length > 1 && bloques.length <= 20)
+      numeros += `<span style="left:${((b.d0 + b.d1) / 2 / d * 100).toFixed(2)}%">${b.n}</span>`;
+  }
   return `<div class="perfil">
     <div class="perfil-cab">${t("Altimetría")} · <b>↑ ${num(sube)} m</b> ${t("subida")} · <b>↓ ${num(baja)} m</b> ${t("bajada")}</div>
     <div class="perfil-graf">
       <div class="ejey"><span>${num(hi)} m</span><span>${num(lo)} m</span></div>
-      <div class="lienzo" id="lienzo">
+      <div class="lienzo" id="lienzo">${numeros ? `<div class="reps">${numeros}</div>` : ""}
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${rejilla}
-          <path d="${linea}L${W},${H}L0,${H}Z" fill="#fde3d8"/>
+          <path d="${linea}L${W},${H}L0,${H}Z" fill="#fde3d8"/>${bandas}
           <path d="${linea}" fill="none" stroke="#f2541b" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg>
         <div class="cursor" id="cursor"></div><div class="globo" id="globo"></div>
       </div>
@@ -997,7 +1063,9 @@ function activarPerfil() {
     const p = perfilPts[b];
     $("cursor").style.display = $("globo").style.display = "block";
     $("cursor").style.left = $("globo").style.left = (f * 100) + "%";
-    $("globo").textContent = `km ${num(p[0] / 1000, 1)} · ${num(p[1])} m`;
+    const bq = perfilBloques.find((q) => p[0] >= q.d0 && p[0] <= q.d1);
+    $("globo").textContent = `km ${num(p[0] / 1000, 1)} · ${num(p[1])} m`
+      + (bq ? ` · ${t(TRABAJO[bq.tipo])}${perfilBloques.length > 1 ? " " + bq.n : ""}` : "");
     if (!cursorMapa) cursorMapa = L.circleMarker([p[2], p[3]], { radius: 7, color: "#fff", weight: 3,
       fillColor: "#1d1d21", fillOpacity: 1 }).addTo(mapa);
     else cursorMapa.setLatLng([p[2], p[3]]);
@@ -1029,8 +1097,17 @@ function mostrar(plan) {
     <div class="texto">${plan.explicacion.map((l) => `<p>${esc(l)}</p>`).join("")}
     ${plan.avisos.slice(0, -1).map((a) => `<p class="aviso">${esc(a)}</p>`).join("")}</div>
     <div class="fila"><button id="gpx" type="button">${t("Descargar GPX")}</button>
-      <button class="sec" id="otra" type="button">${t("Cambiar salida")}</button></div>`);
+      <button class="sec" id="otra" type="button">${t("Cambiar salida")}</button>
+      ${ultimaEntrada ? `<button class="sec" id="guardarSesion" type="button" style="flex:none;width:52px;font-size:20px"></button>` : ""}</div>`);
   $("gpx").onclick = descargarGpx;
+  if (ultimaEntrada) {
+    const pintar = () => { const on = estaGuardada(ultimaEntrada);
+      $("guardarSesion").textContent = on ? "★" : "☆"; $("guardarSesion").classList.toggle("on", on);
+      $("guardarSesion").setAttribute("aria-label", t(on ? "Quitar de guardadas" : "Guardar sesión"));
+      $("guardarSesion").title = t(on ? "Quitar de guardadas" : "Guardar sesión"); };
+    pintar();
+    $("guardarSesion").onclick = () => { alternarGuardada(ultimaEntrada); pintar(); };
+  }
   $("otra").onclick = () => { capas.clearLayers(); document.body.classList.remove("con-ruta");
     $("desde").focus(); $("desde").select();
     hoja(`<p class="pista">${t("Escribe otra calle, usa «Cerca de mí» o toca el mapa.")}</p>`); };
@@ -1041,6 +1118,7 @@ async function pedido() {
   if (!$("volverSesion").checked) { p.volver = false; if (meta) p.meta = meta; }
   const tope = parseFloat($("tope").value);
   if (CON_TOPE.test(p.texto) && Number.isFinite(tope) && tope >= 0) p.max_subida_m = tope;
+  if (radioKm()) p.radio_max_m = radioKm() * 1000;
   // Preferencias del corredor: viajan con cada pedido; el servidor no las guarda.
   const favs = favoritos();
   if (favs.length) p.favoritos = favs.map((f) => f.puntos);
@@ -1060,6 +1138,70 @@ async function descargarGpx() {
   a.click();
 }
 
+// ── Recientes y sesiones guardadas (en el teléfono) ─────────────────────────
+// Se guardan los parámetros, no la geometría: el motor es determinista, así que
+// repetir el pedido da la misma ruta (salvo que cambie el mapa o tus calles).
+const MAX_RECIENTES = 10, MAX_GUARDADAS = 30;
+const ICONO = { series: "S", tempo: "T", fondo: "F", cuestas: "C", regenerativo: "R" };
+const leerLista = (k) => { const v = pref(k, []); return Array.isArray(v) ? v : []; };
+let ultimaEntrada = null;
+const claveSesion = (e) => [e.texto.trim().toLowerCase(), e.salida.lat.toFixed(4), e.salida.lon.toFixed(4),
+  e.volver, e.meta ? e.meta.lat.toFixed(4) + "," + e.meta.lon.toFixed(4) : "", e.tope ?? "", e.radio ?? ""].join("|");
+function entradaDe(p, plan) {
+  const r = plan.tramo || plan.bloque || plan.recorrido || {};
+  return { fecha: Date.now(), texto: p.texto, salida: { lat: p.lat, lon: p.lon, nombre: $("desde").value },
+    volver: p.volver !== false, meta: p.meta || null, metaNombre: p.meta ? $("meta").value : "",
+    tope: p.max_subida_m ?? null, radio: p.radio_max_m ?? null, tipo: plan.sesion.tipo,
+    resumen: plan.sesion.resumen, distancia: plan.totales.distancia_m, calle: (r.calles || [])[0] || "" };
+}
+function guardarReciente(e) {
+  const l = leerLista("pp_recientes").filter((x) => claveSesion(x) !== claveSesion(e));
+  guardarPref("pp_recientes", [e, ...l].slice(0, MAX_RECIENTES));
+}
+const estaGuardada = (e) => leerLista("pp_guardadas").some((x) => claveSesion(x) === claveSesion(e));
+function alternarGuardada(e) {
+  const l = leerLista("pp_guardadas");
+  if (estaGuardada(e)) { guardarPref("pp_guardadas", l.filter((x) => claveSesion(x) !== claveSesion(e))); return false; }
+  if (l.length >= MAX_GUARDADAS) { alert(t("Ya tienes {n} sesiones guardadas: quita alguna primero.", { n: MAX_GUARDADAS })); return false; }
+  guardarPref("pp_guardadas", [e, ...l]);
+  return true;
+}
+function itemSesion(e, i, lista) {
+  const fecha = new Date(e.fecha);
+  const detalle = [e.calle, e.salida.nombre && t("desde {d}", { d: e.salida.nombre }), km(e.distancia),
+    e.volver ? "" : t("sin volver"), lista === "recientes" ? fechaCorta(fecha) : ""].filter(Boolean).join(" · ");
+  return `<div class="item"><button type="button" class="abrir" data-l="${lista}" data-i="${i}">
+      <span class="ico">${ICONO[e.tipo] || "·"}</span>
+      <span style="min-width:0"><b>${esc(e.resumen)}</b><small>${esc(detalle)}</small></span></button>
+    <button type="button" class="estrella${estaGuardada(e) ? " on" : ""}" data-l="${lista}" data-i="${i}"
+      aria-label="${t(estaGuardada(e) ? "Quitar de guardadas" : "Guardar sesión")}">${estaGuardada(e) ? "★" : "☆"}</button></div>`;
+}
+// Panel inicial: la pista y, debajo, tus sesiones guardadas y las recientes.
+function inicioHoja(pista) {
+  const guardadas = leerLista("pp_guardadas"), recientes = leerLista("pp_recientes");
+  hoja(`<p class="pista">${pista}</p><div class="hist">
+    ${guardadas.length ? `<h3>★ ${t("Sesiones guardadas")}</h3>${guardadas.map((e, i) => itemSesion(e, i, "guardadas")).join("")}` : ""}
+    ${recientes.length ? `<h3>${t("Recientes")} <button type="button" id="borrarRecientes">${t("Borrar")}</button></h3>
+      ${recientes.map((e, i) => itemSesion(e, i, "recientes")).join("")}` : ""}</div>`);
+  const de = (b) => leerLista(b.dataset.l === "guardadas" ? "pp_guardadas" : "pp_recientes")[+b.dataset.i];
+  for (const b of document.querySelectorAll(".hist .abrir")) b.onclick = () => repetir(de(b));
+  for (const b of document.querySelectorAll(".hist .estrella"))
+    b.onclick = () => { alternarGuardada(de(b)); inicioHoja(pista); };
+  if ($("borrarRecientes")) $("borrarRecientes").onclick = () => { guardarPref("pp_recientes", []); inicioHoja(pista); };
+}
+function repetir(e) {
+  if (!e) return;
+  if (modo !== "sesion") cambiarModo("sesion");
+  $("texto").value = e.texto;
+  $("volverSesion").checked = e.volver;
+  fijarMeta(e.volver ? null : e.meta, e.metaNombre);
+  $("tope").value = e.tope ?? "";
+  $("radioMax").value = e.radio ? e.radio / 1000 : "";
+  revisarTipo();
+  fijarSalida(e.salida.lat, e.salida.lon, e.salida.nombre, true);
+  $("form").requestSubmit();
+}
+
 $("form").onsubmit = async (e) => {
   e.preventDefault();
   document.activeElement?.blur();
@@ -1074,10 +1216,13 @@ $("form").onsubmit = async (e) => {
   $("armar").disabled = true;
   hoja(`<div class="cargando"><div class="rueda"></div>${t("Buscando la mejor ruta para tu sesión…")}</div>`);
   try {
+    const p = await pedido();
     const r = await fetch("/api/ruta", { method: "POST", headers: { "Content-Type": "application/json" },
-                                         body: JSON.stringify(await pedido()) });
+                                         body: JSON.stringify(p) });
     const j = await r.json();
     if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : t("No pude armar la ruta."));
+    ultimaEntrada = entradaDe(p, j);
+    guardarReciente(ultimaEntrada);
     if (j.preferencias && !j.preferencias.version_ok) olvidarFrecuentes(j.comuna);
     $("comuna").textContent = j.comuna.replace("_", " ");
     $("resumenForm").innerHTML = `${esc(j.sesion.resumen)} <small>· desde ${esc($("desde").value || "el mapa")}</small>`;
@@ -1332,13 +1477,15 @@ function cambiarVista(v) {
   $("tab-perfil").classList.toggle("on", v === "perfil");
   if (v === "ciudad" || v === "perfil") {
     capas.remove(); marcasPuntos.remove(); if (marcaSalida) marcaSalida.remove(); if (marcaMeta) marcaMeta.remove();
+    if (circuloRadio) { circuloRadio.remove(); circuloRadio = null; }
     calor.addTo(mapa);
     if (v === "ciudad") abrirCiudad(); else abrirPerfil();
   } else {
     calor.remove();
     capas.addTo(mapa); marcasPuntos.addTo(mapa);
     if (marcaSalida) marcaSalida.addTo(mapa); if (marcaMeta) marcaMeta.addTo(mapa);
-    hoja(`<p class="pista">${t("Elige desde dónde sales y la sesión de hoy.")}</p>`);
+    pintarRadio();
+    inicioHoja(t("Elige desde dónde sales y la sesión de hoy."));
   }
 }
 $("tab-hoy").onclick = (e) => { e.preventDefault(); cambiarVista("hoy"); };
@@ -1641,13 +1788,16 @@ $("botonIdioma").onclick = () => {
   else if (vista === "perfil") abrirPerfil(true);
   else if (modo === "trazar" && puntos.length > 1) recalcular(null);
   else if (document.body.classList.contains("con-ruta")) $("form").requestSubmit();
-  else hoja(`<p class="pista">${t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.")}</p>`);
+  else inicioHoja(t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa."));
 };
 
 // Tema y capa iniciales (lo último: usa todo lo de arriba).
 aplicarIdioma();
 ponerNoche(noche);
 medirCabecera();
+// Al abrir: la pista con tus sesiones guardadas y recientes (si no vienes de Strava).
+if (vista === "hoy" && !document.body.classList.contains("con-ruta"))
+  inicioHoja(t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa."));
 </script>
 </body>
 </html>

@@ -16,8 +16,10 @@ relajó: una ruta con un semáforo dicho es mejor que ninguna.
 """
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import math
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 import numpy as np
@@ -54,6 +56,37 @@ class SinTramo(Exception):
 
 # ── Pesos para trotar (calentamiento y vuelta) ──────────────────────────────
 
+# ── Radio máximo: nada de la ruta sale del círculo alrededor de la salida ────
+# Lo fija `planificar` para todo el pedido (calles permitidas en los pesos y
+# tramos de series dentro del círculo), así no hay que pasarlo por cada función.
+_RADIO: ContextVar[tuple[float, float, float] | None] = ContextVar("radio_max", default=None)
+
+
+@contextlib.contextmanager
+def radio_max(ctx: GraphContext, casa: int, radio_m: float | None):
+    g = ctx.graph
+    tok = _RADIO.set((float(g.x[casa]), float(g.y[casa]), float(radio_m)) if radio_m else None)
+    try:
+        yield
+    finally:
+        _RADIO.reset(tok)
+
+
+def radio_actual() -> float | None:
+    r = _RADIO.get()
+    return r[2] if r else None
+
+
+def dentro_radio(ctx: GraphContext, nodos) -> np.ndarray | bool:
+    """¿Están los nodos dentro del radio máximo? (True si no hay radio)."""
+    r = _RADIO.get()
+    if r is None:
+        return True
+    g = ctx.graph
+    cx, cy, rad = r
+    return (g.x[nodos] - cx) ** 2 + (g.y[nodos] - cy) ** 2 <= rad * rad
+
+
 def pesos_trote(ctx: GraphContext, inicio: int, radio_m: float) -> RoutingWeights:
     """Pesos del motor de RaceEngine para el trote de ida y vuelta: llano, con
     pocos semáforos. Se le añaden las sendas de parque, que la disciplina
@@ -73,6 +106,8 @@ def pesos_trote(ctx: GraphContext, inicio: int, radio_m: float) -> RoutingWeight
     dy = g.y[ctx.esrc] - g.y[inicio]
     sendas &= dx * dx + dy * dy <= radio_m * radio_m
     allowed = w.allowed_edges | sendas
+    if _RADIO.get() is not None:
+        allowed &= dentro_radio(ctx, ctx.esrc) & dentro_radio(ctx, g.indices)
     weight = w.weight.copy()
     weight[sendas] = g.elen[sendas] * np.float32(0.9)
     return RoutingWeights(allowed_edges=allowed, weight=weight,
@@ -278,6 +313,8 @@ def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: fl
 
     Con `solo_limpios` no se relajan semáforos ni cruces (sí la distancia)."""
     radio = holgura_m + LEJANIA_EXTRA_MAX_M
+    if radio_actual() is not None:
+        radio = min(radio, radio_actual())
     w = pesos_trote(ctx, inicio, radio + req.largo_tramo_m)
     dist_casa = ctx.provider.reachable(inicio, w, radio)
     g = ctx.graph
@@ -299,6 +336,9 @@ def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: fl
     for nivel, max_acerc, aviso in niveles:
         cand = [m for t in cerca
                 if (m := _ventanas(ctx, t, nivel, dist_casa, holgura_m, max_acerc))]
+        if radio_actual() is not None:
+            # El tramo es recto: si sus dos extremos caen en el círculo, cae entero.
+            cand = [m for m in cand if np.all(dentro_radio(ctx, [m.nodo_inicio(), m.nodo_fin()]))]
         if not cand:
             continue
         cand.sort(key=lambda m: m.puntos)

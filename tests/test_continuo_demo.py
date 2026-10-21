@@ -135,3 +135,25 @@ def test_series_hasta_la_meta(ctx):
     assert p["con_meta"] is True
     assert not _lejos(p["llegada"], meta, 60)
     assert any("hasta la meta" in x for x in p["explicacion"])
+
+
+def _max_dist(p):
+    s = p["salida"]
+    return max(math.hypot(c[0] - s[0], (c[1] - s[1]) * math.cos(math.radians(s[0]))) * 111_195
+               for parte in p["partes"] for c in parte["coordenadas"])
+
+
+@pytest.mark.parametrize("texto,radio", [("5x400", 1500), ("tempo 3k", 1500), ("fondo 8k", 1500)])
+def test_radio_maximo(ctx, texto, radio):
+    from pacepath.planificador import planificar
+    libre = planificar(ctx, interpretar(texto), D.lat, D.lon)
+    p = planificar(ctx, interpretar(texto), D.lat, D.lon, radio_max_m=radio)
+    assert p["radio_max_m"] == radio
+    assert _max_dist(p) <= radio + 30            # la salida se ajusta al nodo más cercano
+    print(texto, round(_max_dist(libre)), "→", round(_max_dist(p)))
+
+
+def test_radio_demasiado_chico_avisa(ctx):
+    from pacepath.planificador import planificar
+    with pytest.raises(SinTramo, match="sube el radio"):
+        planificar(ctx, interpretar("fondo 20k"), D.lat, D.lon, radio_max_m=300)

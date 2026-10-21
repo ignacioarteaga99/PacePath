@@ -36,7 +36,7 @@ from .metricas import Medida, desnivel, medir
 from .sesion import COSTE_CRUCE, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
 from .series import (
     SinTramo, aviso_srtm, _calles_trote, _tramo_info, _tramo_trote, base_plan,
-    buscar_tramos, nodo_salida, pesos_trote, tramo_final,
+    buscar_tramos, dentro_radio, nodo_salida, pesos_trote, radio_actual, tramo_final,
 )
 from .parques import en_parque
 from .tramos import aristas_corribles, semaforos_cercanos
@@ -150,7 +150,7 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
         start=GeoPoint(lat=float(g.lat[casa]), lon=float(g.lon[casa])),
         distance=DistanceLayer(target_m=distancia_m, tolerance_pct=2.0),
         geometry=GeometryLayer(smoothness=0.6,
-                               search_radius_max_m=distancia_m * 0.6 + 1500),
+                               search_radius_max_m=_radio_busqueda(distancia_m)),
     )
     reach = ctx.provider.reachable(casa, w, distancia_m * 0.6)
     rng = _semilla(casa, distancia_m, req.tipo.value)
@@ -181,6 +181,13 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
                           "I couldn't find any route from that start."))
     todos.sort(key=lambda x: x[2])
     return todos[0][0], todos[0][1], todos[1:]
+
+
+def _radio_busqueda(distancia_m: float) -> float:
+    """Hasta dónde busca anclas el motor: lo de siempre, o el radio máximo."""
+    r = distancia_m * 0.6 + 1500
+    # El motor exige ≥ 500 m; con un radio menor, los pesos igual cortan en el radio.
+    return max(500.0, min(r, radio_actual())) if radio_actual() is not None else r
 
 
 def _arbol(ctx: GraphContext, w: RoutingWeights, origen: int, limite: float):
@@ -274,7 +281,7 @@ def hasta_meta(ctx: GraphContext, casa: int, meta: int, distancia_m: float,
         start=GeoPoint(lat=float(g.lat[casa]), lon=float(g.lon[casa])),
         finish=GeoPoint(lat=float(g.lat[meta]), lon=float(g.lon[meta])),
         distance=DistanceLayer(target_m=distancia_m, tolerance_pct=2.0),
-        geometry=GeometryLayer(smoothness=0.6, search_radius_max_m=distancia_m * 0.6 + 1500),
+        geometry=GeometryLayer(smoothness=0.6, search_radius_max_m=_radio_busqueda(distancia_m)),
     )
     reach = ctx.provider.reachable(casa, w, distancia_m * 0.7)
     rng = _semilla(casa * 7919 + meta, distancia_m, req.tipo.value)
@@ -342,6 +349,8 @@ def por_corredor(ctx: GraphContext, casa: int, distancia_m: float, req: Requisit
     g = ctx.graph
     M, comp, metros = corredores(
         ctx, None if req.preferidas is None else req.preferidas < 1)
+    if radio_actual() is not None:
+        M = M & dentro_radio(ctx, ctx.esrc) & dentro_radio(ctx, g.indices)
     coste, pred = _arbol(ctx, w, casa, distancia_m * 6)
     llegada = _metros_arbol(ctx, coste, pred, casa)
     tope_acerc = max(3000.0, 0.3 * distancia_m)

@@ -82,12 +82,14 @@ class PedidoRuta(BaseModel):
     texto: str | None = Field(default=None, max_length=120)
     sesion: Sesion | None = None
     comuna: str | None = None
-    # Fondo y regenerativo: volver a la salida (lo habitual) o no. Sin volver,
-    # con `meta` la ruta termina ahí; sin meta, donde se cumplen los km.
+    # Volver a la salida (lo habitual) o no. Sin volver, con `meta` la ruta
+    # termina ahí; sin meta, donde se cumple lo pedido.
     volver: bool = True
     meta: Punto | None = None
     # Tempo, fondo y regenerativo: desnivel positivo máximo de toda la sesión.
     max_subida_m: float | None = Field(default=None, ge=0, le=5000)
+    # Cualquier sesión: nada de la ruta a más de este radio de la salida.
+    radio_max_m: float | None = Field(default=None, ge=300, le=30_000)
     # Preferencias del corredor (vienen de su teléfono; no se guardan).
     frecuentes: Frecuentes | None = None
     favoritos: list[list[tuple[float, float]]] | None = Field(default=None, max_length=20)
@@ -146,7 +148,7 @@ def _plan(body: PedidoRuta) -> dict:
             meta = (body.meta.lat, body.meta.lon) if body.meta else None
             pref, info = _preferidas(ctx, body)
             plan = planificar(ctx, s, body.lat, body.lon, volver=body.volver, meta=meta,
-                              preferidas=pref)
+                              preferidas=pref, radio_max_m=body.radio_max_m)
             plan["preferencias"] = info
             return plan
     except SinTramo as exc:

@@ -60,6 +60,12 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
       la calma (o el fondo) termina ahí; sin meta, donde se cumple lo pedido.
 - [x] Tope de desnivel (tempo, fondo, regenerativo): número («+100m») o
       «plano» / «flat» = 5 m de subida por km de la sesión.
+- [x] Radio máximo (cualquier sesión): nada de la ruta sale del círculo
+      alrededor de la salida (calles permitidas en los pesos, tramos de series
+      con ambos extremos dentro, corredores recortados); se dibuja en el mapa.
+- [x] Altimetría con cada intervalo marcado (banda, líneas y número).
+- [x] Recientes (10) y sesiones guardadas (30) en el teléfono: se guardan los
+      parámetros y, como el motor es determinista, repetir da la misma ruta.
 - [x] Buscador de la salida: calles, esquinas, parques y **direcciones con
       número** («Pocuro 2500», vía Nominatim con caché y ≤ 1 petición/s).
 
