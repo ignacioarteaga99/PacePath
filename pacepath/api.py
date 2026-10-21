@@ -54,6 +54,8 @@ app = FastAPI(title="PacePath", version="0.1.0")
 _motor = threading.Lock()
 app.mount("/vendor", StaticFiles(directory=WEB / "vendor"), name="vendor")
 app.mount("/icons", StaticFiles(directory=WEB / "icons"), name="icons")
+# Logos oficiales de Strava (guía de marca de la API), sin modificar.
+app.mount("/strava", StaticFiles(directory=WEB / "strava"), name="strava")
 
 
 @app.middleware("http")

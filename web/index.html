@@ -222,6 +222,9 @@
   .strava { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 48px;
     background: #fc4c02; color: #fff; font-weight: 700; border-radius: 6px; padding: 0 16px;
     text-decoration: none; font-size: 16px; letter-spacing: .1px; }
+  .powered img { height: 14px; width: auto; display: inline-block; }
+  .powered .pb-noche, body.noche .powered .pb-dia { display: none; }
+  body.noche .powered .pb-noche { display: inline-block; }
   .aviso-beta { background: var(--gris); border-radius: 10px; padding: 10px 12px; font-size: 13.5px;
     color: var(--suave); margin: 10px 0 0; }
   .aviso-beta b { color: var(--tinta); }
@@ -1867,7 +1870,9 @@ $("tab-ciudad").onclick = (e) => { e.preventDefault(); cambiarVista("ciudad"); }
 $("tab-perfil").onclick = (e) => { e.preventDefault(); cambiarVista("perfil"); };
 
 const STRAVA_CONECTAR = () => `<a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}Connect with Strava</a>`;
-const POWERED_STRAVA = () => `<p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px;color:#fc4c02"')} Powered by Strava</p>`;
+// «Powered by Strava»: el logo oficial (naranja de día, blanco de noche).
+const POWERED_STRAVA = () => `<p class="credito powered"><img class="pb-dia" src="/strava/powered_by_strava_orange.svg" alt="Powered by Strava">
+  <img class="pb-noche" src="/strava/powered_by_strava_white.svg" alt="Powered by Strava"></p>`;
 // Mientras Strava revisa la app, sólo pocas cuentas pueden conectarse.
 const AVISO_BETA = (e) => e && e.abierto ? "" : `<p class="aviso-beta"><b>${t("Beta:")}</b> ${t("mientras Strava revisa PacePath, la conexión con Strava está habilitada sólo para algunas cuentas. Las rutas funcionan para todos, sin conectar nada.")}</p>`;
 const LOGO_STRAVA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.4 17.9 13.3 13.7h-3l5.1 10 5.1-10h-3zM10.1 0 3.3 13.7h4l2.8-5.5 2.8 5.5h4z"/></svg>';

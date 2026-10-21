@@ -38,9 +38,10 @@ device. Athletes can also revoke access from Strava → Settings → My Apps.
 
 ## Brand guidelines
 - "Connect with Strava" button in Strava orange (#FC4C02), 48 px high, with the Strava logo.
-  *TODO before submitting: replace it with the official asset from developers.strava.com/guidelines
-  (btn_strava_connectwith_orange) — it was not reachable from the development environment.*
-- "Powered by Strava" attribution wherever Strava data is displayed (Mi ciudad, Profile).
+  *TODO before submitting: replace it with the official "Connect with Strava" button pack (1.1, separate from
+  the logo pack 1.2) from developers.strava.com/guidelines.*
+- Official "Powered by Strava" logo (from Strava's API logo pack, unmodified; orange in light mode, white in
+  dark mode) wherever Strava data is displayed (Mi ciudad, Profile).
 - The app is not named after Strava and does not imply endorsement.
 
 ## Expected usage
