@@ -48,7 +48,7 @@ def test_tramo_cumple_requisitos(ctx, plan):
 
 def test_plan_encadenado(plan):
     partes = plan["partes"]
-    assert [p["tipo"] for p in partes] == ["calentamiento"] + ["serie"] * 5 + ["vuelta_calma"]
+    assert [p["tipo"] for p in partes] == ["calentamiento"] + ["serie"] * 5
     cerca = lambda a, b: abs(a[0] - b[0]) < 2e-4 and abs(a[1] - b[1]) < 2e-4  # ~20 m
     for a, b in zip(partes, partes[1:]):
         if a["coordenadas"] and b["coordenadas"]:
@@ -56,13 +56,13 @@ def test_plan_encadenado(plan):
     tot = plan["totales"]
     assert tot["series_m"] == 2000
     assert tot["distancia_m"] == pytest.approx(
-        tot["calentamiento_m"] + tot["series_m"] + tot["vuelta_calma_m"], abs=2)
+        tot["calentamiento_m"] + tot["series_m"], abs=2)
     assert plan["explicacion"][0].startswith("Las series van por")
 
 
 def test_gpx(plan):
     x = plan_a_gpx(plan)
-    assert x.count("<trkseg>") == 7
+    assert x.count("<trkseg>") == 6          # llegar + 5 series (sin vuelta a la calma)
     assert "Serie 5 · fin" in x
 
 
@@ -79,5 +79,5 @@ def test_explicacion_series_sin_traslado_en_el_total(plan):
     ex = plan["explicacion"]
     assert "Series: 5 × 400 m = 2,00 km." in ex
     assert any(l.startswith("Para llegar:") and "calentamiento" in l for l in ex)
-    assert any(l.startswith("Para volver:") for l in ex)
+    assert not any(l.startswith(("Para volver", "Vuelta a la calma", "Después")) for l in ex)
     assert not any(l.startswith("Total") for l in ex)

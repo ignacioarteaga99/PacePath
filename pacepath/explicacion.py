@@ -67,26 +67,6 @@ def _final(plan: dict, vc: dict | None) -> str:
               f"Cool-down: {d} easy, without returning to the start{donde}.")
 
 
-def _traslado_final(plan: dict, vc: dict) -> str:
-    """Series y cuestas: el trote después del bloque es traslado, no parte del total."""
-    d = metros(vc["distancia_m"])
-    if plan.get("volver", True):
-        if plan.get("forma", "auto") != "auto":
-            return tr(f"Para volver: {d} de trote suave hasta la salida por otras calles, "
-                      "cerrando el círculo (vuelta a la calma).",
-                      f"To get back: {d} easy jog to the start along other streets, "
-                      "closing the loop (cool-down).")
-        return tr(f"Para volver: {d} de trote suave hasta la salida (vuelta a la calma).",
-                  f"To get back: {d} easy jog to the start (cool-down).")
-    if plan.get("con_meta"):
-        return tr(f"Para terminar: {d} de trote suave hasta la meta (vuelta a la calma).",
-                  f"To finish: {d} easy jog to the finish (cool-down).")
-    calles = vc.get("calles") or []
-    donde = tr(f"; terminas en {calles[-1]}", f"; you finish on {calles[-1]}") if calles else ""
-    return tr(f"Después: {d} de trote suave sin volver a la salida{donde}.",
-              f"Afterwards: {d} easy jog without returning to the start{donde}.")
-
-
 def explicar_series(plan: dict) -> list[str]:
     t, tot, s = plan["tramo"], plan["totales"], plan["sesion"]
     n = s["repeticiones"]
@@ -116,7 +96,6 @@ def explicar_series(plan: dict) -> list[str]:
         lineas.append(tr(f"El {t['parque_pct']} % del tramo va por parque.",
                          f"{t['parque_pct']} % of the stretch runs through a park."))
     cal = next(p for p in plan["partes"] if p["tipo"] == "calentamiento")
-    vc = next(p for p in plan["partes"] if p["tipo"] == "vuelta_calma")
     por = (tr(" por ", " along ") + lista(cal["calles"][:4])) if cal.get("calles") else ""
     n, largo = plan["sesion"]["repeticiones"], plan["tramo"]["largo_m"]
     lineas.append(tr(f"Series: {n} × {metros(largo)} = {metros(tot['series_m'])}.",
@@ -125,7 +104,6 @@ def explicar_series(plan: dict) -> list[str]:
                      f" ({_sem(cal['semaforos'])} en el camino); te sirve de calentamiento.",
                      f"To get there: {metros(cal['distancia_m'])} easy jog to the start{por}"
                      f" ({_sem(cal['semaforos'])} on the way); it doubles as your warm-up."))
-    lineas.append(_traslado_final(plan, vc))
     return lineas
 
 
@@ -155,7 +133,6 @@ def explicar_cuestas(plan: dict) -> list[str]:
            "te sirve de calentamiento.",
            f"To get there: {metros(cal['distancia_m'])} easy jog to the bottom of the hill{por}; "
            "it doubles as your warm-up."),
-        _traslado_final(plan, next(p for p in plan["partes"] if p["tipo"] == "vuelta_calma")),
     ]
 
 

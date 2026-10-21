@@ -480,24 +480,6 @@ def tramo_final(ctx: GraphContext, w: RoutingWeights, desde: int, casa: int,
     return _tramo_trote(ctx, w, desde, desde)
 
 
-REPETIR_IDA = 4.0      # en «circuito», volver por la calle de ida cuesta ×4
-
-
-def _vuelta_distinta(ctx: GraphContext, w: RoutingWeights, casa: int, ini: int,
-                     fin: int) -> dict | None:
-    """El trote de vuelta encareciendo las calles de la ida (en ambos sentidos)."""
-    leg = ctx.provider.shortest_path(casa, ini, w)
-    if leg is None or not leg.ok or not len(leg.edges):
-        return None
-    e = np.asarray(leg.edges)
-    weight = w.weight.copy()
-    weight[e] *= np.float32(REPETIR_IDA)
-    weight[ctx.graph.reverse[e]] *= np.float32(REPETIR_IDA)
-    w2 = RoutingWeights(allowed_edges=w.allowed_edges, weight=weight,
-                        min_ratio=w.min_ratio, max_ratio=w.max_ratio * REPETIR_IDA)
-    return _tramo_trote(ctx, w2, fin, casa)
-
-
 def nodo_salida(ctx: GraphContext, lat: float, lon: float) -> int:
     """Nodo de la red corrible principal más cercano al punto de salida."""
     return int(ctx.graph.nearest_node(lat, lon, mask=nodos_en_red(ctx)))
@@ -521,15 +503,14 @@ def aviso_srtm() -> str:
 
 
 def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
-                      alternativas: int = 3, volver: bool = True,
-                      meta: tuple[float, float] | None = None, forma: str = "auto") -> dict:
+                      alternativas: int = 3) -> dict:
     """Series y cuestas: un tramo que se repite.
 
     Series: ida y vuelta (la 1.ª de ida, la 2.ª de vuelta…).
     Cuestas: siempre de subida; la bajada trotando es la recuperación.
-    Sin `volver`, la vuelta a la calma va a la `meta` o termina donde se cumple.
-    Con `forma` «circuito» (o «vueltas»), el trote de vuelta evita las calles de
-    la ida: el recorrido cierra un círculo en vez de desandar lo andado."""
+    La sesión son las repeticiones: el trote hasta el tramo se muestra para
+    saber cómo llegar (sirve de calentamiento) y después no se dibuja nada —
+    cada uno vuelve como quiera."""
     if sesion.tipo not in (TipoSesion.SERIES, TipoSesion.CUESTAS):
         raise ValueError("planificar_series arma series y cuestas")
     cuestas = sesion.tipo is TipoSesion.CUESTAS
@@ -543,32 +524,23 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                     + 2 * m.largo_m)
     a, b = m.nodo_inicio(), m.nodo_fin()
     n = int(sesion.repeticiones)
-    fin_nodo = None if volver or meta is None else nodo_salida(ctx, *meta)
 
     if cuestas:
         # Se empieza y se termina abajo.
         abajo = a if m.pendiente_pct >= 0 else b
         candidatos = [(abajo, abajo)]
     else:
-        # Empezar por el extremo que deja menos trote total. Con un número impar
-        # de repeticiones se termina en el extremo contrario.
-        candidatos = [(a, a if n % 2 == 0 else b), (b, b if n % 2 == 0 else a)]
+        # Empezar por el extremo más cercano.
+        candidatos = [(a, None), (b, None)]
     opciones = []
-    for ini, fin in candidatos:
+    for ini, _ in candidatos:
         ida = _tramo_trote(ctx, w, casa, ini)
-        vuelta = tramo_final(ctx, w, fin, casa, req, sesion.vuelta_calma_m, volver, fin_nodo)
-        if ida and vuelta:
-            opciones.append((ida["distancia_m"] + vuelta["distancia_m"], ini, ida, vuelta, fin))
+        if ida:
+            opciones.append((ida["distancia_m"], ini, ida))
     if not opciones:
-        raise SinTramo(tr("El tramo encontrado no se puede alcanzar desde la salida"
-                          + ("." if volver or fin_nodo is None else " o no llega a la meta."),
-                          "The stretch found can't be reached from the start"
-                          + ("." if volver or fin_nodo is None else " or doesn't reach the finish.")))
-    _, ini, ida, vuelta, fin = min(opciones, key=lambda o: o[0])
-    if volver and forma != "auto" and ida["distancia_m"] > 0:
-        otra = _vuelta_distinta(ctx, w, casa, ini, fin)
-        if otra:
-            vuelta = otra
+        raise SinTramo(tr("El tramo encontrado no se puede alcanzar desde la salida.",
+                          "The stretch found can't be reached from the start."))
+    _, ini, ida = min(opciones, key=lambda o: o[0])
 
     info = _tramo_info(ctx, m)
     coords = info["coordenadas"]
@@ -591,12 +563,10 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                 "pausa_s": (sesion.pausa_s or 0) if k < n - 1 else 0,
                 "coordenadas": coords if k % 2 == 0 else coords[::-1],
             })
-    partes.append({"tipo": "vuelta_calma", **vuelta})
 
     recuperacion = n * m.largo_m if cuestas else 0.0
     calentamiento_extra = max(0, round(sesion.calentamiento_m - ida["distancia_m"]))
-    total = (ida["distancia_m"] + n * m.largo_m + recuperacion + vuelta["distancia_m"]
-             + calentamiento_extra)
+    total = ida["distancia_m"] + n * m.largo_m + recuperacion + calentamiento_extra
     avisos = [aviso] if aviso else []
     if calentamiento_extra >= 200:
         avisos.append(tr(f"El tramo está a {ida['distancia_m']} m: completa el calentamiento "
@@ -614,15 +584,9 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
             "calentamiento_m": ida["distancia_m"] + calentamiento_extra,
             "series_m": round(n * m.largo_m),
             "recuperacion_m": round(recuperacion),
-            "vuelta_calma_m": vuelta["distancia_m"],
-            "semaforos_trote": ida["semaforos"] + vuelta["semaforos"],
+            "semaforos_trote": ida["semaforos"],
         },
         "avisos": avisos,
-        "volver": volver,
-        "forma": forma if volver else "auto",
-        "con_meta": fin_nodo is not None,
-        "llegada": (vuelta["coordenadas"][-1][:2] if vuelta["coordenadas"]
-                    else coords[-1 if (n % 2 and not cuestas) else 0][:2]),
     }
     plan["explicacion"] = explicar_cuestas(plan) if cuestas else explicar_series(plan)
     return plan

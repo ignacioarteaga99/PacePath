@@ -106,35 +106,33 @@ def _lejos(a, b, m):
     return math.hypot(a[0] - b[0], (a[1] - b[1]) * k) * 111_195 > m
 
 
-@pytest.mark.parametrize("texto", ["5x400", "tempo 3k"])
-def test_sesion_sin_volver(ctx, texto):
+def test_tempo_sin_volver(ctx):
     from pacepath.planificador import planificar
-    s = interpretar(texto)
+    s = interpretar("tempo 3k")
     p = planificar(ctx, s, D.lat, D.lon, volver=False)
     assert p["volver"] is False and p["con_meta"] is False
     vc = p["partes"][-1]
     assert vc["tipo"] == "vuelta_calma"
-    if s.tipo.value == "series":
-        # Trote suave de lo pedido (±10 %) desde el final de la última serie.
-        assert abs(vc["distancia_m"] - s.vuelta_calma_m) <= 0.1 * s.vuelta_calma_m
-    else:
-        # Tempo: recorrido de solo ida; el bloque se ubica donde hay menos
-        # detenciones y la vuelta a la calma es lo que queda.
-        pedido = s.calentamiento_m + s.distancia_m + s.vuelta_calma_m
-        assert abs(p["totales"]["distancia_m"] - pedido) <= 0.06 * pedido
+    # Recorrido de solo ida; el bloque se ubica donde hay menos detenciones y
+    # la vuelta a la calma es lo que queda.
+    pedido = s.calentamiento_m + s.distancia_m + s.vuelta_calma_m
+    assert abs(p["totales"]["distancia_m"] - pedido) <= 0.06 * pedido
     assert _lejos(p["llegada"], p["salida"], 300)
     assert p["llegada"] == vc["coordenadas"][-1][:2]
     assert any("sin volver a la salida" in x for x in p["explicacion"])
 
 
-def test_series_hasta_la_meta(ctx):
+def test_series_sin_vuelta_a_la_calma(ctx):
+    # La sesión son las repeticiones: llegar se muestra, volver no (aunque se
+    # pida no volver, una meta o una forma: no aplican a series).
     from pacepath.planificador import planificar
     g = ctx.graph
-    meta = (float(g.lat[0]), float(g.lon[0]))
-    p = planificar(ctx, interpretar("5x400"), D.lat, D.lon, volver=False, meta=meta)
-    assert p["con_meta"] is True
-    assert not _lejos(p["llegada"], meta, 60)
-    assert any("hasta la meta" in x for x in p["explicacion"])
+    for extra in ({}, {"volver": False, "meta": (float(g.lat[0]), float(g.lon[0]))},
+                  {"forma": "circuito"}):
+        p = planificar(ctx, interpretar("5x400"), D.lat, D.lon, **extra)
+        assert [x["tipo"] for x in p["partes"]] == ["calentamiento"] + ["serie"] * 5
+        assert "vuelta_calma_m" not in p["totales"] and "llegada" not in p
+        assert not any("calma" in x or "volver" in x.lower() for x in p["explicacion"])
 
 
 def _max_dist(p):
@@ -199,11 +197,3 @@ def test_vueltas_demasiado_cortas_avisa(ctx):
         planificar(ctx, interpretar("fondo 5k"), D.lat, D.lon, forma="vueltas", n_vueltas=10)
 
 
-def test_series_en_circuito_vuelven_por_otro_lado(ctx):
-    from pacepath.planificador import planificar
-    p = planificar(ctx, interpretar("5x400"), D.lat, D.lon, forma="circuito")
-    ida = {tuple(c[:2]) for c in p["partes"][0]["coordenadas"]}
-    vuelta = [tuple(c[:2]) for c in p["partes"][-1]["coordenadas"]]
-    comunes = sum(c in ida for c in vuelta) / max(len(vuelta), 1)
-    assert comunes < 0.5, comunes
-    assert any("por otras calles" in x for x in p["explicacion"])

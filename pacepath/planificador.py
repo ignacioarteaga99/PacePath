@@ -38,7 +38,8 @@ def _planificar(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     Sin `volver`, la ruta termina en `meta` o, sin meta, donde se cumple lo pedido
     (en series, cuestas y tempo, al final de la vuelta a la calma)."""
     if sesion.tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS):
-        return planificar_series(ctx, sesion, lat, lon, volver=volver, meta=meta, forma=forma)
+        # Series y cuestas: la sesión son las repeticiones; no hay vuelta que armar.
+        return planificar_series(ctx, sesion, lat, lon)
     if sesion.tipo is TipoSesion.TEMPO:
         return planificar_tempo(ctx, sesion, lat, lon, preferidas=preferidas,
                                 volver=volver, meta=meta, forma=forma, n_vueltas=n_vueltas)

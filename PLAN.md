@@ -67,7 +67,10 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
       vuelta), **circuito** (sólo bucles del motor, repetir calle pesa ×5–15;
       fondo 12k en Providencia: de 100 % repetido a 5 %) o **vueltas ×N** a un
       circuito más corto (en tempo, bloque y calentamiento en vueltas enteras).
-      En series, «circuito» hace que el trote de vuelta vaya por otras calles.
+- [x] Series y cuestas aisladas: la sesión son las repeticiones. El trote para
+      llegar se dibuja (punteado) y se dice su distancia; no hay vuelta a la
+      calma ni en el mapa, ni en el texto, ni en el GPX; la altimetría es sólo
+      el bloque. «Volver», forma y meta no aplican y se ocultan.
 - [x] Opciones plegables en el teléfono, con un resumen de lo elegido.
 - [x] Altimetría con cada intervalo marcado (banda, líneas y número).
 - [x] Recientes (10) y sesiones guardadas (30) en el teléfono: se guardan los

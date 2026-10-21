@@ -85,7 +85,9 @@
   .forma input { display: none; width: 52px; font-size: 16px; padding: 4px 6px; border-radius: 8px;
     border: 1px solid var(--linea); background: var(--panel); color: var(--tinta); }
   body.forma-vueltas .forma input { display: block; }
-  body.sesion-series .forma [data-forma="vueltas"] { display: none; }
+  /* Series y cuestas: la sesión son las repeticiones; no hay vuelta que elegir */
+  body.sesion-series .continuo .interruptor, body.sesion-series .forma,
+  body.sesion-series .campo.meta { display: none !important; }
   body:not(.modo-trazar) .continuo { display: flex; }
   .campo.meta { display: none; }
   .tope { display: none; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
@@ -784,8 +786,8 @@ function ponerForma(f) {
 }
 document.querySelectorAll(".forma button").forEach((b) => { b.onclick = () => ponerForma(b.dataset.forma); });
 function formaPedida() {
-  if (!$("volverSesion").checked) return {};
   const series = SERIES_TXT.test($("texto").value);
+  if (!$("volverSesion").checked || series) return {};
   if (forma === "vueltas" && !series) {
     const n = parseInt($("nVueltas").value, 10);
     return Number.isFinite(n) && n >= 2 ? { forma: "vueltas", vueltas: Math.min(n, 30) } : { forma: "circuito" };
@@ -795,7 +797,8 @@ function formaPedida() {
 // Resumen de las opciones en la fila plegada: «Vuelve · 3 vueltas · ≤ 3 km».
 function resumirOpciones() {
   const volver = $("volverSesion").checked, f = formaPedida(), tope = parseFloat($("tope").value);
-  const partes = [volver ? t("Vuelve a la salida") : meta ? t("Hasta la meta") : t("Sin volver")];
+  const partes = SERIES_TXT.test($("texto").value) ? []
+    : [volver ? t("Vuelve a la salida") : meta ? t("Hasta la meta") : t("Sin volver")];
   if (f.forma === "vueltas") partes.push(t("{n} vueltas", { n: f.vueltas }));
   else if (f.forma === "circuito") partes.push(t("Circuito"));
   if (document.body.classList.contains("sesion-tope")) {
@@ -1065,10 +1068,15 @@ let perfilPts = [], perfilTotal = 0, cursorMapa = null, perfilBloques = [];
 // Partes que son trabajo (cada serie, el bloque de tempo): se marcan en el perfil.
 const TRABAJO = { serie: "Serie", tempo: "Tempo" };
 
+// Series y cuestas: el perfil es sólo el bloque de repeticiones (el trote para
+// llegar se ve en el mapa y su distancia en el texto).
+const SOLO_BLOQUE = new Set(["series", "cuestas"]);
 function perfilSvg(plan) {
   const pts = [], bloques = [];
   let d = 0, prev = null;
-  for (const p of plan.partes) {
+  const partes = SOLO_BLOQUE.has(plan.sesion?.tipo)
+    ? plan.partes.filter((p) => p.tipo === "serie" || p.tipo === "recuperacion") : plan.partes;
+  for (const p of partes) {
     let d0 = null;
     for (const c of p.coordenadas || []) {
       if (prev) d += distM(prev, c);
@@ -1191,7 +1199,8 @@ function mostrar(plan) {
 
 async function pedido() {
   const p = { lat: salida.lat, lon: salida.lon, texto: $("texto").value };
-  if (!$("volverSesion").checked) { p.volver = false; if (meta) p.meta = meta; }
+  const series = SERIES_TXT.test(p.texto);
+  if (!series && !$("volverSesion").checked) { p.volver = false; if (meta) p.meta = meta; }
   const tope = parseFloat($("tope").value);
   if (CON_TOPE.test(p.texto) && Number.isFinite(tope) && tope >= 0) p.max_subida_m = tope;
   if (radioKm()) p.radio_max_m = radioKm() * 1000;
