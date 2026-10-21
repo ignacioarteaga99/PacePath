@@ -224,11 +224,16 @@
     background: var(--gris); flex: none; }
   .atleta h2 { margin: 0; }
   .atleta small { color: var(--suave); }
+  .anios { display: flex; gap: 6px; overflow-x: auto; margin: 4px -16px 10px; padding: 0 16px; scrollbar-width: none; }
+  .anios::-webkit-scrollbar { display: none; }
+  .anios .chip { padding: 5px 12px; font-size: 13px; }
+  .nota-kpi { font-size: 12px; color: var(--suave); margin: 6px 0 0; }
+  .kpi b { white-space: nowrap; }
   .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .kpi { background: var(--gris); border-radius: 12px; padding: 10px; }
   .kpi span { display: block; font-size: 11px; font-weight: 700; color: var(--suave); text-transform: uppercase;
     letter-spacing: .4px; }
-  .kpi b { display: block; font-size: 22px; letter-spacing: -.5px; margin: 2px 0; }
+  .kpi b { display: block; font-size: clamp(17px, 5.4vw, 22px); letter-spacing: -.5px; margin: 2px 0; }
   .kpi small { color: var(--suave); font-size: 12px; line-height: 1.35; display: block; }
   .bloque { margin-top: 18px; }
   .bloque h3 { margin: 0 0 2px; font-size: 15px; }
@@ -539,6 +544,12 @@ const EN = {
   "Dónde has corrido": "Where you've run", "{n} carrera": "{n} run", "{n} carreras": "{n} runs",
   "Otros lugares": "Other places", "cerca de {c}": "near {c}", "Sin ciudad cerca": "No city nearby",
   "Ciudades: GeoNames (CC BY 4.0)": "Cities: GeoNames (CC BY 4.0)",
+  "Todo": "All time", "Año": "Year", "vs {a}": "vs {a}", "{k} km en {a}": "{k} km in {a}", "{k} km a esta fecha en {a}": "{k} km by this date in {a}",
+  "sin carreras en {a}": "no runs in {a}", "Por semana": "Per week", "{n} carreras por semana": "{n} runs per week",
+  "Tus carreras con GPS guardadas en este teléfono.": "Your GPS runs saved on this phone.",
+  "Semanas de {a} · promedio {x} km por semana": "Weeks of {a} · average {x} km per week",
+  "Por mes, ponderado por distancia (más arriba, más rápido)": "Per month, distance-weighted (higher is faster)",
+  "Ritmo del año": "Pace of the year",
   "el mapa": "the map", "sin volver": "one way", "Auto": "Auto", "Circuito": "Loop", "Vueltas": "Laps",
   "circuito": "loop", "{n} vueltas": "{n} laps", "Forma de la ruta": "Route shape",
   "Número de vueltas": "Number of laps",
@@ -1786,6 +1797,24 @@ const mesN = (i) => (idioma === "en" ? MESES_EN : MESES)[i];
 const fechaCorta = (d) => idioma === "en" ? `${mesN(d.getMonth())} ${d.getDate()}` : `${d.getDate()} ${mesN(d.getMonth())}`;
 const localDe = (c) => new Date((c.fecha_local || c.fecha).replace("Z", ""));
 
+// Año elegido: sus totales (carreras con GPS), la comparación con el anterior
+// y el promedio semanal.
+function kpisAnio(todas, a, anios, promSem, nSem) {
+  // El año en curso se compara con el anterior hasta la misma fecha.
+  const hoy = new Date(), enCurso = a === hoy.getFullYear();
+  const hasta = (c) => !enCurso || (localDe(c).getMonth() * 100 + localDe(c).getDate()) <= (hoy.getMonth() * 100 + hoy.getDate());
+  const de = (y, corte) => totalesDe(todas.filter((c) => localDe(c).getFullYear() === y && (!corte || hasta(c))));
+  const este = de(a), antes = anios.includes(a - 1) ? de(a - 1, true) : null;
+  const cambio = antes && antes.km ? Math.round((este.km - antes.km) / antes.km * 100) : null;
+  return `<div class="kpis">${kpi(String(a), { ...este, km: Math.round(este.km) })}
+    <div class="kpi"><span>${t("vs {a}", { a: a - 1 })}</span><b>${cambio == null ? "–" : (cambio > 0 ? "+" : "") + cambio + " %"}</b>
+      <small>${antes ? t(enCurso ? "{k} km a esta fecha en {a}" : "{k} km en {a}", { k: num(Math.round(antes.km)), a: a - 1 })
+        : t("sin carreras en {a}", { a: a - 1 })}</small></div>
+    <div class="kpi"><span>${t("Por semana")}</span><b>${num(promSem, 1)} km</b>
+      <small>${t("{n} carreras por semana", { n: num(este.carreras / nSem, 1) })}</small></div></div>
+    <p class="nota-kpi">${t("Tus carreras con GPS guardadas en este teléfono.")}</p>`;
+}
+
 function kpi(titulo, tt) {
   return `<div class="kpi"><span>${titulo}</span><b>${num(tt.km)} km</b>
     <small>${num(tt.carreras)} ${t("carreras")}<br>${num(tt.horas)} h · ${num(tt.desnivel_m)} m ↑</small></div>`;
@@ -1851,7 +1880,11 @@ function activarGrafico(id, textos) {
   g.addEventListener("pointerleave", salir); g.addEventListener("pointerup", () => setTimeout(salir, 1500));
 }
 
-async function abrirPerfil(sinSincronizar) {
+// Filtro por año: null = todo el historial.
+let anioPerfil = null, perfilGuardado = null;
+const totalesDe = (cs) => ({ carreras: cs.length, km: cs.reduce((s, c) => s + c.distancia_m, 0) / 1000,
+  horas: Math.round(cs.reduce((s, c) => s + c.tiempo_s, 0) / 360) / 10, desnivel_m: cs.reduce((s, c) => s + (c.desnivel_m || 0), 0) });
+async function abrirPerfil(sinSincronizar, reusarPerfil) {
   if (!sinSincronizar) hoja(`<div class="cargando"><div class="rueda"></div>${t("Cargando tu perfil de Strava…")}</div>`);
   const e = await fetch("/api/strava/estado").then((r) => r.json()).catch(() => ({}));
   if (!e.conectado) {
@@ -1860,24 +1893,38 @@ async function abrirPerfil(sinSincronizar) {
       <a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}${t("Conectar con Strava")}</a>`);
     return;
   }
-  const pf = await fetch("/api/strava/perfil").then((r) => r.ok ? r.json() : null).catch(() => null);
-  const lista = (await BD.todas()).filter((c) => c.tiempo_s !== undefined);
-  if (!lista.length && !sinSincronizar) sincronizar(e);
-  const hoy = new Date();
+  const pf = reusarPerfil && perfilGuardado ? perfilGuardado
+    : await fetch("/api/strava/perfil").then((r) => r.ok ? r.json() : null).catch(() => null);
+  perfilGuardado = pf;
+  const todas = (await BD.todas()).filter((c) => c.tiempo_s !== undefined);
+  if (!todas.length && !sinSincronizar) sincronizar(e);
+  const hoy = new Date(), esteAnio = hoy.getFullYear();
+  const anioDe = (c) => localDe(c).getFullYear();
+  const anios = [...new Set(todas.map(anioDe))].sort((a, b) => b - a);
+  if (anioPerfil && !anios.includes(anioPerfil)) anioPerfil = null;
+  const lista = anioPerfil ? todas.filter((c) => anioDe(c) === anioPerfil) : todas;
 
-  // Volumen y ritmo de las últimas 12 semanas
-  const sem0 = lunes(hoy); sem0.setDate(sem0.getDate() - 7 * 11);
-  const semanas = [...Array(12)].map((_, k) => { const d = new Date(sem0); d.setDate(d.getDate() + 7 * k);
+  // Volumen semanal: las últimas 12 semanas, o las semanas del año elegido
+  let sem0, nSem;
+  if (anioPerfil) {
+    sem0 = lunes(new Date(anioPerfil, 0, 1));
+    const finA = anioPerfil === esteAnio ? hoy : new Date(anioPerfil, 11, 31);
+    nSem = Math.round((lunes(finA) - sem0) / (7 * 864e5)) + 1;
+  } else { sem0 = lunes(hoy); sem0.setDate(sem0.getDate() - 7 * 11); nSem = 12; }
+  const semanas = [...Array(nSem)].map((_, k) => { const d = new Date(sem0); d.setDate(d.getDate() + 7 * k);
     return { ini: d, m: 0, s: 0, n: 0 }; });
   for (const c of lista) {
-    const k = Math.floor((lunes(localDe(c)) - sem0) / (7 * 864e5));
-    if (k >= 0 && k < 12) { semanas[k].m += c.distancia_m; semanas[k].s += c.tiempo_s; semanas[k].n++; }
+    const k = Math.round((lunes(localDe(c)) - sem0) / (7 * 864e5));    // round: cambios de horario
+    if (k >= 0 && k < nSem) { semanas[k].m += c.distancia_m; semanas[k].s += c.tiempo_s; semanas[k].n++; }
   }
-  const promSem = semanas.reduce((t, w) => t + w.m, 0) / 12 / 1000;
-  // Este año, mes a mes
-  const anio = hoy.getFullYear();
-  const meses = [...Array(hoy.getMonth() + 1)].map(() => ({ m: 0, n: 0 }));
-  for (const c of lista) { const d = localDe(c); if (d.getFullYear() === anio) { meses[d.getMonth()].m += c.distancia_m; meses[d.getMonth()].n++; } }
+  const promSem = semanas.reduce((t, w) => t + w.m, 0) / nSem / 1000;
+  // Mes a mes: este año, o el elegido
+  const anio = anioPerfil || esteAnio;
+  const meses = [...Array(anio === esteAnio ? hoy.getMonth() + 1 : 12)].map(() => ({ m: 0, s: 0, n: 0 }));
+  for (const c of todas) { const d = localDe(c); if (d.getFullYear() === anio) {
+    const x = meses[d.getMonth()]; x.m += c.distancia_m; x.s += c.tiempo_s; x.n++; } }
+  // Ritmo: por semana (últimas 12) o por mes (año elegido)
+  const serieRitmo = anioPerfil ? meses : semanas;
   // Récords
   const larga = lista.reduce((a, c) => (!a || c.distancia_m > a.distancia_m ? c : a), null);
   const subida = lista.reduce((a, c) => (!a || c.desnivel_m > a.desnivel_m ? c : a), null);
@@ -1889,8 +1936,9 @@ async function abrirPerfil(sinSincronizar) {
   // Rachas de semanas seguidas con al menos una carrera
   const conCarrera = new Set(Object.keys(porSemana));
   let actual = 0, d = lunes(hoy);
+  const conRachaActual = !anioPerfil || anioPerfil === esteAnio;
   if (!conCarrera.has(d.toISOString().slice(0, 10))) d.setDate(d.getDate() - 7);   // la semana en curso aún puede llegar
-  while (conCarrera.has(d.toISOString().slice(0, 10))) { actual++; d.setDate(d.getDate() - 7); }
+  while (conRachaActual && conCarrera.has(d.toISOString().slice(0, 10))) { actual++; d.setDate(d.getDate() - 7); }
   let maxima = 0, corrida = 0, prev = null;
   for (const k of [...conCarrera].sort()) {
     const t = new Date(k); corrida = prev && (t - prev) / 864e5 === 7 ? corrida + 1 : 1; maxima = Math.max(maxima, corrida); prev = t;
@@ -1907,15 +1955,21 @@ async function abrirPerfil(sinSincronizar) {
     <div class="atleta">${pf?.foto ? `<img src="${esc(pf.foto)}" alt="">` : '<div class="sin-foto"></div>'}
       <div><h2>${esc(pf ? `${pf.nombre} ${pf.apellido}` : e.nombre || t("Tú"))}</h2>
       <small>${esc([pf?.ciudad, pf?.desde ? t("en Strava desde {a}", { a: pf.desde.slice(0, 4) }) : ""].filter(Boolean).join(" · "))}</small></div></div>
-    ${pf ? `<div class="kpis">${kpi(t("4 semanas"), pf.recientes)}${kpi(String(anio), pf.anio)}${kpi(t("Histórico"), pf.historico)}</div>`
+    ${anios.length > 1 ? `<div class="anios" role="tablist" aria-label="${t("Año")}">
+      ${[null, ...anios].map((a) => `<button type="button" class="chip${a === anioPerfil ? " on" : ""}" data-a="${a ?? ""}">${a ?? t("Todo")}</button>`).join("")}</div>` : ""}
+    ${anioPerfil ? kpisAnio(todas, anioPerfil, anios, promSem, nSem)
+      : pf ? `<div class="kpis">${kpi(t("4 semanas"), pf.recientes)}${kpi(String(anio), pf.anio)}${kpi(t("Histórico"), pf.historico)}</div>`
          : `<p class="aviso">${t("No pude leer tus totales de Strava ahora.")}</p>`}
     ${lista.length ? `
     <div class="bloque"><h3>${t("Volumen semanal")}</h3>
-      <p class="sub">${t("Últimas 12 semanas · promedio {x} km por semana", { x: num(promSem, 1) })}</p>
-      ${barras("g-semanas", semanas.map((w) => ({ v: w.m / 1000 })), { etiquetaX: (_, i) => i % 3 === 0 ? fechaCorta(semanas[i].ini) : "" })}</div>
+      <p class="sub">${anioPerfil ? t("Semanas de {a} · promedio {x} km por semana", { a: anioPerfil, x: num(promSem, 1) })
+        : t("Últimas 12 semanas · promedio {x} km por semana", { x: num(promSem, 1) })}</p>
+      ${barras("g-semanas", semanas.map((w) => ({ v: w.m / 1000 })), { etiquetaX: (_, i) =>
+        (anioPerfil ? i % 9 === 0 : i % 3 === 0) ? fechaCorta(semanas[i].ini) : "" })}</div>
     <div class="bloque"><h3>${t("Ritmo medio")}</h3>
-      <p class="sub">${t("Por semana, ponderado por distancia (más arriba, más rápido)")}</p>
-      ${linea("g-ritmo", semanas.map((w) => ({ v: w.m ? w.s / (w.m / 1000) : null })), { formato: ritmo, invertir: true })}</div>
+      <p class="sub">${t(anioPerfil ? "Por mes, ponderado por distancia (más arriba, más rápido)"
+        : "Por semana, ponderado por distancia (más arriba, más rápido)")}</p>
+      ${linea("g-ritmo", serieRitmo.map((w) => ({ v: w.m ? w.s / (w.m / 1000) : null })), { formato: ritmo, invertir: true })}</div>
     <div class="bloque"><h3>${t("{a}, mes a mes", { a: anio })}</h3>
       <p class="sub">${t("{k} km en {n} carreras con GPS", { k: num(meses.reduce((s, x) => s + x.m, 0) / 1000), n: num(meses.reduce((s, x) => s + x.n, 0)) })}</p>
       ${barras("g-meses", meses.map((x) => ({ v: x.m / 1000 })), { etiquetaX: (_, i) => mesN(i) })}</div>
@@ -1924,18 +1978,22 @@ async function abrirPerfil(sinSincronizar) {
       ${record(t("Mejor ritmo (≥5 km)"), rapida ? ritmo(rapida.tiempo_s / (rapida.distancia_m / 1000)) : "–", rapida ? `${num(rapida.distancia_m / 1000, 1)} km · ${fecha(rapida)}` : "")}
       ${record(t("Mayor desnivel"), subida ? `${num(subida.desnivel_m)} m` : "–", fecha(subida))}
       ${record(t("Semana con más km"), mejorSem ? `${num(mejorSem[1] / 1000, 1)} km` : "–", mejorSem ? t("semana del {f}", { f: fechaCorta(new Date(mejorSem[0])) }) : "")}
-      ${record(t("Racha actual"), `${actual} ${t(actual === 1 ? "semana" : "semanas")}`, t("seguidas corriendo"))}
+      ${conRachaActual ? record(t("Racha actual"), `${actual} ${t(actual === 1 ? "semana" : "semanas")}`, t("seguidas corriendo")) : ""}
       ${record(t("Racha máxima"), `${maxima} ${t(maxima === 1 ? "semana" : "semanas")}`, t("seguidas corriendo"))}
     </div></div>
     <div class="bloque"><h3>${t("Hábitos")}</h3><div class="records">
       ${record(t("Día favorito"), (idioma === "en" ? DIAS_EN : DIAS)[dias.indexOf(Math.max(...dias))], `${Math.max(...dias)} ${t("carreras")}`)}
       ${record(t("Hora típica"), `${String(mediana(horas)).padStart(2, "0")}:00`, t("la mitad sale antes"))}
       ${record(t("Distancia típica"), `${num(mediana(dist) / 1000, 1)} km`, t("de {n} carreras", { n: num(lista.length) }))}
-      ${record(t("Ritmo de siempre"), ritmo(lista.reduce((t, c) => t + c.tiempo_s, 0) / (lista.reduce((t, c) => t + c.distancia_m, 0) / 1000)), t("promedio de todas"))}
+      ${record(t(anioPerfil ? "Ritmo del año" : "Ritmo de siempre"), ritmo(lista.reduce((t, c) => t + c.tiempo_s, 0) / (lista.reduce((t, c) => t + c.distancia_m, 0) / 1000)), t("promedio de todas"))}
     </div></div>` : `<p class="pista" id="sync">${t("Trayendo tus carreras de Strava…")}</p>`}
     <p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px"')} ${t("Con datos de Strava")}</p>`);
   activarGrafico("g-semanas", semanas.map((w) => t("Semana del {f}: {k} km · {n} {c}", { f: fechaCorta(w.ini), k: num(w.m / 1000, 1), n: w.n, c: t(w.n === 1 ? "carrera" : "carreras") })));
-  activarGrafico("g-ritmo", semanas.map((w) => w.m ? t("Semana del {f}: {r}", { f: fechaCorta(w.ini), r: ritmo(w.s / (w.m / 1000)) }) : ""));
+  activarGrafico("g-ritmo", anioPerfil
+    ? meses.map((x, i) => x.m ? `${mesN(i)} ${anio}: ${ritmo(x.s / (x.m / 1000))}` : "")
+    : semanas.map((w) => w.m ? t("Semana del {f}: {r}", { f: fechaCorta(w.ini), r: ritmo(w.s / (w.m / 1000)) }) : ""));
+  document.querySelectorAll(".anios .chip").forEach((b) => { b.onclick = () => {
+    anioPerfil = b.dataset.a ? +b.dataset.a : null; abrirPerfil(true, true); }; });
   activarGrafico("g-meses", meses.map((x, i) => t("{m} {a}: {k} km · {n} carreras", { m: mesN(i), a: anio, k: num(x.m / 1000, 1), n: x.n })));
 }
 
