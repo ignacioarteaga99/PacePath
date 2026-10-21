@@ -1,0 +1,40 @@
+name: Barrios (comunas)
+# Descarga de Overpass los límites de las comunas (admin_level=8) de las
+# regiones pedidas y los publica en la Release «nombres» (barrios_cl.json.gz).
+# El Pasaporte los usa para saber en qué comuna empieza cada carrera.
+on:
+  workflow_dispatch:
+    inputs:
+      regiones:
+        description: "Códigos ISO 3166-2 separados por coma"
+        required: true
+        default: "CL-RM,CL-VS"
+  push:
+    paths: [".github/workflows/barrios.yml", "scripts/ci_barrios.py"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: barrios
+  cancel-in-progress: true
+
+jobs:
+  barrios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REGIONES: ${{ inputs.regiones || 'CL-RM,CL-VS' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Descargar y publicar
+        run: |
+          gh release view nombres >/dev/null 2>&1 || gh release create nombres \
+            --title "Nombres de calle por comuna" --latest=false --target "$GITHUB_SHA" \
+            --notes "Generado por los workflows «Nombres de calle» y «Barrios». No borrar: el servidor los descarga desde aquí."
+          cd scripts && python ci_barrios.py ../dist "$REGIONES" | tee -a ../resumen.txt && cd ..
+          gh release upload nombres dist/barrios_cl.json.gz --clobber
+          cat resumen.txt >> "$GITHUB_STEP_SUMMARY"

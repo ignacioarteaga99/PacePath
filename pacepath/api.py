@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field, model_validator
 
 import numpy as np
 
-from . import ciudades, comunas, frecuencia, idioma, lugares, strava
+from . import ciudades, comunas, frecuencia, idioma, lugares, nombres, strava
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -73,7 +73,7 @@ class TextoSesion(BaseModel):
 
 class PedidoDonde(BaseModel):
     """Centros de los grupos de salidas de tus carreras (los calcula el teléfono)."""
-    puntos: list[tuple[float, float]] = Field(max_length=500)
+    puntos: list[tuple[float, float]] = Field(max_length=3000)
 
 
 class Frecuentes(BaseModel):
@@ -218,10 +218,20 @@ def strava_frecuencia(body: PedidoFrecuencia) -> dict:
         trazados = [frecuencia.decodificar(p) for p in body.polilineas if p]
         a, v = frecuencia.frecuencia(ctx, trazados)
         version = ctx.version
+        # Tus calles más repetidas (para el Pasaporte): por calle, las veces de
+        # su tramo más corrido.
+        calles: dict[str, int] = {}
+        tabla = nombres.tabla(ctx)
+        if tabla is not None and len(a):
+            for n, k in zip(tabla.de_aristas(ctx, a), v.tolist()):
+                if n and k > calles.get(n, 0):
+                    calles[n] = k
     orden = np.argsort(-v)[:frecuencia.MAX_ARISTAS]
     orden = orden[v[orden] >= 2]
+    top = sorted(calles.items(), key=lambda x: -x[1])[:10]
     return {"comuna": comuna, "version": version, "carreras": len(trazados),
-            "aristas": a[orden].tolist(), "veces": v[orden].tolist()}
+            "aristas": a[orden].tolist(), "veces": v[orden].tolist(),
+            "calles": [{"nombre": n, "veces": k} for n, k in top]}
 
 
 @app.post("/api/ruta")

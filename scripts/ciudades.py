@@ -18,9 +18,12 @@ filas = sorted(
       int(c["population"])]
      for c in geonamescache.GeonamesCache(min_city_population=15000).get_cities().values()),
     key=lambda f: -f[4])
+# Continente de cada país (AF, AN, AS, EU, NA, OC, SA), para el Pasaporte.
+continentes = {cc: c["continentcode"] for cc, c in geonamescache.GeonamesCache().get_countries().items()}
 destino = Path(__file__).resolve().parent.parent / "pacepath" / "datos" / "ciudades.json.gz"
 with gzip.open(destino, "wt", encoding="utf-8") as f:
     json.dump({"fuente": "GeoNames (geonames.org), CC BY 4.0",
-               "campos": ["nombre", "pais", "lat", "lon", "poblacion"], "ciudades": filas},
+               "campos": ["nombre", "pais", "lat", "lon", "poblacion"], "ciudades": filas,
+               "continentes": continentes},
               f, ensure_ascii=False, separators=(",", ":"))
 print(len(filas), "ciudades →", destino, destino.stat().st_size // 1024, "KB")

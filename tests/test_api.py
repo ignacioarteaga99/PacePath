@@ -98,6 +98,7 @@ def test_calles_de_siempre_y_favoritos():
         f = cli.post("/api/strava/frecuencia",
                      json={"lat": d.lat, "lon": d.lon, "polilineas": [poli] * 3}).json()
         assert f["carreras"] == 3 and len(f["aristas"]) > 50 and min(f["veces"]) == 3
+        assert isinstance(f["calles"], list)          # la región sintética no tiene nombres
         base = {"lat": d.lat, "lon": d.lon, "texto": "fondo 8k", "comuna": "demo"}
         r = cli.post("/api/ruta", json=base | {"frecuentes": {k: f[k] for k in ("version", "aristas", "veces")},
                                                 "favoritos": [coords]}).json()
