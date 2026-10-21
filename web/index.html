@@ -1847,6 +1847,7 @@ let vista = "hoy";
 
 function cambiarVista(v) {
   vista = v;
+  $("hoja").style.maxHeight = "";          // cada vista parte con la hoja a media altura
   document.body.classList.toggle("vista-ciudad", v === "ciudad");
   document.body.classList.toggle("vista-perfil", v === "perfil");
   $("tab-hoy").classList.toggle("on", v === "hoy");
