@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacidad · PacePath</title>
+<link rel="icon" href="/icons/icono-192.png">
+<style>
+  :root { --acento: #f2541b; --tinta: #1d1d21; --suave: #5d5d68; --linea: #e6e6ea; --fondo: #fff; }
+  @media (prefers-color-scheme: dark) { :root { --tinta: #f4f4f6; --suave: #a8a8b3; --linea: #2c2c33; --fondo: #141418; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 28px 18px 60px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .marca { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; color: var(--tinta); text-decoration: none; }
+  .marca img { width: 34px; height: 34px; border-radius: 9px; }
+  .idiomas a { color: var(--suave); font-weight: 700; text-decoration: none; margin-left: 10px; }
+  .idiomas a[aria-current] { color: var(--acento); }
+  h1 { font-size: 30px; line-height: 1.15; letter-spacing: -.6px; margin: 28px 0 6px; }
+  .fecha { color: var(--suave); font-size: 14px; margin: 0 0 22px; }
+  h2 { font-size: 18px; margin: 28px 0 6px; }
+  p, li { color: var(--tinta); }
+  ul { padding-left: 20px; }
+  li { margin: 4px 0; }
+  .nota { border: 1px solid var(--linea); border-radius: 12px; padding: 12px 14px; color: var(--suave); font-size: 14.5px; }
+  a { color: var(--acento); }
+  [lang="en"] { display: none; }
+  body.en [lang="es"] { display: none; }
+  body.en [lang="en"] { display: block; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <a class="marca" href="/"><img src="/icons/icono-192.png" alt="">PacePath</a>
+    <nav class="idiomas"><a href="?lang=es" id="es">ES</a><a href="?lang=en" id="en">EN</a></nav>
+  </header>
+
+  <section lang="es">
+    <h1>Privacidad</h1>
+    <p class="fecha">Versión beta · actualizada el 21 de octubre de 2026</p>
+    <p class="nota">Resumen: tus datos de Strava se usan sólo para mostrártelos a ti, quedan guardados en tu propio
+      teléfono, nunca se comparten con otras personas ni se venden, y al desconectar se borran y se revoca el acceso.</p>
+
+    <h2>Qué hace PacePath</h2>
+    <p>PacePath diseña rutas para correr según tu sesión de entrenamiento (series, tempo, fondo, cuestas,
+      regenerativo) sobre las calles de tu ciudad. Si quieres, conectas tu Strava para ver por dónde has corrido,
+      tu perfil y tu Pasaporte, y para que las rutas prefieran tus calles de siempre.</p>
+
+    <h2>Sin Strava</h2>
+    <ul>
+      <li>Para armar una ruta, tu teléfono envía a nuestro servidor el punto de salida, la sesión que escribiste y
+        tus opciones (volver o no, meta, desnivel, radio). El servidor calcula la ruta y responde; no la guarda.</li>
+      <li>Si buscas una dirección con número («Pocuro 2500»), ese texto se consulta en Nominatim, el buscador de
+        OpenStreetMap.</li>
+      <li>Tus preferencias (idioma, tipo de mapa, sesiones recientes y guardadas, tramos favoritos) quedan sólo en
+        tu teléfono.</li>
+    </ul>
+
+    <h2>Con Strava (opcional)</h2>
+    <ul>
+      <li>Pedimos permiso de sólo lectura (<code>read</code> y <code>activity:read_all</code>). Leemos tu perfil
+        (nombre, foto, ciudad), tus totales de carrera y tus carreras: fecha, distancia, tiempo, desnivel, frecuencia
+        cardíaca media, tipo y el trazado resumido. Strava entrega la lista de todas tus actividades: nos quedamos
+        sólo con las carreras y descartamos el resto. Nunca escribimos nada en tu cuenta.</li>
+      <li>Tus carreras se guardan <b>en tu teléfono</b> (en el navegador), no en nuestro servidor.</li>
+      <li>El acceso a Strava (los «tokens») va en una cookie cifrada que sólo nuestro servidor puede leer.</li>
+      <li>Para algunas funciones tu teléfono envía tus carreras al servidor, que las procesa en el momento y no las
+        guarda: tus calles de siempre, en qué ciudad, país y comuna empieza cada carrera, y tu foto para la tarjeta
+        del Pasaporte.</li>
+      <li>Tus datos de Strava no se muestran a otras personas, no se venden, no se usan para publicidad ni para
+        entrenar modelos de inteligencia artificial. No hay rankings entre usuarios.</li>
+      <li>La tarjeta del Pasaporte sólo se genera y comparte si tú tocas «Compartir».</li>
+    </ul>
+
+    <h2>Desconectar y borrar</h2>
+    <p>En «Mi ciudad», «Desconectar» revoca el acceso en Strava y borra tus carreras y todo lo calculado a partir
+      de ellas en tu teléfono. También puedes revocar el acceso desde la configuración de Strava
+      (Configuración → Mis aplicaciones). Lo demás se borra limpiando los datos del sitio en tu navegador.</p>
+
+    <h2>Métricas anónimas</h2>
+    <p>Para mejorar la beta contamos eventos sin datos personales: cuántas rutas se crean por tipo y comuna,
+      cuántas fallan, en qué comunas se piden rutas que aún no tienen mapa y los errores de la aplicación. No
+      registramos coordenadas, direcciones ni datos de Strava en estas métricas.</p>
+
+    <h2>Terceros</h2>
+    <ul>
+      <li><b>Strava</b>: conexión con tu cuenta (si la usas).</li>
+      <li><b>Esri y OpenStreetMap</b>: tu navegador descarga de ellos las imágenes del mapa.</li>
+      <li><b>Nominatim (OpenStreetMap)</b>: búsqueda de direcciones con número.</li>
+      <li><b>Render</b>: aloja el servidor; como cualquier proveedor, registra datos técnicos de las conexiones
+        (por ejemplo, la dirección IP) por seguridad y operación.</li>
+    </ul>
+    <p>Mapas y calles © colaboradores de OpenStreetMap (ODbL). Ciudades: GeoNames (CC BY 4.0).</p>
+
+    <h2>Tus derechos y contacto</h2>
+    <p>Puedes pedir acceso, rectificación o eliminación de tus datos (Ley 19.628 de Chile) y hacernos cualquier
+      consulta con el botón «Enviar comentario» de la aplicación.</p>
+  </section>
+
+  <section lang="en">
+    <h1>Privacy</h1>
+    <p class="fecha">Beta version · updated October 21, 2026</p>
+    <p class="nota">In short: your Strava data is only used to show it to you, it stays on your own phone, it is never
+      shared with other people or sold, and disconnecting deletes it and revokes access.</p>
+
+    <h2>What PacePath does</h2>
+    <p>PacePath designs running routes for your training session (intervals, tempo, long run, hills, easy run) on
+      your city's streets. Optionally, you connect Strava to see where you've run, your profile and your Passport,
+      and to let routes prefer your usual streets.</p>
+
+    <h2>Without Strava</h2>
+    <ul>
+      <li>To build a route, your phone sends our server the start point, the session you typed and your options
+        (return or not, finish point, climb, radius). The server computes the route and replies; it doesn't store it.</li>
+      <li>If you search an address with a number ("Pocuro 2500"), that text is looked up in Nominatim, OpenStreetMap's
+        search service.</li>
+      <li>Your preferences (language, map type, recent and saved sessions, favorite stretches) stay on your phone.</li>
+    </ul>
+
+    <h2>With Strava (optional)</h2>
+    <ul>
+      <li>We ask for read-only permission (<code>read</code> and <code>activity:read_all</code>). We read your
+        profile (name, photo, city), your running totals and your runs: date, distance, time, elevation, average
+        heart rate, type and the summary route. Strava returns the list of all your activities: we keep only the
+        runs and discard the rest. We never write anything to your account.</li>
+      <li>Your runs are stored <b>on your phone</b> (in the browser), not on our server.</li>
+      <li>Strava access ("tokens") is kept in an encrypted cookie that only our server can read.</li>
+      <li>For some features your phone sends your runs to the server, which processes them on the spot and doesn't
+        store them: your usual streets, the city, country and district where each run starts, and your photo for
+        the Passport card.</li>
+      <li>Your Strava data is not shown to other people, not sold, not used for advertising or to train AI models.
+        There are no rankings between users.</li>
+      <li>The Passport card is only created and shared if you tap "Share".</li>
+    </ul>
+
+    <h2>Disconnecting and deleting</h2>
+    <p>In "My city", "Disconnect" revokes access on Strava and deletes your runs and everything computed from them on
+      your phone. You can also revoke access from Strava's settings (Settings → My Apps). Everything else is deleted
+      by clearing this site's data in your browser.</p>
+
+    <h2>Anonymous metrics</h2>
+    <p>To improve the beta we count events without personal data: how many routes are created by type and district,
+      how many fail, in which districts people ask for routes that don't have a map yet, and app errors. These
+      metrics never include coordinates, addresses or Strava data.</p>
+
+    <h2>Third parties</h2>
+    <ul>
+      <li><b>Strava</b>: connection to your account (if you use it).</li>
+      <li><b>Esri and OpenStreetMap</b>: your browser downloads the map images from them.</li>
+      <li><b>Nominatim (OpenStreetMap)</b>: search for addresses with a number.</li>
+      <li><b>Render</b>: hosts the server; like any provider, it logs technical connection data (such as IP
+        addresses) for security and operations.</li>
+    </ul>
+    <p>Maps and streets © OpenStreetMap contributors (ODbL). Cities: GeoNames (CC BY 4.0).</p>
+
+    <h2>Your rights and contact</h2>
+    <p>You can ask to access, correct or delete your data (Chilean Law 19.628) and send us any question with the
+      "Send feedback" button in the app.</p>
+  </section>
+</main>
+<script>
+  // Idioma: ?lang=, o el que eligió en la app, o el del navegador.
+  const q = new URLSearchParams(location.search).get("lang");
+  let app = null; try { app = JSON.parse(localStorage.getItem("pp_lang")); } catch {}
+  const en = (q || app || navigator.language || "es").toLowerCase().startsWith("en");
+  document.body.classList.toggle("en", en);
+  document.documentElement.lang = en ? "en" : "es";
+  document.title = en ? "Privacy · PacePath" : "Privacidad · PacePath";
+  document.getElementById(en ? "en" : "es").setAttribute("aria-current", "true");
+</script>
+</body>
+</html>

@@ -30,3 +30,10 @@ services:
         value: "289395"
       - key: STRAVA_CLIENT_SECRET
         sync: false
+      # Beta: clave para ver las métricas anónimas en /api/uso?clave=… (invéntala
+      # larga y pégala en Render; sin ella, /api/uso no existe).
+      - key: PACEPATH_ADMIN
+        sync: false
+      # «1» cuando Strava apruebe la app (quita el aviso de beta junto al botón).
+      - key: PACEPATH_STRAVA_ABIERTO
+        value: "0"

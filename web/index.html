@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PacePath">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="La ruta perfecta para tu entrenamiento de hoy, por calles reales.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <title>PacePath</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='7' fill='%23f2541b'/%3E%3Cpath d='M7.5 19.5c0-4 4-4 5.5-6.5s-1.5-4.5 0-6.5c.7-.8 1.6-1 2.5-1' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='7.5' cy='19.5' r='2.2' fill='%23fff'/%3E%3Ccircle cx='18.6' cy='5.6' r='2.1' fill='none' stroke='%23fff' stroke-width='1.8'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
@@ -212,9 +218,27 @@
   body.vista-ciudad .plegado { display: none !important; }
   body.vista-ciudad .titulo-ciudad { display: inline; }
   .titulo-ciudad { display: none; font-weight: 800; font-size: 17px; }
-  .strava { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
-    background: #fc4c02; color: #fff; font-weight: 700; border-radius: 10px; padding: 12px;
-    text-decoration: none; font-size: 16px; }
+  /* «Connect with Strava» según la guía de marca de Strava (naranja #FC4C02, 48 px). */
+  .strava { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 48px;
+    background: #fc4c02; color: #fff; font-weight: 700; border-radius: 6px; padding: 0 16px;
+    text-decoration: none; font-size: 16px; letter-spacing: .1px; }
+  .aviso-beta { background: var(--gris); border-radius: 10px; padding: 10px 12px; font-size: 13.5px;
+    color: var(--suave); margin: 10px 0 0; }
+  .aviso-beta b { color: var(--tinta); }
+  .pie-hoja { margin: 18px 0 2px; text-align: center; font-size: 13px; color: var(--suave); }
+  .pie-hoja button, .pie-hoja a { background: none; border: 0; padding: 4px 2px; color: var(--suave);
+    font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; border-radius: 0; }
+  .pie-hoja button:hover, .pie-hoja a:hover { color: var(--acento); }
+  #dlgComentario { border: 0; border-radius: 18px; padding: 18px; width: min(420px, calc(100vw - 32px));
+    background: var(--panel); color: var(--tinta); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+  #dlgComentario::backdrop { background: rgba(10,10,14,.45); }
+  #dlgComentario h3 { margin: 0 0 4px; font-size: 18px; }
+  #dlgComentario p { margin: 0 0 10px; color: var(--suave); font-size: 14px; }
+  #dlgComentario textarea { width: 100%; min-height: 110px; font: inherit; font-size: 16px; padding: 10px 12px;
+    border: 1px solid var(--linea); border-radius: 12px; background: var(--gris); color: var(--tinta); resize: vertical; }
+  #dlgComentario label { display: flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--suave); margin: 8px 0 12px; }
+  #dlgComentario .fila { margin-top: 4px; }
+  .wa { background: #25d366; color: #0b2e17; }
   .strava svg { width: 18px; height: 18px; }
   .credito { color: var(--suave); font-size: 12px; margin-top: 10px; text-align: center; }
   .cifras.tres { grid-template-columns: repeat(3, 1fr); }
@@ -526,6 +550,13 @@
   </form>
 </header>
 
+<dialog id="dlgComentario" aria-labelledby="tituloComentario">
+  <h3 id="tituloComentario">Enviar comentario</h3><p></p>
+  <textarea maxlength="1500"></textarea>
+  <label><input type="checkbox" id="conContexto" checked> <span></span></label>
+  <div class="fila"><button type="button" class="wa" id="enviarComentario">Enviar por WhatsApp</button>
+    <button type="button" class="sec" id="cancelarComentario">Cancelar</button></div>
+</dialog>
 <div id="hoja">
   <div class="asa"></div>
   <p class="pista" data-i18n>Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.</p>
@@ -721,6 +752,19 @@ const EN = {
   "Nivel {n} · {nombre}": "Level {n} · {nombre}",
   "Subes de nivel con puntos: 1 por km, 25 por ciudad nueva, 100 por país, 500 por continente y 50, 150 o 400 por cada logro de bronce, plata u oro.": "You level up with points: 1 per km, 25 per new city, 100 per country, 500 per continent and 50, 150 or 400 for each bronze, silver or gold achievement.",
   "Te faltan {n} puntos para el nivel {s}.": "{n} more points to reach level {s}.",
+  "Beta:": "Beta:",
+  "mientras Strava revisa PacePath, la conexión con Strava está habilitada sólo para algunas cuentas. Las rutas funcionan para todos, sin conectar nada.": "while Strava reviews PacePath, connecting Strava is only enabled for a few accounts. Routes work for everyone without connecting anything.",
+  "Strava todavía no deja que más personas conecten PacePath: la app está en revisión. Mientras tanto, las rutas funcionan sin conectar nada.": "Strava doesn't yet let more people connect PacePath: the app is under review. Meanwhile, routes work without connecting anything.",
+  "Enviar comentario": "Send feedback",
+  "Privacidad": "Privacy",
+  "¿Qué funcionó, qué no, qué te gustaría? Se abre WhatsApp con tu mensaje: elige el grupo de la beta.": "What worked, what didn't, what would you like? WhatsApp opens with your message: pick the beta group.",
+  "Ej.: la ruta de series me mandó por una calle con mucho tráfico…": "E.g.: the interval route sent me down a busy street…",
+  "Incluir lo que estaba haciendo ({c})": "Include what I was doing ({c})",
+  "Enviar por WhatsApp": "Send via WhatsApp",
+  "Cancelar": "Cancel",
+  "vista: {v}": "view: {v}",
+  "trazar a mano": "drawing by hand",
+  "sesión «{s}»": "session “{s}”",
   "Todo": "All time", "Año": "Year", "vs {a}": "vs {a}", "{k} km en {a}": "{k} km in {a}", "{k} km a esta fecha en {a}": "{k} km by this date in {a}",
   "sin carreras en {a}": "no runs in {a}", "Por semana": "Per week", "{n} carreras por semana": "{n} runs per week",
   "Tus carreras con GPS guardadas en este teléfono.": "Your GPS runs saved on this phone.",
@@ -854,9 +898,12 @@ new ResizeObserver(medirCabecera).observe(document.querySelector("header"));
 const esEscritorio = () => window.matchMedia("(min-width: 900px)").matches;
 
 let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), animacion = null;
+const PIE_HOJA = () => `<p class="pie-hoja"><button type="button" data-comentario>💬 ${t("Enviar comentario")}</button>
+  · <a href="/privacidad" target="_blank" rel="noopener">${t("Privacidad")}</a></p>`;
 const hoja = (html) => {
   $("hoja").classList.remove("plegada");
-  $("hoja").innerHTML = '<button class="asa" type="button" aria-label="' + t("Plegar o desplegar") + '"></button>' + html;
+  const pie = html.includes('class="cargando"') ? "" : PIE_HOJA();       // no en las esperas
+  $("hoja").innerHTML = '<button class="asa" type="button" aria-label="' + t("Plegar o desplegar") + '"></button>' + html + pie;
   activarPerfil();
 };
 // Hoja del teléfono: el asa se arrastra y la hoja sigue al dedo; al soltar
@@ -1819,6 +1866,10 @@ $("tab-hoy").onclick = (e) => { e.preventDefault(); cambiarVista("hoy"); };
 $("tab-ciudad").onclick = (e) => { e.preventDefault(); cambiarVista("ciudad"); };
 $("tab-perfil").onclick = (e) => { e.preventDefault(); cambiarVista("perfil"); };
 
+const STRAVA_CONECTAR = () => `<a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}Connect with Strava</a>`;
+const POWERED_STRAVA = () => `<p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px;color:#fc4c02"')} Powered by Strava</p>`;
+// Mientras Strava revisa la app, sólo pocas cuentas pueden conectarse.
+const AVISO_BETA = (e) => e && e.abierto ? "" : `<p class="aviso-beta"><b>${t("Beta:")}</b> ${t("mientras Strava revisa PacePath, la conexión con Strava está habilitada sólo para algunas cuentas. Las rutas funcionan para todos, sin conectar nada.")}</p>`;
 const LOGO_STRAVA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.4 17.9 13.3 13.7h-3l5.1 10 5.1-10h-3zM10.1 0 3.3 13.7h4l2.8-5.5 2.8 5.5h4z"/></svg>';
 
 async function abrirCiudad(aviso) {
@@ -1830,7 +1881,7 @@ async function abrirCiudad(aviso) {
       <div class="tipo">${t("Mi ciudad")}</div><h2>${t("Las calles que ya corriste")}</h2>
       <p class="pista">${t("Conecta tu Strava y PacePath dibuja todas tus carreras como un mapa de calor: lo que más repites se ve más intenso.")}</p>
       ${e.configurado === false ? `<p class="aviso">${t("Strava no está configurado en el servidor.")}</p>`
-        : `<a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}${t("Conectar con Strava")}</a>`}
+        : STRAVA_CONECTAR() + AVISO_BETA(e)}
       <p class="credito">${t("Se leen tus carreras sólo para mostrártelas a ti; quedan guardadas en este teléfono. Al desconectar se borra todo y se revoca el acceso.")}</p>
       ${seccionPreferencias(false)}`);
     activarPreferencias();
@@ -1863,7 +1914,7 @@ async function dibujarCalor(e, aviso, encuadrar) {
     ${seccionPreferencias(true)}
     <div class="fila"><button class="sec" id="actualizar" type="button">${t("Actualizar")}</button>
       <button class="sec" id="desconectar" type="button">${t("Desconectar")}</button></div>
-    <p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px"')} ${t("Con datos de Strava")}</p>`);
+    ${POWERED_STRAVA()}`);
   activarPreferencias();
   $("actualizar").onclick = () => sincronizar(e);
   $("desconectar").onclick = async () => {
@@ -2294,7 +2345,9 @@ async function pintarPasaporte2(todas, pf, nombre) {
     if (!$("pasaporte")) return null;
     const P = calcularPasaporte(todas, lugares, pf, calles);
     $("pasaporte").innerHTML = htmlPasaporte(P);
-    $("compartirPasaporte").onclick = () => compartirPasaporte(P, nombre);
+    $("compartirPasaporte").onclick = () => { compartirPasaporte(P, nombre);
+      fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "compartir_pasaporte" }) }).catch(() => {}); };
     activarInfoPasaporte();
     return P;
   };
@@ -2414,7 +2467,7 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
   if (!e.conectado) {
     hoja(`<div class="tipo">${t("Perfil")}</div><h2>${t("Tu historial de carrera")}</h2>
       <p class="pista">${t("Conecta tu Strava para ver tus kilómetros de las últimas semanas, del año y de siempre, tus récords y tus hábitos.")}</p>
-      <a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}${t("Conectar con Strava")}</a>`);
+      ${STRAVA_CONECTAR()}${AVISO_BETA(e)}`);
     return;
   }
   const pf = reusarPerfil && perfilGuardado ? perfilGuardado
@@ -2512,7 +2565,7 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
       ${record(t("Distancia típica"), `${num(mediana(dist) / 1000, 1)} km`, t("de {n} carreras", { n: num(lista.length) }))}
       ${record(t(anioPerfil ? "Ritmo del año" : "Ritmo de siempre"), ritmo(lista.reduce((t, c) => t + c.tiempo_s, 0) / (lista.reduce((t, c) => t + c.distancia_m, 0) / 1000)), t("promedio de todas"))}
     </div></div>` : `<p class="pista" id="sync">${t("Trayendo tus carreras de Strava…")}</p>`}
-    <p class="credito">${LOGO_STRAVA.replace("<svg", '<svg style="width:12px;height:12px;vertical-align:-1px"')} ${t("Con datos de Strava")}</p>`);
+    ${POWERED_STRAVA()}`);
   activarGrafico("g-semanas", semanas.map((w) => t("Semana del {f}: {k} km · {n} {c}", { f: fechaCorta(w.ini), k: num(w.m / 1000, 1), n: w.n, c: t(w.n === 1 ? "carrera" : "carreras") })));
   activarGrafico("g-ritmo", anioPerfil
     ? meses.map((x, i) => x.m ? `${mesN(i)} ${anio}: ${ritmo(x.s / (x.m / 1000))}` : "")
@@ -2527,6 +2580,7 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
 if (location.hash.startsWith("#ciudad")) {
   const motivo = { "#ciudad-cancelado": t("Cancelaste la conexión con Strava."),
                    "#ciudad-error": t("No se pudo completar la conexión con Strava. Intenta de nuevo."),
+                   "#ciudad-limite": t("Strava todavía no deja que más personas conecten PacePath: la app está en revisión. Mientras tanto, las rutas funcionan sin conectar nada."),
                    "#ciudad-sin-permiso": t("Strava quedó conectado, pero sin permiso para leer tus actividades: desconecta y vuelve a conectar marcando ese permiso.") }[location.hash];
   history.replaceState(null, "", location.pathname);
   cambiarVista("ciudad");
@@ -2564,6 +2618,56 @@ $("botonIdioma").onclick = () => {
 aplicarIdioma();
 ponerNoche(noche);
 medirCabecera();
+// ── Comentarios de la beta: se escriben aquí y se mandan por WhatsApp (el
+// corredor elige el grupo). Va un poco de contexto para entender el caso.
+$("hoja").addEventListener("click", (e) => { if (e.target.closest("[data-comentario]")) abrirComentario(); });
+function contextoComentario() {
+  const ua = navigator.userAgent, equipo = /iPhone|iPad/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : "computador";
+  const app = window.matchMedia("(display-mode: standalone)").matches ? "app" : "navegador";
+  const cosas = [t("vista: {v}", { v: { hoy: t("Hoy"), ciudad: t("Mi ciudad"), perfil: t("Perfil") }[vista] || vista })];
+  if (vista === "hoy") cosas.push(modo === "trazar" ? t("trazar a mano") : t("sesión «{s}»", { s: $("texto").value }));
+  if (vista === "hoy" && $("desde").value) cosas.push(t("desde {d}", { d: $("desde").value }));
+  cosas.push(`${equipo} · ${app} · ${idioma.toUpperCase()}`);
+  return cosas.join(" · ");
+}
+function abrirComentario() {
+  const d = $("dlgComentario");
+  d.querySelector("h3").textContent = t("Enviar comentario");
+  d.querySelector("p").textContent = t("¿Qué funcionó, qué no, qué te gustaría? Se abre WhatsApp con tu mensaje: elige el grupo de la beta.");
+  d.querySelector("textarea").placeholder = t("Ej.: la ruta de series me mandó por una calle con mucho tráfico…");
+  d.querySelector("label span").textContent = t("Incluir lo que estaba haciendo ({c})", { c: contextoComentario() });
+  d.querySelector("#enviarComentario").textContent = t("Enviar por WhatsApp");
+  d.querySelector("#cancelarComentario").textContent = t("Cancelar");
+  d.showModal();
+  d.querySelector("textarea").focus();
+}
+$("cancelarComentario").onclick = () => $("dlgComentario").close();
+$("dlgComentario").addEventListener("click", (e) => { if (e.target === $("dlgComentario")) $("dlgComentario").close(); });
+$("enviarComentario").onclick = () => {
+  const texto = $("dlgComentario").querySelector("textarea").value.trim();
+  if (!texto) { $("dlgComentario").querySelector("textarea").focus(); return; }
+  const contexto = $("conContexto").checked ? `\n\n(${contextoComentario()})` : "";
+  fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tipo: "comentario", detalle: vista }) }).catch(() => {});
+  window.open("https://wa.me/?text=" + encodeURIComponent(`PacePath beta — ${texto}${contexto}`), "_blank", "noopener");
+  $("dlgComentario").querySelector("textarea").value = "";
+  $("dlgComentario").close();
+};
+
+// Errores de la interfaz: se cuentan (anónimos, máx. 5 por visita) para arreglarlos.
+let erroresEnviados = 0;
+const reportarError = (msg) => {
+  if (++erroresEnviados > 5 || !msg) return;
+  navigator.sendBeacon?.("/api/evento", new Blob([JSON.stringify({ tipo: "error_js", detalle: String(msg).slice(0, 190) })],
+    { type: "application/json" }));
+};
+window.addEventListener("error", (e) => reportarError(e.message));
+window.addEventListener("unhandledrejection", (e) => reportarError(e.reason?.message || e.reason));
+window.addEventListener("appinstalled", () => fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ tipo: "instalar" }) }).catch(() => {}));
+
+// App instalable: el service worker (no guarda nada en caché).
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 // Al abrir: la pista con tus sesiones guardadas y recientes (si no vienes de Strava).
 if (vista === "hoy" && !document.body.classList.contains("con-ruta"))
   inicioHoja(t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa."));

@@ -18,11 +18,15 @@
     POST /api/strava/frecuencia  tus carreras → calles de siempre (no se guarda)
     GET  /api/strava/perfil      perfil y totales (4 semanas, año, histórico)
     GET  /api/strava/foto        tu foto de perfil (para la tarjeta del Pasaporte)
+    POST /api/evento             eventos anónimos del teléfono (errores, comentarios)
+    GET  /api/uso?clave=         métricas de la beta (clave = PACEPATH_ADMIN)
+    GET  /privacidad             política de privacidad
     POST /api/strava/desconectar revoca el acceso en Strava y borra la cookie
 """
 from __future__ import annotations
 
 import os
+import secrets
 import threading
 from pathlib import Path
 from typing import Literal
@@ -34,7 +38,7 @@ from pydantic import BaseModel, Field, model_validator
 
 import numpy as np
 
-from . import ciudades, comunas, frecuencia, idioma, lugares, nombres, strava
+from . import ciudades, comunas, frecuencia, idioma, lugares, nombres, strava, uso
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -49,6 +53,7 @@ app = FastAPI(title="PacePath", version="0.1.0")
 # seguro entre hilos) y en 512 MB tampoco caben dos comunas cargando a la vez.
 _motor = threading.Lock()
 app.mount("/vendor", StaticFiles(directory=WEB / "vendor"), name="vendor")
+app.mount("/icons", StaticFiles(directory=WEB / "icons"), name="icons")
 
 
 @app.middleware("http")
@@ -114,8 +119,51 @@ class PedidoRuta(BaseModel):
 
 
 @app.get("/", include_in_schema=False)
-def index() -> FileResponse:
+def index(origen: str | None = None) -> FileResponse:
+    uso.registrar("visita", "app instalada" if origen == "app" else None)
     return FileResponse(WEB / "index.html")
+
+
+EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar"}
+
+
+class Evento(BaseModel):
+    tipo: str = Field(max_length=40)
+    detalle: str | None = Field(default=None, max_length=200)
+
+
+@app.post("/api/evento", include_in_schema=False)
+def evento(body: Evento) -> dict:
+    """Eventos anónimos del teléfono (errores de la interfaz, comentarios enviados…)."""
+    if body.tipo in EVENTOS_CLIENTE:
+        uso.registrar(body.tipo, body.detalle)
+    return {"ok": True}
+
+
+@app.get("/api/uso", include_in_schema=False)
+def ver_uso(clave: str = "") -> dict:
+    """Métricas de la beta. Sólo con la clave de PACEPATH_ADMIN (variable en Render)."""
+    admin = os.environ.get("PACEPATH_ADMIN", "")
+    if not admin or not secrets.compare_digest(clave, admin):
+        raise HTTPException(404, "Not Found")
+    return uso.resumen()
+
+
+# App instalable (PWA): manifiesto y service worker en la raíz (su alcance es «/»).
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifiesto() -> FileResponse:
+    return FileResponse(WEB / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker() -> FileResponse:
+    return FileResponse(WEB / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/privacidad", include_in_schema=False)
+@app.get("/privacy", include_in_schema=False)
+def privacidad() -> FileResponse:
+    return FileResponse(WEB / "privacidad.html")
 
 
 @app.get("/api/salud")
@@ -150,17 +198,29 @@ def sesion(body: TextoSesion) -> dict:
     return s.model_dump(mode="json") | {"resumen": s.resumen}
 
 
+def _fuera_de_mapa(lat: float, lon: float):
+    """Fuera de las comunas con grafo: decir cuáles hay y contar la que se pidió
+    (sólo su nombre, para saber qué comunas agregar)."""
+    lugar = ciudades.nombrar(lat, lon) or {}
+    uso.registrar("fuera_de_mapa", lugar.get("barrio") or lugar.get("ciudad") or "?", lugar.get("pais"))
+    hay = ", ".join(c["nombre"] for c in comunas.disponibles())
+    raise HTTPException(422, tr(f"Todavía no hay mapa ahí. Por ahora PacePath funciona en: {hay}. "
+                                "Cuéntanos tu comuna en «Enviar comentario».",
+                                f"There's no map there yet. For now PacePath works in: {hay}. "
+                                "Tell us your area with “Send feedback”."))
+
+
 def _plan(body: PedidoRuta) -> dict:
     try:
         s = body.sesion or interpretar(body.texto or "")
     except ValueError as exc:
+        uso.registrar("sesion_no_entendida")
         raise HTTPException(422, str(exc)) from exc
     if body.max_subida_m is not None:
         s = s.model_copy(update={"max_subida_m": body.max_subida_m})
     comuna = body.comuna or comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
-        raise HTTPException(422, tr("Ese punto no está en ninguna comuna con mapa todavía.",
-                                 "That point isn't in any area with a map yet."))
+        _fuera_de_mapa(body.lat, body.lon)
     try:
         with _motor:
             ctx = comunas.contexto(comuna)
@@ -170,8 +230,11 @@ def _plan(body: PedidoRuta) -> dict:
                               preferidas=pref, radio_max_m=body.radio_max_m,
                               forma=body.forma, n_vueltas=body.vueltas)
             plan["preferencias"] = info
+            uso.registrar("ruta", s.tipo.value, comuna, body.forma if body.forma != "auto" else None,
+                          "sin volver" if not body.volver else None, "strava" if info["frecuentes"] else None)
             return plan
     except SinTramo as exc:
+        uso.registrar("ruta_sin_tramo", s.tipo.value, comuna)
         raise HTTPException(404, str(exc)) from exc
 
 
@@ -212,8 +275,7 @@ def strava_frecuencia(body: PedidoFrecuencia) -> dict:
     al teléfono, que la adjunta al pedir rutas."""
     comuna = comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
-        raise HTTPException(422, tr("Ese punto no está en ninguna comuna con mapa todavía.",
-                                 "That point isn't in any area with a map yet."))
+        _fuera_de_mapa(body.lat, body.lon)
     with _motor:
         ctx = comunas.contexto(comuna)
         trazados = [frecuencia.decodificar(p) for p in body.polilineas if p]
@@ -244,8 +306,7 @@ def _trazado(body: PedidoTrazado) -> dict:
     p0 = body.puntos[0]
     comuna = comunas.comuna_para(p0.lat, p0.lon)
     if comuna is None:
-        raise HTTPException(422, tr("Ese punto no está en ninguna comuna con mapa todavía.",
-                                 "That point isn't in any area with a map yet."))
+        _fuera_de_mapa(p0.lat, p0.lon)
     try:
         with _motor:
             ctx = comunas.contexto(comuna)
@@ -262,6 +323,7 @@ def trazar_ruta(body: PedidoTrazado) -> dict:
 
 @app.post("/api/trazar.gpx")
 def trazar_gpx(body: PedidoTrazado) -> Response:
+    uso.registrar("gpx", "trazado")
     return Response(plan_a_gpx(_trazado(body)), media_type="application/gpx+xml",
                     headers={"Content-Disposition": 'attachment; filename="pacepath-trazado.gpx"'})
 
@@ -269,6 +331,7 @@ def trazar_gpx(body: PedidoTrazado) -> Response:
 @app.post("/api/ruta.gpx")
 def ruta_gpx(body: PedidoRuta) -> Response:
     plan = _plan(body)
+    uso.registrar("gpx", plan["sesion"]["tipo"])
     nombre = plan["sesion"]["resumen"].split(" (")[0].replace("×", "x").replace(" ", "")
     return Response(plan_a_gpx(plan), media_type="application/gpx+xml",
                     headers={"Content-Disposition": f'attachment; filename="pacepath-{nombre}.gpx"'})
@@ -313,8 +376,13 @@ def strava_vuelta(request: Request, code: str | None = None, state: str | None =
         return RedirectResponse(destino + "-error")
     try:
         s = strava.canjear_codigo(code, scope)
+    except strava.StravaLimite:
+        uso.registrar("strava_limite")
+        return RedirectResponse(destino + "-limite")
     except strava.StravaError:
+        uso.registrar("strava_error")
         return RedirectResponse(destino + "-error")
+    uso.registrar("strava_conectado")
     resp = RedirectResponse(destino if "activity:read" in scope else destino + "-sin-permiso")
     _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
     resp.delete_cookie(strava.COOKIE_ESTADO)
@@ -329,7 +397,10 @@ def strava_estado(request: Request) -> dict:
             # debe ser el «Authorization Callback Domain» de la app de Strava.
             "vuelta": f"{_base(request)}/api/strava/vuelta",
             "nombre": s.nombre if s else None,
-            "privadas": bool(s and "activity:read_all" in s.alcance)}
+            "privadas": bool(s and "activity:read_all" in s.alcance),
+            # Mientras Strava no apruebe la app, sólo pocas cuentas pueden conectarse:
+            # PACEPATH_STRAVA_ABIERTO=1 en Render cuando la aprueben (quita el aviso).
+            "abierto": os.environ.get("PACEPATH_STRAVA_ABIERTO") == "1"}
 
 
 @app.get("/api/strava/actividades")

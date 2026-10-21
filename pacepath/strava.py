@@ -47,6 +47,11 @@ class StravaError(Exception):
     pass
 
 
+class StravaLimite(StravaError):
+    """La app de Strava llegó a su tope de atletas conectados (1 hasta que
+    Strava la revise y apruebe)."""
+
+
 def client_id() -> str:
     return os.environ.get("STRAVA_CLIENT_ID", "")
 
@@ -107,6 +112,16 @@ def _http(metodo: str, url: str, datos: dict | None = None,
                                  "Prueba en 15 minutos.",
                                  "Strava asks us to wait (API rate limit). Try again in "
                                  "15 minutes.")) from exc
+        if exc.code == 403:
+            try:
+                cuerpo = exc.read().decode("utf-8", "replace").lower()
+            except Exception:  # noqa: BLE001
+                cuerpo = ""
+            if "limit" in cuerpo:
+                raise StravaLimite(tr("Strava todavía limita cuántas personas pueden conectar "
+                                      "PacePath (la app está en revisión).",
+                                      "Strava still limits how many people can connect PacePath "
+                                      "(the app is under review).")) from exc
         if exc.code in (401, 403):
             raise StravaError(tr("Strava rechazó el acceso: vuelve a conectar.",
                                  "Strava rejected access: please reconnect.")) from exc
