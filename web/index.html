@@ -65,15 +65,17 @@
   body.modo-trazar .solo-sesion { display: none; }
   body.modo-trazar #hoja { max-height: 28vh; }
   .continuo { display: none; gap: 8px; margin-top: 8px; align-items: center; }
-  body.sesion-continua:not(.modo-trazar) .continuo,
-  body.sesion-tope:not(.modo-trazar) .continuo { display: flex; }
-  body:not(.sesion-continua) .continuo .interruptor { display: none; }
+  body:not(.modo-trazar) .continuo { display: flex; }
   .campo.meta { display: none; }
   .tope { display: none; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
   body.sesion-tope:not(.modo-trazar) .tope { display: flex; }
+  .plano { display: none; flex: none; border: 1px solid var(--linea); background: var(--panel); color: var(--tinta);
+    border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  body.sesion-tope:not(.modo-trazar) .plano { display: inline-block; }
+  .plano[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #fff; }
   .tope input { width: 84px; font-size: 16px; padding: 8px 10px; border-radius: 10px;
     border: 1px solid var(--linea); background: var(--gris); color: var(--tinta); }
-  body.sesion-continua:not(.modo-trazar):not(.volver) .campo.meta { display: flex; }
+  body:not(.modo-trazar):not(.volver) .campo.meta { display: flex; }
   .interruptor { display: flex; align-items: center; gap: 8px; flex: 1; font-size: 14px; font-weight: 600; }
   .interruptor input { width: 22px; height: 22px; accent-color: var(--acento); }
   .num { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 2px solid var(--acento);
@@ -176,7 +178,8 @@
   body.vista-perfil .plegado { display: none !important; }
   body.vista-perfil .titulo-perfil { display: inline; }
   .titulo-perfil { display: none; font-weight: 800; font-size: 17px; }
-  body.vista-perfil #hoja { max-height: 80vh; }
+  /* hasta debajo de la tarjeta de idioma y día/noche (sobre la barra de abajo) */
+  body.vista-perfil #hoja { max-height: calc(100dvh - var(--cab, 120px) - 180px - env(safe-area-inset-bottom)); }
   body.vista-perfil #botonCapas, body.vista-perfil #menuCapas { display: none !important; }
   body.vista-ciudad #form, body.vista-ciudad .modos, body.vista-ciudad .chips,
   body.vista-ciudad .plegado { display: none !important; }
@@ -275,7 +278,7 @@
     background-position: center; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); transition: box-shadow .15s; }
   #menuCapas button.on i { box-shadow: 0 0 0 2.5px var(--acento); }
   #menuCapas button.on { color: var(--acento); }
-  #escalaCalor { top: calc(var(--cab, 120px) + 110px) !important; }
+  #escalaCalor { top: calc(var(--cab, 120px) + 154px) !important; }
 
   /* ── Computador: panel lateral fijo y el mapa al lado ───────────────────── */
   @media (min-width: 900px) {
@@ -359,6 +362,8 @@
       <label class="interruptor"><input type="checkbox" id="volverSesion" checked> <span data-i18n>Volver a la salida</span></label>
       <label class="tope"><span data-i18n>Desnivel máx.</span> <input id="tope" type="number" inputmode="numeric" min="0"
         step="10" placeholder="sin límite" data-i18n-ph="sin límite" aria-label="Desnivel positivo máximo en metros"> m</label>
+      <button type="button" class="plano" id="plano" aria-pressed="false"
+        data-i18n-aria="Plano: máx. 5 m de subida por km" data-i18n>Plano</button>
     </div>
     <div class="campo meta">
       <label for="meta" data-i18n>Meta</label>
@@ -406,7 +411,7 @@ const $ = (id) => document.getElementById(id);
 let idioma = (() => { try { const v = JSON.parse(localStorage.getItem("pp_lang")); if (v) return v; } catch {}
   return (navigator.language || "es").toLowerCase().startsWith("en") ? "en" : "es"; })();
 const EN = {
-  "Tipo de mapa": "Map type", "Claro": "Light", "Calles": "Streets", "Relieve": "Terrain",
+  "Tipo de mapa": "Map type", "Plano": "Flat", "Plano: máx. 5 m de subida por km": "Flat: max 5 m of climb per km", "Claro": "Light", "Calles": "Streets", "Relieve": "Terrain",
   "Híbrido": "Hybrid", "Satélite": "Satellite", "veces": "times",
   "Para mi sesión": "For my session", "Trazar a mano": "Draw by hand", "Mi ciudad": "My city",
   "Perfil": "Profile", "Hoy": "Today", "Series": "Intervals", "Tempo": "Tempo",
@@ -431,7 +436,8 @@ const EN = {
   "Buscando tu ubicación…": "Finding your location…",
   "No pude leer tu ubicación (revisa el permiso). Escribe una calle o toca el mapa.":
     "I couldn't read your location (check the permission). Type a street or tap the map.",
-  "Sin resultados: prueba «Pocuro con Tobalaba» o toca el mapa": "No results: try «Pocuro con Tobalaba» or tap the map",
+  "Sin resultados: prueba «Pocuro 2500» o «Pocuro con Tobalaba», o toca el mapa": "No results: try «Pocuro 2500» or «Pocuro con Tobalaba», or tap the map",
+  "No encontré «{q}». Prueba con calle y número, una esquina («Pocuro con Tobalaba») o toca el mapa.": "I couldn't find «{q}». Try street and number, a corner («Pocuro con Tobalaba») or tap the map.",
   "Toca el mapa para ir marcando por dónde quieres pasar. El primer punto es la salida; puedes arrastrar cualquier punto.":
     "Tap the map to mark where you want to go. The first point is the start; you can drag any point.",
   "No pude unir ese punto.": "I couldn't connect that point.",
@@ -605,7 +611,7 @@ const pin = (clase, color) => L.divIcon({ className: "", iconSize: [22, 22], ico
 function fijarSalida(lat, lon, nombre, centrar = false) {
   if (modo === "trazar") {
     // En el modo trazar, buscar o «Cerca de mí» fija el primer punto (la salida).
-    $("desde").value = nombre || "";
+    $("desde").value = $("desde").dataset.elegido = nombre || "";
     if (puntos.length) puntos[0] = [lat, lon]; else puntos.push([lat, lon]);
     salida = { lat, lon };
     pintarPuntos();
@@ -613,7 +619,7 @@ function fijarSalida(lat, lon, nombre, centrar = false) {
     return puntos.length > 1 ? recalcular(null) : hoja(`<p class="pista">${t("Salida marcada. Toca el mapa para agregar puntos.")}</p>`);
   }
   salida = { lat, lon };
-  $("desde").value = nombre || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  $("desde").value = $("desde").dataset.elegido = nombre || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
   if (marcaSalida) marcaSalida.setLatLng([lat, lon]);
   else {
     marcaSalida = L.marker([lat, lon], { icon: pin("salida"), draggable: true, zIndexOffset: 1000 }).addTo(mapa);
@@ -646,39 +652,56 @@ $("cerca").onclick = () => {
 };
 
 // Buscador de lugares para un campo (salida o meta).
+// Con número («Pocuro 2500») responde el geocodificador, que pide calma: se
+// espera a que se deje de escribir. Enter elige la primera sugerencia.
+const buscarLugares = (q) => fetch("/api/lugares?q=" + encodeURIComponent(q)).then((x) => x.json()).catch(() => []);
 function conectarBusqueda(campo, lista, alElegir) {
-  let busqueda = 0;
+  let busqueda = 0, ultimos = [];
+  $(campo).addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { $(lista).style.display = "none"; return; }
+    if (e.key !== "Enter" || !ultimos.length || $(lista).style.display === "none") return;
+    e.preventDefault(); $(lista).style.display = "none"; alElegir(ultimos[0]);
+  });
   $(campo).addEventListener("input", () => {
     const q = $(campo).value.trim(), yo = ++busqueda;
+    ultimos = [];
     if (q.length < 3) { $(lista).style.display = "none"; return; }
     setTimeout(async () => {
       if (yo !== busqueda) return;
-      const r = await fetch("/api/lugares?q=" + encodeURIComponent(q)).then((x) => x.json()).catch(() => []);
+      const r = await buscarLugares(q);
       if (yo !== busqueda) return;
+      ultimos = r;
       $(lista).innerHTML = r.length
         ? r.map((l, i) => `<button type="button" data-i="${i}">${esc(l.nombre)}<small>${esc(l.comuna.replace("_", " "))}</small></button>`).join("")
-        : `<button type="button" disabled>${t("Sin resultados: prueba «Pocuro con Tobalaba» o toca el mapa")}</button>`;
+        : `<button type="button" disabled>${t("Sin resultados: prueba «Pocuro 2500» o «Pocuro con Tobalaba», o toca el mapa")}</button>`;
       $(lista).style.display = "block";
       for (const b of $(lista).querySelectorAll("button[data-i]")) {
         b.onclick = () => { const l = r[+b.dataset.i]; $(lista).style.display = "none"; alElegir(l); };
       }
-    }, 200);
+    }, /\d/.test(q) ? 600 : 250);
   });
   $(campo).addEventListener("blur", () => setTimeout(() => { $(lista).style.display = "none"; }, 200));
 }
 conectarBusqueda("desde", "sugerencias", (l) => fijarSalida(l.lat, l.lon, l.nombre, true));
 
-// ── Meta (fondo y regenerativo sin volver a la salida) ──────────────────────
-// Sin meta, la ruta termina donde se cumplen los km.
+// ── Meta (cualquier sesión sin volver a la salida) ──────────────────────────
+// Sin meta, la ruta termina donde se cumplen los km (en series, cuestas y
+// tempo, al final de la vuelta a la calma).
 let meta = null, marcaMeta = null, eligiendoMeta = false;
-const CONTINUA = /\b(fondo|largo|tirada|regenerativo|suave|rodaje)\b/i;
-const CON_TOPE = /\b(fondo|largo|tirada|regenerativo|suave|rodaje|tempo|umbral)\b/i;
+const CON_TOPE = /\b(fondo|largo|tirada|regenerativo|suave|rodaje|tempo|umbral|long|easy|recovery|threshold)\b/i;
+// «plano» en la sesión = máx. 5 m de subida por km (lo interpreta el servidor).
+const PLANO = /\s*\b(plano|llano|flat)\b/i;
 function revisarTipo() {
-  document.body.classList.toggle("sesion-continua", CONTINUA.test($("texto").value));
   document.body.classList.toggle("sesion-tope", CON_TOPE.test($("texto").value));
+  $("plano").setAttribute("aria-pressed", PLANO.test($("texto").value));
   document.body.classList.toggle("volver", $("volverSesion").checked);
 }
 $("texto").addEventListener("input", revisarTipo);
+$("plano").onclick = () => {
+  const v = $("texto").value;
+  $("texto").value = PLANO.test(v) ? v.replace(PLANO, "") : `${v.trim()} ${idioma === "en" ? "flat" : "plano"}`;
+  revisarTipo();
+};
 $("volverSesion").onchange = () => { revisarTipo(); if ($("volverSesion").checked) fijarMeta(null); };
 function fijarMeta(p, nombre) {
   meta = p; eligiendoMeta = false;
@@ -876,10 +899,10 @@ function dibujarAnimado(plan, alTerminar, desde = 0) {
 }
 
 function marcas(plan) {
-  const t = plan.tramo;
-  if (t) {
-    L.marker(t.inicio, { icon: pin("", "#f2541b") }).addTo(capas).bindPopup(t("Inicio de la repetición"));
-    L.marker(t.fin, { icon: pin("", "#1d1d21") }).addTo(capas).bindPopup(t("Fin de la repetición"));
+  const tramo = plan.tramo;
+  if (tramo) {
+    L.marker(tramo.inicio, { icon: pin("", "#f2541b") }).addTo(capas).bindPopup(t("Inicio de la repetición"));
+    L.marker(tramo.fin, { icon: pin("", "#1d1d21") }).addTo(capas).bindPopup(t("Fin de la repetición"));
   }
   if (plan.volver === false && plan.llegada)
     L.marker(plan.llegada, { icon: L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11],
@@ -1010,7 +1033,7 @@ function mostrar(plan) {
 
 async function pedido() {
   const p = { lat: salida.lat, lon: salida.lon, texto: $("texto").value };
-  if (CONTINUA.test(p.texto) && !$("volverSesion").checked) { p.volver = false; if (meta) p.meta = meta; }
+  if (!$("volverSesion").checked) { p.volver = false; if (meta) p.meta = meta; }
   const tope = parseFloat($("tope").value);
   if (CON_TOPE.test(p.texto) && Number.isFinite(tope) && tope >= 0) p.max_subida_m = tope;
   // Preferencias del corredor: viajan con cada pedido; el servidor no las guarda.
@@ -1035,6 +1058,13 @@ async function descargarGpx() {
 $("form").onsubmit = async (e) => {
   e.preventDefault();
   document.activeElement?.blur();
+  // Escribió una dirección y no eligió sugerencia: se usa la primera.
+  const escrito = $("desde").value.trim();
+  if (escrito && escrito !== $("desde").dataset.elegido && modo !== "trazar") {
+    const r = await buscarLugares(escrito);
+    if (!r.length) return hoja(`<p class="aviso">${t("No encontré «{q}». Prueba con calle y número, una esquina («Pocuro con Tobalaba») o toca el mapa.", { q: esc(escrito) })}</p>`);
+    fijarSalida(r[0].lat, r[0].lon, r[0].nombre, true);
+  }
   if (!salida) return hoja(`<p class="aviso">${t("Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.")}</p>`);
   $("armar").disabled = true;
   hoja(`<div class="cargando"><div class="rueda"></div>${t("Buscando la mejor ruta para tu sesión…")}</div>`);
@@ -1277,8 +1307,10 @@ const CapaCalor = L.Layer.extend({
     e.hidden = false;
     const lmax = Math.log(Math.max(max, 2));
     const pos = (v) => (0.12 + 0.88 * Math.log(v) / lmax) * 100;
-    const marcas = TICKS.filter((v) => v < max * 0.8);
-    marcas.push(max);
+    // De arriba abajo, sólo marcas a ≥ 9 % de la barra de la anterior (no se pisan)
+    const marcas = [max];
+    for (const v of TICKS.filter((v) => v < max).reverse())
+      if (pos(marcas[marcas.length - 1]) - pos(v) >= 9) marcas.push(v);
     e.querySelector(".marcas").innerHTML = marcas.map((v) =>
       `<span style="bottom:${pos(v).toFixed(1)}%">${v}</span>`).join("");
   },

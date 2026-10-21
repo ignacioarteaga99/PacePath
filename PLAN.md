@@ -55,7 +55,13 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
 - [x] Explicación de la ruta (series) («Las series van por Av. Pocuro: 1,1 km recto,
       0 semáforos, desnivel 4 m»).
 - [x] Exportar GPX con marcas de cada repetición (series).
-- [ ] Generadores de tempo, fondo, cuestas y regenerativo (hoy la API responde 501).
+- [x] Generadores de tempo, fondo, cuestas y regenerativo.
+- [x] Volver o no a la salida en **todas** las sesiones: con meta, la vuelta a
+      la calma (o el fondo) termina ahí; sin meta, donde se cumple lo pedido.
+- [x] Tope de desnivel (tempo, fondo, regenerativo): número («+100m») o
+      «plano» / «flat» = 5 m de subida por km de la sesión.
+- [x] Buscador de la salida: calles, esquinas, parques y **direcciones con
+      número** («Pocuro 2500», vía Nominatim con caché y ≤ 1 petición/s).
 
 ## Fase 2 — Strava
 - [x] OAuth de Strava (app propia, scopes `read,activity:read_all`). Sin base

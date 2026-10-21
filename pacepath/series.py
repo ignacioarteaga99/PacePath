@@ -408,6 +408,38 @@ def _tramo_trote(ctx: GraphContext, w: RoutingWeights, a: int, b: int) -> dict |
     }
 
 
+def _trote_de_aristas(ctx: GraphContext, aristas: list[int]) -> dict:
+    g = ctx.graph
+    n = np.concatenate([[ctx.esrc[aristas[0]]], g.indices[aristas]])
+    z = g.elev[n].astype(np.float64)
+    return {
+        "distancia_m": round(float(g.elen[aristas].sum())),
+        "semaforos": int(g.is_signal[n].sum()),
+        "calles": _calles_trote(ctx, aristas),
+        "subida_m": round(desnivel(z)[0], 1),
+        "coordenadas": [[round(float(g.lat[i]), 6), round(float(g.lon[i]), 6),
+                         round(float(g.elev[i]), 1)] for i in n],
+    }
+
+
+def tramo_final(ctx: GraphContext, w: RoutingWeights, desde: int, casa: int,
+                req: Requisitos, vuelta_calma_m: float, volver: bool = True,
+                meta: int | None = None) -> dict | None:
+    """La vuelta a la calma desde donde termina el bloque: a la salida (lo
+    habitual), a la meta, o —sin volver ni meta— un trote suave de lo pedido
+    por el camino más limpio, que termina donde se cumple."""
+    if volver:
+        return _tramo_trote(ctx, w, desde, casa)
+    if meta is not None:
+        return _tramo_trote(ctx, w, desde, meta)
+    if vuelta_calma_m >= 100:
+        from .continuo import solo_ida     # continuo importa de aquí
+        cands = solo_ida(ctx, desde, vuelta_calma_m, req, w)
+        if cands:
+            return _trote_de_aristas(ctx, min(cands, key=lambda c: c[2])[0])
+    return _tramo_trote(ctx, w, desde, desde)
+
+
 def nodo_salida(ctx: GraphContext, lat: float, lon: float) -> int:
     """Nodo de la red corrible principal más cercano al punto de salida."""
     return int(ctx.graph.nearest_node(lat, lon, mask=nodos_en_red(ctx)))
@@ -431,11 +463,13 @@ def aviso_srtm() -> str:
 
 
 def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
-                      alternativas: int = 3) -> dict:
+                      alternativas: int = 3, volver: bool = True,
+                      meta: tuple[float, float] | None = None) -> dict:
     """Series y cuestas: un tramo que se repite.
 
     Series: ida y vuelta (la 1.ª de ida, la 2.ª de vuelta…).
-    Cuestas: siempre de subida; la bajada trotando es la recuperación."""
+    Cuestas: siempre de subida; la bajada trotando es la recuperación.
+    Sin `volver`, la vuelta a la calma va a la `meta` o termina donde se cumple."""
     if sesion.tipo not in (TipoSesion.SERIES, TipoSesion.CUESTAS):
         raise ValueError("planificar_series arma series y cuestas")
     cuestas = sesion.tipo is TipoSesion.CUESTAS
@@ -449,6 +483,7 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                     + 2 * m.largo_m)
     a, b = m.nodo_inicio(), m.nodo_fin()
     n = int(sesion.repeticiones)
+    fin_nodo = None if volver or meta is None else nodo_salida(ctx, *meta)
 
     if cuestas:
         # Se empieza y se termina abajo.
@@ -461,12 +496,14 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     opciones = []
     for ini, fin in candidatos:
         ida = _tramo_trote(ctx, w, casa, ini)
-        vuelta = _tramo_trote(ctx, w, fin, casa)
+        vuelta = tramo_final(ctx, w, fin, casa, req, sesion.vuelta_calma_m, volver, fin_nodo)
         if ida and vuelta:
             opciones.append((ida["distancia_m"] + vuelta["distancia_m"], ini, ida, vuelta))
     if not opciones:
-        raise SinTramo(tr("El tramo encontrado no se puede alcanzar desde la salida.",
-                          "The stretch found can't be reached from the start."))
+        raise SinTramo(tr("El tramo encontrado no se puede alcanzar desde la salida"
+                          + ("." if volver or fin_nodo is None else " o no llega a la meta."),
+                          "The stretch found can't be reached from the start"
+                          + ("." if volver or fin_nodo is None else " or doesn't reach the finish.")))
     _, ini, ida, vuelta = min(opciones, key=lambda o: o[0])
 
     info = _tramo_info(ctx, m)
@@ -517,6 +554,10 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
             "semaforos_trote": ida["semaforos"] + vuelta["semaforos"],
         },
         "avisos": avisos,
+        "volver": volver,
+        "con_meta": fin_nodo is not None,
+        "llegada": (vuelta["coordenadas"][-1][:2] if vuelta["coordenadas"]
+                    else coords[-1 if (n % 2 and not cuestas) else 0][:2]),
     }
     plan["explicacion"] = explicar_cuestas(plan) if cuestas else explicar_series(plan)
     return plan

@@ -12,6 +12,7 @@ y probarlos sin grafo.
 from __future__ import annotations
 
 import dataclasses
+import math
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -116,6 +117,13 @@ _TOPE = re.compile(
     r"subida\s*(?:m[aá]x(?:ima)?\s*)?(?:de\s*)?|m[aá]x(?:imo)?\s*\+?\s*)(\d+)\s*m?\b")
 
 
+# «plano», «llano», «flat»: tope de desnivel de 5 m por km de la sesión (un 18k
+# plano admite +90 m). Santiago sube hacia la cordillera: sin tope, un fondo
+# hacia el oriente suma fácil 10–15 m/km.
+_PLANO = re.compile(r"\b(?:plano|llano|flat)\b")
+PLANO_M_POR_KM = 5.0
+
+
 def interpretar(texto: str) -> Sesion:
     """Convierte lo que el corredor escribe en una `Sesion`.
 
@@ -151,8 +159,18 @@ def interpretar(texto: str) -> Sesion:
                             "«fondo 18k», «cuestas 8x300 6%» o «regenerativo 6k».",
                             f"I don't understand «{texto}». Try «6x1k», «tempo 8k», "
                             "«long run 18k», «hills 8x300 6%» or «easy 6k»."))
-    return Sesion(tipo=tipo, distancia_m=_metros(dist.group(1), dist.group(2) or "k"),
-                  max_subida_m=float(tope.group(1)) if tope else None)
+    s = Sesion(tipo=tipo, distancia_m=_metros(dist.group(1), dist.group(2) or "k"),
+               max_subida_m=float(tope.group(1)) if tope else None)
+    if s.max_subida_m is None and _PLANO.search(t):
+        # Un número explícito («+60m») manda sobre «plano».
+        s.max_subida_m = float(math.ceil(PLANO_M_POR_KM * _km_sesion(s) / 10) * 10)
+    return s
+
+
+def _km_sesion(s: Sesion) -> float:
+    """Km sobre los que se mide el tope: en tempo, con calentamiento y vuelta a la calma."""
+    return (s.distancia_m + (s.calentamiento_m + s.vuelta_calma_m
+                             if s.tipo is TipoSesion.TEMPO else 0)) / 1000
 
 
 # ── Traducción a requisitos de la calle ─────────────────────────────────────
@@ -249,8 +267,7 @@ def requisitos(s: Sesion) -> Requisitos:
         return req
     # Con un tope de desnivel la subida se encarece al buscar, más cuanto más
     # estricto sea el tope por km (2 m/km → 40 m extra por metro subido).
-    km = (s.distancia_m + (s.calentamiento_m + s.vuelta_calma_m
-                           if s.tipo is TipoSesion.TEMPO else 0)) / 1000
+    km = _km_sesion(s)
     por_km = s.max_subida_m / max(km, 0.1)
     return dataclasses.replace(
         req, max_subida_m=float(s.max_subida_m),

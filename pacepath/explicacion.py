@@ -53,6 +53,20 @@ def _cru(n: int) -> str:
     return veces(n, "cruce", "cruces", "crossing", "crossings")
 
 
+def _final(plan: dict, vc: dict | None) -> str:
+    """Vuelta a la calma y dónde termina: en la salida, en la meta o donde se cumple."""
+    d = metros(vc["distancia_m"]) if vc else metros(plan["totales"].get("vuelta_calma_m", 0))
+    if plan.get("volver", True):
+        return tr(f"Vuelta a la calma: {d} de vuelta a la salida.",
+                  f"Cool-down: {d} back to the start.")
+    if plan.get("con_meta"):
+        return tr(f"Vuelta a la calma: {d} hasta la meta.", f"Cool-down: {d} to the finish.")
+    calles = (vc or {}).get("calles") or []
+    donde = tr(f"; terminas en {calles[-1]}", f"; you finish on {calles[-1]}") if calles else ""
+    return tr(f"Vuelta a la calma: {d} suaves sin volver a la salida{donde}.",
+              f"Cool-down: {d} easy, without returning to the start{donde}.")
+
+
 def explicar_series(plan: dict) -> list[str]:
     t, tot, s = plan["tramo"], plan["totales"], plan["sesion"]
     n = s["repeticiones"]
@@ -88,8 +102,7 @@ def explicar_series(plan: dict) -> list[str]:
                      f" ({_sem(cal['semaforos'])} en el camino).",
                      f"Warm-up: {metros(cal['distancia_m'])} easy jog to the start{por}"
                      f" ({_sem(cal['semaforos'])} on the way)."))
-    lineas.append(tr(f"Vuelta a la calma: {metros(vc['distancia_m'])} de vuelta a la salida.",
-                     f"Cool-down: {metros(vc['distancia_m'])} back to the start."))
+    lineas.append(_final(plan, vc))
     lineas.append(tr(f"Total: {metros(tot['distancia_m'])} ({metros(tot['series_m'])} de series).",
                      f"Total: {metros(tot['distancia_m'])} ({metros(tot['series_m'])} of intervals)."))
     return lineas
@@ -115,6 +128,7 @@ def explicar_cuestas(plan: dict) -> list[str]:
            "your recovery."),
         tr(f"Calentamiento: {metros(cal['distancia_m'])} hasta el pie de la cuesta{por}.",
            f"Warm-up: {metros(cal['distancia_m'])} to the bottom of the hill{por}."),
+        _final(plan, next(p for p in plan["partes"] if p["tipo"] == "vuelta_calma")),
         tr(f"Total: {metros(tot['distancia_m'])} ({metros(tot['series_m'])} de subida).",
            f"Total: {metros(tot['distancia_m'])} ({metros(tot['series_m'])} uphill)."),
     ]
@@ -160,10 +174,9 @@ def explicar_tempo(plan: dict) -> list[str]:
             f"I picked it because it has fewer likely stops "
             f"({num(plan['detenciones_bloque'], 1)}) than the other option "
             f"({otra}: {num(alt['detenciones_bloque'], 1)})."))
-    lineas.append(tr(f"Calentamiento: {metros(cal['distancia_m'])}. "
-                     f"Vuelta a la calma: {metros(tot['vuelta_calma_m'])}.",
-                     f"Warm-up: {metros(cal['distancia_m'])}. "
-                     f"Cool-down: {metros(tot['vuelta_calma_m'])}."))
+    lineas.append(tr(f"Calentamiento: {metros(cal['distancia_m'])}.",
+                     f"Warm-up: {metros(cal['distancia_m'])}."))
+    lineas.append(_final(plan, next((p for p in plan["partes"] if p["tipo"] == "vuelta_calma"), None)))
     lineas.append(tr(f"Total: {metros(tot['distancia_m'])} ({metros(tot['tempo_m'])} de tempo).",
                      f"Total: {metros(tot['distancia_m'])} ({metros(tot['tempo_m'])} at tempo)."))
     if tot.get("max_subida_m") is not None:

@@ -83,3 +83,13 @@ def test_desnivel_con_umbral():
     # Una bajadita de 1 m (ruido) no corta la subida ni suma de más.
     assert desnivel([0, 1, 0, 1, 0, 5, 4, 6, 8, 2, 0]) == (8.0, 8.0)
     assert desnivel([600, 601, 600.5, 601]) == (0.0, 0.0)
+
+
+def test_plano_pone_tope_de_desnivel():
+    assert interpretar("fondo 18k plano").max_subida_m == 90           # 5 m/km
+    assert interpretar("long run 21k flat").max_subida_m == 110        # se redondea hacia arriba
+    # En tempo cuentan calentamiento y vuelta a la calma (2 + 8 + 1,5 km).
+    assert interpretar("tempo 8k llano").max_subida_m == 60
+    # Un número explícito manda.
+    assert interpretar("fondo 18k plano +40m").max_subida_m == 40
+    assert interpretar("fondo 18k").max_subida_m is None

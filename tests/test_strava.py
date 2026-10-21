@@ -19,7 +19,7 @@ def falso(monkeypatch):
         llamadas.append((metodo, url.split("?")[0], datos, token))
         if url == strava.TOKEN and datos["grant_type"] == "authorization_code":
             assert datos["code"] == "codigo-ok"
-            return {"access_token": "a1", "refresh_token": "r1", "expires_at": 0,
+            return {"access_token": "tok-acceso-en-claro", "refresh_token": "r1", "expires_at": 0,
                     "athlete": {"id": 7, "firstname": "Ignacio"}}
         if url == strava.TOKEN and datos["grant_type"] == "refresh_token":
             assert datos["refresh_token"] == "r1"
@@ -72,7 +72,7 @@ def test_flujo_completo(falso):
                 follow_redirects=False)
     assert r.headers["location"] == "/#ciudad"
     cookie = cli.cookies.get(strava.COOKIE)
-    assert cookie and "a1" not in cookie                  # cifrada, no en claro
+    assert cookie and "tok-acceso-en-claro" not in cookie                  # cifrada, no en claro
     e = cli.get("/api/strava/estado").json()
     assert e | {"vuelta": None} == {"configurado": True, "conectado": True, "nombre": "Ignacio",
                                     "privadas": True, "vuelta": None}

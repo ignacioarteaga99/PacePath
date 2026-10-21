@@ -1,4 +1,5 @@
 """Tempo, fondo, regenerativo y cuestas sobre la región sintética «demo»."""
+import math
 import numpy as np
 import pytest
 
@@ -98,3 +99,39 @@ def test_corredores_no_fallan(ctx):
         assert med.forma == "corredor"
         assert med.distancia_m == pytest.approx(10_000, rel=0.1)
         assert med.detalle["largo_m"] >= 1500
+
+
+def _lejos(a, b, m):
+    k = math.cos(math.radians(a[0]))
+    return math.hypot(a[0] - b[0], (a[1] - b[1]) * k) * 111_195 > m
+
+
+@pytest.mark.parametrize("texto", ["5x400", "tempo 3k"])
+def test_sesion_sin_volver(ctx, texto):
+    from pacepath.planificador import planificar
+    s = interpretar(texto)
+    p = planificar(ctx, s, D.lat, D.lon, volver=False)
+    assert p["volver"] is False and p["con_meta"] is False
+    vc = p["partes"][-1]
+    assert vc["tipo"] == "vuelta_calma"
+    if s.tipo.value == "series":
+        # Trote suave de lo pedido (±10 %) desde el final de la última serie.
+        assert abs(vc["distancia_m"] - s.vuelta_calma_m) <= 0.1 * s.vuelta_calma_m
+    else:
+        # Tempo: recorrido de solo ida; el bloque se ubica donde hay menos
+        # detenciones y la vuelta a la calma es lo que queda.
+        pedido = s.calentamiento_m + s.distancia_m + s.vuelta_calma_m
+        assert abs(p["totales"]["distancia_m"] - pedido) <= 0.06 * pedido
+    assert _lejos(p["llegada"], p["salida"], 300)
+    assert p["llegada"] == vc["coordenadas"][-1][:2]
+    assert any("sin volver a la salida" in x for x in p["explicacion"])
+
+
+def test_series_hasta_la_meta(ctx):
+    from pacepath.planificador import planificar
+    g = ctx.graph
+    meta = (float(g.lat[0]), float(g.lon[0]))
+    p = planificar(ctx, interpretar("5x400"), D.lat, D.lon, volver=False, meta=meta)
+    assert p["con_meta"] is True
+    assert not _lejos(p["llegada"], meta, 60)
+    assert any("hasta la meta" in x for x in p["explicacion"])

@@ -36,7 +36,7 @@ from .metricas import Medida, desnivel, medir
 from .sesion import COSTE_CRUCE, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
 from .series import (
     SinTramo, aviso_srtm, _calles_trote, _tramo_info, _tramo_trote, base_plan,
-    buscar_tramos, nodo_salida, pesos_trote,
+    buscar_tramos, nodo_salida, pesos_trote, tramo_final,
 )
 from .parques import en_parque
 from .tramos import aristas_corribles, semaforos_cercanos
@@ -466,6 +466,10 @@ def _coords(ctx: GraphContext, aristas: list[int]) -> list[list[float]]:
              round(float(g.elev[i]), 1)] for i in n]
 
 
+def plan_salida(ctx: GraphContext, casa: int) -> list[float]:
+    return [round(float(ctx.graph.lat[casa]), 6), round(float(ctx.graph.lon[casa]), 6)]
+
+
 def _punto(ctx: GraphContext, aristas: list[int], cum: np.ndarray, pos: float) -> list[float]:
     """[lat, lon] a `pos` metros del inicio del recorrido."""
     g = ctx.graph
@@ -612,15 +616,32 @@ def _ventana_circuito(med: Medida, X: float, cal: float, vc: float) -> tuple[flo
 
 
 def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
-                     preferidas: np.ndarray | None = None) -> dict:
+                     preferidas: np.ndarray | None = None, volver: bool = True,
+                     meta: tuple[float, float] | None = None) -> dict:
+    """Tempo: circuito (o, sin volver, recorrido hasta la meta o de solo ida)
+    partido en calentamiento, bloque y vuelta a la calma; o corredor limpio en
+    ida y vuelta, si tiene menos detenciones."""
     req = con_preferidas(requisitos(sesion), preferidas)
     casa = nodo_salida(ctx, lat, lon)
     X = req.distancia_m
     cal, vc = sesion.calentamiento_m, sesion.vuelta_calma_m
+    fin_nodo = None if volver or meta is None else nodo_salida(ctx, *meta)
 
-    # Opción circuito
-    aristas, med, _ = circuito(ctx, casa, cal + X + vc, req, k=8, afinar=2,
-                               con_ida_y_vuelta=False)
+    # Opción circuito (o, sin volver, de la salida a la meta / de solo ida)
+    if volver:
+        aristas, med, _ = circuito(ctx, casa, cal + X + vc, req, k=8, afinar=2,
+                                   con_ida_y_vuelta=False)
+    else:
+        D = cal + X + vc
+        w0 = pesos_sesion(ctx, casa, D + 1500, req)
+        cands = (hasta_meta(ctx, casa, fin_nodo, D, req, w0) if fin_nodo is not None
+                 else solo_ida(ctx, casa, D, req, w0))
+        if not cands:
+            raise SinTramo(tr(f"No encontré un recorrido de {D / 1000:.0f} km de solo ida "
+                              "dentro del mapa de esta comuna: prueba volviendo a la salida.",
+                              f"I couldn't fit a {D / 1000:.0f} km one-way route inside this "
+                              "area's map: try returning to the start."))
+        aristas, med, _ = min(cands, key=lambda c: c[2])
     ini, det_circ = _ventana_circuito(med, X, cal, vc)
 
     # Opción corredor
@@ -651,7 +672,7 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
         opciones = []
         for x, y in ((a, b), (b, a)):
             ida = _tramo_trote(ctx, w, casa, x)
-            vuelta = _tramo_trote(ctx, w, x if fin_a else y, casa)
+            vuelta = tramo_final(ctx, w, x if fin_a else y, casa, req, vc, volver, fin_nodo)
             if ida and vuelta:
                 opciones.append((ida["distancia_m"] + vuelta["distancia_m"], x, ida, vuelta))
         if not opciones:
@@ -718,6 +739,10 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                     "tempo_m": round(bloque), "vuelta_calma_m": vuelta_m,
                     "subida_m": round(subida), "max_subida_m": req.max_subida_m},
         "avisos": avisos,
+        "volver": volver,
+        "con_meta": fin_nodo is not None,
+        "llegada": next((pt["coordenadas"][-1][:2] for pt in reversed(partes) if pt["coordenadas"]),
+                        plan_salida(ctx, casa)),
     }
     plan["explicacion"] = explicar_tempo(plan)
     return plan
