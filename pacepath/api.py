@@ -4,6 +4,7 @@
     GET  /api/salud
     GET  /api/comunas            comunas con grafo en la Release «graphs»
     GET  /api/lugares?q=         buscar desde dónde salir (calle, esquina, parque)
+    POST /api/donde              puntos → ciudad y país (GeoNames, sin servicios externos)
     POST /api/sesion             «6x1k» → sesión estructurada
     POST /api/ruta               sesión + salida → plan completo
     POST /api/ruta.gpx           lo mismo, en GPX
@@ -32,7 +33,7 @@ from pydantic import BaseModel, Field, model_validator
 
 import numpy as np
 
-from . import comunas, frecuencia, idioma, lugares, strava
+from . import ciudades, comunas, frecuencia, idioma, lugares, strava
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -68,6 +69,11 @@ class PedidoTrazado(BaseModel):
 
 class TextoSesion(BaseModel):
     texto: str = Field(min_length=1, max_length=120)
+
+
+class PedidoDonde(BaseModel):
+    """Centros de los grupos de salidas de tus carreras (los calcula el teléfono)."""
+    puntos: list[tuple[float, float]] = Field(max_length=500)
 
 
 class Frecuentes(BaseModel):
@@ -119,6 +125,13 @@ def salud() -> dict:
 @app.get("/api/comunas")
 def lista_comunas() -> list[dict]:
     return comunas.disponibles()
+
+
+@app.post("/api/donde")
+def donde(body: PedidoDonde) -> list[dict | None]:
+    """Ciudad y país de cada punto (para «Dónde has corrido»). Nada se guarda."""
+    return [ciudades.nombrar(la, lo) if -90 <= la <= 90 and -180 <= lo <= 180 else None
+            for la, lo in body.puntos]
 
 
 @app.get("/api/lugares")

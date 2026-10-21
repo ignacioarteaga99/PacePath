@@ -259,6 +259,18 @@
   .fav { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0;
     border-bottom: 1px solid var(--linea); font-size: 14px; }
   .fav small { color: var(--suave); }
+  /* Dónde has corrido */
+  .donde-corri h3 { font-size: 12px; font-weight: 700; color: var(--suave); text-transform: uppercase;
+    letter-spacing: .5px; margin: 16px 0 6px; }
+  .donde-corri .pais { border-bottom: 1px solid var(--linea); padding: 4px 0 8px; }
+  .donde-corri .pais:last-of-type { border-bottom: 0; }
+  .donde-corri .ir { display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
+    background: none; color: var(--tinta); border-radius: 8px; padding: 7px 6px; font-weight: 400; }
+  .donde-corri .ir:hover, .donde-corri .ir.on { background: var(--gris); }
+  .donde-corri .ir small { margin-left: auto; color: var(--suave); font-size: 12px; white-space: nowrap; }
+  .donde-corri .pais-fila b { font-size: 15px; }
+  .donde-corri .bandera { font-size: 18px; line-height: 1; }
+  .donde-corri .ciudad-fila { padding-left: 34px; font-size: 14px; }
   /* Recientes y sesiones guardadas */
   .hist h3 { font-size: 12px; font-weight: 700; color: var(--suave); text-transform: uppercase;
     letter-spacing: .5px; margin: 16px 0 4px; display: flex; justify-content: space-between; align-items: center; }
@@ -524,6 +536,9 @@ const EN = {
   "Guardar sesión": "Save session", "Quitar de guardadas": "Remove from saved", "desde {d}": "from {d}",
   "Opciones": "Options", "Vuelve a la salida": "Back to start", "Hasta la meta": "To the finish",
   "Sin volver": "One way",
+  "Dónde has corrido": "Where you've run", "{n} carrera": "{n} run", "{n} carreras": "{n} runs",
+  "Otros lugares": "Other places", "cerca de {c}": "near {c}", "Sin ciudad cerca": "No city nearby",
+  "Ciudades: GeoNames (CC BY 4.0)": "Cities: GeoNames (CC BY 4.0)",
   "sin volver": "one way", "Auto": "Auto", "Circuito": "Loop", "Vueltas": "Laps",
   "circuito": "loop", "{n} vueltas": "{n} laps", "Forma de la ruta": "Route shape",
   "Número de vueltas": "Number of laps",
@@ -1625,6 +1640,7 @@ async function dibujarCalor(e, aviso, encuadrar) {
       <div class="cifra"><span>${t("Desde")}</span><b style="font-size:15px">${desde}</b></div></div>
     <p class="pista">${t("Toca el mapa para ver cuántas veces pasaste por ahí.")}</p>
     <p class="pista" id="sync"></p>
+    <div id="dondeCorri"></div>
     ${e.privadas ? "" : `<p class="aviso">${t("Sólo veo tus actividades públicas: al conectar no se dio permiso para las privadas.")}</p>`}
     ${seccionPreferencias(true)}
     <div class="fila"><button class="sec" id="actualizar" type="button">${t("Actualizar")}</button>
@@ -1636,10 +1652,84 @@ async function dibujarCalor(e, aviso, encuadrar) {
     if (!confirm(t("¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso."))) return;
     await fetch("/api/strava/desconectar", { method: "POST" });
     await BD.borrar();
-    Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_")).forEach((k) => localStorage.removeItem(k));
+    Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_") || k === "pp_donde")
+      .forEach((k) => localStorage.removeItem(k));
     abrirCiudad(t("Strava desconectado: se borraron tus datos."));
   };
   if (encuadrar && lista.length) encuadrarCalor(lista);
+  pintarDondeCorri(lista);
+}
+
+// ── Dónde has corrido: países y ciudades ────────────────────────────────────
+// El teléfono agrupa las salidas (a menos de 20 km del centro de cada grupo) y
+// el servidor nombra cada grupo con la ciudad más importante cerca (GeoNames,
+// sin servicios externos). Los nombres quedan guardados aquí.
+const RADIO_GRUPO_M = 20000;
+const bandera = (cc) => cc && cc.length === 2
+  ? String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) : "🌐";
+const nombrePais = (cc) => { try { return new Intl.DisplayNames([idioma], { type: "region" }).of(cc); }
+  catch { return cc; } };
+function gruposDeSalidas(lista) {
+  const grupos = [];
+  for (const c of [...lista].sort((a, b) => (a.fecha < b.fecha ? -1 : 1))) {
+    const p = c.puntos?.[0];
+    if (!p) continue;
+    let g = grupos.find((x) => distM(x.centro, p) < RADIO_GRUPO_M);
+    if (!g) grupos.push(g = { suma: [0, 0], carreras: [], centro: p });
+    g.carreras.push(c); g.suma[0] += p[0]; g.suma[1] += p[1];
+    g.centro = [g.suma[0] / g.carreras.length, g.suma[1] / g.carreras.length];
+  }
+  return grupos;
+}
+async function nombresDeGrupos(grupos) {
+  const cache = pref("pp_donde", {}) || {};
+  const clave = (g) => `${g.centro[0].toFixed(2)},${g.centro[1].toFixed(2)}`;
+  const faltan = grupos.filter((g) => !(clave(g) in cache));
+  if (faltan.length) {
+    const r = await fetch("/api/donde", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ puntos: faltan.map((g) => g.centro) }) }).then((x) => x.json()).catch(() => null);
+    if (Array.isArray(r)) { faltan.forEach((g, i) => { cache[clave(g)] = r[i]; }); guardarPref("pp_donde", cache); }
+  }
+  return grupos.map((g) => cache[clave(g)] || null);
+}
+let lugaresCorridos = [];
+async function pintarDondeCorri(lista) {
+  const caja = $("dondeCorri");
+  if (!caja || !lista.length) return;
+  const grupos = gruposDeSalidas(lista), nombres = await nombresDeGrupos(grupos);
+  // Juntar grupos con el mismo nombre (dos zonas de la misma ciudad) y por país.
+  const paises = new Map();
+  grupos.forEach((g, i) => {
+    const n = nombres[i] || { ciudad: null, pais: "", cerca: false };
+    if (!paises.has(n.pais)) paises.set(n.pais, { pais: n.pais, ciudades: new Map(), carreras: 0, km: 0, caja: null });
+    const P = paises.get(n.pais), k = (n.ciudad || "?") + (n.cerca ? "~" : "");
+    if (!P.ciudades.has(k)) P.ciudades.set(k, { ...n, carreras: 0, km: 0, caja: null });
+    const C = P.ciudades.get(k);
+    for (const c of g.carreras) {
+      for (const X of [P, C]) { X.carreras++; X.km += c.distancia_m / 1000;
+        X.caja = X.caja ? X.caja.extend(c.caja) : L.latLngBounds(c.caja.getSouthWest(), c.caja.getNorthEast()); }
+    }
+  });
+  lugaresCorridos = [...paises.values()].sort((a, b) => b.carreras - a.carreras)
+    .map((P) => ({ ...P, ciudades: [...P.ciudades.values()].sort((a, b) => b.carreras - a.carreras) }));
+  if (!$("dondeCorri")) return;
+  const carr = (n) => t(n === 1 ? "{n} carrera" : "{n} carreras", { n: num(n) });
+  $("dondeCorri").innerHTML = `<div class="donde-corri"><h3>${t("Dónde has corrido")}</h3>
+    ${lugaresCorridos.map((P, i) => `<div class="pais">
+      <button type="button" class="ir pais-fila" data-p="${i}"><span class="bandera">${bandera(P.pais)}</span>
+        <b>${esc(P.pais ? nombrePais(P.pais) : t("Otros lugares"))}</b>
+        <small>${carr(P.carreras)} · ${num(P.km)} km</small></button>
+      ${P.ciudades.map((C, j) => `<button type="button" class="ir ciudad-fila" data-p="${i}" data-c="${j}">
+        <span>${C.ciudad ? (C.cerca ? t("cerca de {c}", { c: esc(C.ciudad) }) : esc(C.ciudad)) : t("Sin ciudad cerca")}</span>
+        <small>${carr(C.carreras)} · ${num(C.km)} km</small></button>`).join("")}</div>`).join("")}
+    <p class="credito">${t("Ciudades: GeoNames (CC BY 4.0)")}</p></div>`;
+  for (const b of $("dondeCorri").querySelectorAll(".ir")) b.onclick = () => {
+    const P = lugaresCorridos[+b.dataset.p], X = b.dataset.c != null ? P.ciudades[+b.dataset.c] : P;
+    $("dondeCorri").querySelectorAll(".ir").forEach((x) => x.classList.toggle("on", x === b));
+    if (!esEscritorio()) $("hoja").classList.add("plegada");
+    mapa.flyToBounds(X.caja, { padding: [30, 30], maxZoom: 15, duration: 1.2,
+      paddingBottomRight: [70, esEscritorio() ? 30 : 92 + 70] });
+  };
 }
 
 function encuadrarCalor(lista) {

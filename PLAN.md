@@ -106,6 +106,9 @@ iPhone (web móvil, instalable)  ──►  API PacePath (FastAPI)
       más que las calles de siempre.
 - [x] Mapa de calor con conteo real de veces por calle y escala.
 - [x] Perfil: indicadores de Strava (4 semanas, año, histórico) e historial.
+- [x] Dónde has corrido: países y ciudades (salidas agrupadas a 20 km en el
+      teléfono; nombre = la ciudad más importante cerca, con GeoNames en el
+      servidor, sin servicios externos). Tocar uno lleva el mapa ahí.
 - ~~Cobertura por comuna, calles pendientes y priorizar calles nuevas~~:
   descartado por decisión de producto.
 

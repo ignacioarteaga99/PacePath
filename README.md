@@ -3,9 +3,9 @@
 **La ruta para tu entrenamiento de hoy, por calles reales.**
 
 PacePath diseña la ruta ideal para la sesión que te toca —series, tempo, fondo
-largo, cuestas, regenerativo— sobre las calles reales de tu ciudad. Conectas tu
-Strava y, además, la ruta prioriza las calles que todavía no has pisado: cada
-entrenamiento pinta un poco más tu mapa.
+largo, cuestas, regenerativo— sobre las calles reales de tu ciudad. Si conectas
+tu Strava, ves por dónde has corrido y la ruta prefiere tus calles de siempre y
+tus tramos favoritos.
 
 ## Las dos funciones
 
@@ -23,7 +23,8 @@ posible, no sólo una que mida lo que pides:
 
 ### 2. Mi ciudad y perfil (con Strava)
 Con tu historial de Strava: un mapa de calor de por dónde has corrido (cuántas
-veces por cada calle), tus calles de siempre y tramos favoritos como preferencia
+veces por cada calle), los países y ciudades donde has corrido (al tocarlos, el
+mapa te lleva ahí), tus calles de siempre y tramos favoritos como preferencia
 al crear rutas, y un perfil con tus indicadores e historial.
 
 ## Requisito
@@ -34,6 +35,10 @@ por sesión igual, pero sin la capa personal.
 Reutiliza [RaceEngine](https://github.com/ignacioarteaga99/RaceEngine): su motor
 de rutas sobre grafos de OpenStreetMap con elevación, semáforos y cruces, y los
 grafos de comunas de Santiago ya publicados en su Release `graphs`.
+
+Datos de terceros: calles, parques y nombres de [OpenStreetMap](https://www.openstreetmap.org/copyright)
+(ODbL); ciudades de [GeoNames](https://www.geonames.org) (CC BY 4.0), en
+`pacepath/datos/ciudades.json.gz` (se regenera con `scripts/ciudades.py`).
 
 Plan de trabajo: [`PLAN.md`](PLAN.md).
 
