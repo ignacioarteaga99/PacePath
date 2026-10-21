@@ -121,11 +121,12 @@
     border-radius: 18px 18px 0 0; box-shadow: 0 -6px 24px var(--sombra);
     padding: 8px 16px 14px; max-height: 36vh; overflow-y: auto; }
   /* Asa de la hoja: tocar o arrastrar para plegar/desplegar. Zona de toque amplia. */
-  .asa { display: block; width: 100%; height: 22px; margin: -8px 0 4px; padding: 0; background: none;
-    border: 0; cursor: grab; touch-action: none; }
+  .asa { display: block; width: 100%; height: 22px; margin: -8px 0 4px; padding: 0; background: var(--panel);
+    border: 0; cursor: grab; touch-action: none; position: sticky; top: -8px; z-index: 5; border-radius: 0; }
   .asa::before { content: ""; display: block; width: 38px; height: 5px; border-radius: 3px;
     background: #d5d5db; margin: 9px auto 0; }
   #hoja { transition: max-height .25s ease; }
+  #hoja.arrastrando { transition: none; }
   #hoja.plegada { max-height: 92px !important; overflow: hidden; }
   .tipo { color: var(--acento); font-weight: 800; font-size: 12px; letter-spacing: .6px;
     text-transform: uppercase; }
@@ -677,7 +678,8 @@ const EN = {
   "Cómo se ganan los puntos": "How points are earned",
   "1 punto por km · 25 por ciudad nueva · 100 por país · 500 por continente · 50, 150 y 400 por logro de bronce, plata y oro.": "1 point per km · 25 per new city · 100 per country · 500 per continent · 50, 150 and 400 per bronze, silver and gold achievement.",
   "Tus puntos: {km} por km, {c} por ciudades, {p} por países, {o} por continentes y {l} por logros.": "Your points: {km} from km, {c} from cities, {p} from countries, {o} from continents and {l} from achievements.",
-  "Compartir mi pasaporte": "Share my passport",
+  "Compartir mi pasaporte": "Share my passport", "Armando tu pasaporte…": "Building your passport…",
+  "No pude armar tu pasaporte ({e}). Toca «Perfil» para intentarlo de nuevo.": "I couldn't build your passport ({e}). Tap “Profile” to try again.",
   "¡Nuevo logro!": "New achievement!",
   "¡Nuevos logros!": "New achievements!",
   "PASAPORTE DEL CORREDOR": "RUNNER'S PASSPORT",
@@ -820,18 +822,47 @@ const hoja = (html) => {
   $("hoja").innerHTML = '<button class="asa" type="button" aria-label="' + t("Plegar o desplegar") + '"></button>' + html;
   activarPerfil();
 };
-// Plegar y desplegar la hoja: un toque en el asa alterna; arrastrar hacia abajo
-// pliega y hacia arriba despliega.
+// Hoja del teléfono: el asa se arrastra y la hoja sigue al dedo; al soltar
+// queda plegada, a media altura (la de cada vista) o a pantalla completa (hasta
+// la cabecera). Un toque pasa de media → completa → plegada → media.
 (() => {
-  let y0 = null;
-  $("hoja").addEventListener("pointerdown", (e) => { if (e.target.closest(".asa")) { y0 = e.clientY; e.preventDefault(); } });
-  window.addEventListener("pointerup", (e) => {
-    if (y0 == null) return;
-    const dy = e.clientY - y0; y0 = null;
-    const h = $("hoja");
-    if (Math.abs(dy) < 8) h.classList.toggle("plegada");
-    else h.classList.toggle("plegada", dy > 0);
+  const h = $("hoja"), PLEGADA = 92;
+  let y0 = null, alto0 = 0, movio = false;
+  const maxima = () => h.getBoundingClientRect().bottom - document.querySelector("header").getBoundingClientRect().bottom - 8;
+  const modo = () => h.classList.contains("plegada") ? "plegada" : h.style.maxHeight ? "completa" : "media";
+  const media = () => {          // la altura «normal» de la vista, sin tocarla
+    // (sin transición: con ella, offsetHeight devuelve todavía la altura anterior)
+    const st = h.style.maxHeight, pl = h.classList.contains("plegada"), ar = h.classList.contains("arrastrando");
+    h.classList.add("arrastrando"); h.style.maxHeight = ""; h.classList.remove("plegada");
+    const v = h.offsetHeight;
+    h.style.maxHeight = st; h.classList.toggle("plegada", pl); h.classList.toggle("arrastrando", ar);
+    return v;
+  };
+  const poner = (m) => { h.classList.toggle("plegada", m === "plegada");
+    h.style.maxHeight = m === "completa" ? Math.round(maxima()) + "px" : ""; };
+  h.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest(".asa")) return;
+    y0 = e.clientY; alto0 = h.offsetHeight; movio = false; e.preventDefault();
+    try { h.setPointerCapture(e.pointerId); } catch {}
   });
+  h.addEventListener("pointermove", (e) => {
+    if (y0 == null) return;
+    const dy = e.clientY - y0;
+    if (!movio && Math.abs(dy) < 6) return;
+    movio = true;
+    h.classList.add("arrastrando"); h.classList.remove("plegada");
+    h.style.maxHeight = Math.max(PLEGADA, Math.min(maxima(), alto0 - dy)) + "px";
+  });
+  const soltar = () => {
+    if (y0 == null) return;
+    y0 = null;
+    if (!movio) { h.classList.remove("arrastrando"); poner({ media: "completa", completa: "plegada", plegada: "media" }[modo()]); return; }
+    const alto = h.offsetHeight;
+    const opciones = [["plegada", PLEGADA], ["media", media()], ["completa", maxima()]];
+    h.classList.remove("arrastrando");
+    poner(opciones.sort((a, b) => Math.abs(a[1] - alto) - Math.abs(b[1] - alto))[0][0]);
+  };
+  h.addEventListener("pointerup", soltar); h.addEventListener("pointercancel", soltar);
 })();
 const pin = (clase, color) => L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11],
   html: `<div class="pin ${clase}" style="${color ? "background:" + color : ""}"></div>` });
@@ -2114,6 +2145,15 @@ async function compartirPasaporte(P, nombre) {
 // Pinta el Pasaporte en #pasaporte; «Tu calle» llega después (map-matching en el servidor).
 async function pintarPasaporte(todas, pf, nombre) {
   if (!$("pasaporte") || !todas.length) return;
+  $("pasaporte").innerHTML = `<div class="pasaporte"><div class="cargando" style="color:#fff"><div class="rueda"></div>${t("Armando tu pasaporte…")}</div></div>`;
+  try { await pintarPasaporte2(todas, pf, nombre); }
+  catch (err) {
+    console.error(err);
+    if ($("pasaporte")) $("pasaporte").innerHTML = `<div class="pasaporte"><b>${t("Pasaporte")}</b>
+      <p class="proximo">${t("No pude armar tu pasaporte ({e}). Toca «Perfil» para intentarlo de nuevo.", { e: esc(err.message || String(err)) })}</p></div>`;
+  }
+}
+async function pintarPasaporte2(todas, pf, nombre) {
   const lugares = await lugaresDeCarreras(todas);
   const dibujar = (calles) => {
     if (!$("pasaporte")) return null;
