@@ -539,7 +539,7 @@ const EN = {
   "Dónde has corrido": "Where you've run", "{n} carrera": "{n} run", "{n} carreras": "{n} runs",
   "Otros lugares": "Other places", "cerca de {c}": "near {c}", "Sin ciudad cerca": "No city nearby",
   "Ciudades: GeoNames (CC BY 4.0)": "Cities: GeoNames (CC BY 4.0)",
-  "sin volver": "one way", "Auto": "Auto", "Circuito": "Loop", "Vueltas": "Laps",
+  "el mapa": "the map", "sin volver": "one way", "Auto": "Auto", "Circuito": "Loop", "Vueltas": "Laps",
   "circuito": "loop", "{n} vueltas": "{n} laps", "Forma de la ruta": "Route shape",
   "Número de vueltas": "Number of laps",
   "Ya tienes {n} sesiones guardadas: quita alguna primero.": "You already have {n} saved sessions: remove one first.",
@@ -1334,7 +1334,7 @@ $("form").onsubmit = async (e) => {
     guardarReciente(ultimaEntrada);
     if (j.preferencias && !j.preferencias.version_ok) olvidarFrecuentes(j.comuna);
     $("comuna").textContent = j.comuna.replace("_", " ");
-    $("resumenForm").innerHTML = `${esc(j.sesion.resumen)} <small>· desde ${esc($("desde").value || "el mapa")}</small>`;
+    $("resumenForm").innerHTML = `${esc(j.sesion.resumen)} <small>· ${t("desde {d}", { d: esc($("desde").value || t("el mapa")) })}</small>`;
     document.body.classList.add("con-ruta");
     mostrar(j);
     encuadrar(j);
