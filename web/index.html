@@ -267,6 +267,17 @@
   .logro i::after { content: ""; display: block; width: var(--p); height: 100%; background: linear-gradient(90deg, #f2541b, #ffb36b); }
   .logro .tier { position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase;
     letter-spacing: .5px; color: rgba(255,255,255,.6); }
+  .pasaporte { position: relative; }
+  .pasaporte [data-tit] { cursor: help; outline: none; }
+  .pasaporte [data-tit]:focus-visible { box-shadow: 0 0 0 2px #ffb36b; }
+  .pas-info { position: absolute; z-index: 6; width: max-content; max-width: min(280px, calc(100% - 16px));
+    background: #fff; color: #17171d; border-radius: 12px; padding: 10px 12px; font-size: 12.5px; line-height: 1.45;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4); pointer-events: none; animation: entraInfo .15s ease-out; }
+  .pas-info::before { content: ""; position: absolute; top: -6px; left: var(--flecha, 50%); width: 12px; height: 12px;
+    margin-left: -6px; background: #fff; transform: rotate(45deg); border-radius: 2px; }
+  .pas-info b { display: block; font-size: 13.5px; margin-bottom: 3px; }
+  .pas-info .umb { color: #6b6b75; font-size: 11.5px; }
+  @keyframes entraInfo { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
   .pasaporte .como { margin-top: 14px; font-size: 12.5px; color: rgba(255,255,255,.7); }
   .pasaporte .como summary { cursor: pointer; font-weight: 600; color: #fff; }
   .pasaporte .como p { margin: 6px 0 0; }
@@ -684,6 +695,32 @@ const EN = {
   "¡Nuevos logros!": "New achievements!",
   "PASAPORTE DEL CORREDOR": "RUNNER'S PASSPORT",
   "Mi pasaporte PacePath": "My PacePath passport",
+  "Ciudades distintas donde has corrido.": "Different cities where you've run.",
+  "Países donde has corrido.": "Countries where you've run.",
+  "Continentes habitados donde has corrido: África, Asia, Europa, Norteamérica, Sudamérica y Oceanía.": "Inhabited continents where you've run: Africa, Asia, Europe, North America, South America and Oceania.",
+  "Ciudades distintas dentro de un mismo país (el tuyo con más ciudades).": "Different cities within one country (the one where you have the most).",
+  "Logro secreto: correr en la Antártica.": "Secret achievement: run in Antarctica.",
+  "Carreras que empiezan en tu comuna o barrio más corrido.": "Runs that start in your most-run district or neighborhood.",
+  "Carreras en tu ciudad más corrida.": "Runs in your most-run city.",
+  "Veces que pasaste por el tramo más corrido de tu calle favorita.": "Times you've run the busiest stretch of your favorite street.",
+  "Kilómetros totales corridos (el total de Strava).": "Total kilometers run (your Strava total).",
+  "Tu racha más larga de semanas seguidas con al menos una carrera.": "Your longest streak of consecutive weeks with at least one run.",
+  "Carreras que empiezan antes de las 7:00.": "Runs that start before 7:00.",
+  "Carreras que empiezan a las 21:00 o después.": "Runs that start at 21:00 or later.",
+  "¡Oro conseguido!": "Gold achieved!",
+  "Te faltan {n} para {nivel}: «{l}».": "{n} more for {nivel}: “{l}”.",
+  "Bronce {b} · Plata {p} · Oro {o}": "Bronze {b} · Silver {p} · Gold {o}",
+  "Tienes {v}.": "You have {v}.",
+  "{n} carreras · {k} km": "{n} runs · {k} km",
+  "Ciudades: {c}": "Cities: {c}",
+  "Primera vez: {f}": "First time: {f}",
+  "Cada país nuevo suma 100 puntos.": "Each new country adds 100 points.",
+  "Has corrido en {p}.": "You've run in {p}.",
+  "Continente conseguido: +500 puntos.": "Continent unlocked: +500 points.",
+  "Aún no corres aquí. La primera carrera en este continente suma 500 puntos.": "You haven't run here yet. Your first run on this continent adds 500 points.",
+  "Nivel {n} · {nombre}": "Level {n} · {nombre}",
+  "Subes de nivel con puntos: 1 por km, 25 por ciudad nueva, 100 por país, 500 por continente y 50, 150 o 400 por cada logro de bronce, plata u oro.": "You level up with points: 1 per km, 25 per new city, 100 per country, 500 per continent and 50, 150 or 400 for each bronze, silver or gold achievement.",
+  "Te faltan {n} puntos para el nivel {s}.": "{n} more points to reach level {s}.",
   "Todo": "All time", "Año": "Year", "vs {a}": "vs {a}", "{k} km en {a}": "{k} km in {a}", "{k} km a esta fecha en {a}": "{k} km by this date in {a}",
   "sin carreras en {a}": "no runs in {a}", "Por semana": "Per week", "{n} carreras por semana": "{n} runs per week",
   "Tus carreras con GPS guardadas en este teléfono.": "Your GPS runs saved on this phone.",
@@ -1973,6 +2010,7 @@ function rachaMaxima(lista) {
 function calcularPasaporte(lista, lugares, pf, calles) {
   const ciudades = new Set(), paises = new Set(), conts = new Set();
   const ciudadesPorPais = new Map(), porBarrio = new Map(), porCiudad = new Map();
+  const porPais = new Map(), paisesDeCont = new Map();        // para las explicaciones
   let madrugadas = 0, noches = 0;
   for (const c of lista) {
     const h = localDe(c).getHours();
@@ -1981,6 +2019,13 @@ function calcularPasaporte(lista, lugares, pf, calles) {
     if (!L) continue;
     if (L.continente) conts.add(L.continente);
     if (L.pais) paises.add(L.pais);
+    if (L.pais) {
+      const x = porPais.get(L.pais) || { carreras: 0, km: 0, primera: c };
+      x.carreras++; x.km += c.distancia_m / 1000; if (localDe(c) < localDe(x.primera)) x.primera = c;
+      porPais.set(L.pais, x);
+      if (L.continente) { if (!paisesDeCont.has(L.continente)) paisesDeCont.set(L.continente, new Set());
+        paisesDeCont.get(L.continente).add(L.pais); }
+    }
     if (L.ciudad && !L.cerca) {
       const k = L.pais + "|" + L.ciudad;
       ciudades.add(k);
@@ -2031,7 +2076,33 @@ function calcularPasaporte(lista, lugares, pf, calles) {
   const puntos = { km: Math.round(km), ciudades: 25 * ciudades.size, paises: 100 * paises.size, continentes: 500 * conts.size,
                    logros: logros.reduce((s, x) => s + PUNTOS_TIER.slice(0, x.tier + 1).reduce((a, b) => a + b, 0), 0) };
   const xp = Object.values(puntos).reduce((a, b) => a + b, 0);
-  return { logros, xp, puntos, nivel: nivelDe(xp), paises: [...paises], conts, ciudades: ciudades.size };
+  return { logros, xp, puntos, nivel: nivelDe(xp), paises: [...paises], conts, ciudades: ciudades.size,
+           porPais, ciudadesPorPais, paisesDeCont };
+}
+
+// Qué mide cada logro (para la burbuja de explicación).
+function queMide(x) {
+  const n = x.nombres[2];
+  return {
+    ciudades: t("Ciudades distintas donde has corrido."),
+    paises: t("Países donde has corrido."),
+    continentes: t("Continentes habitados donde has corrido: África, Asia, Europa, Norteamérica, Sudamérica y Oceanía."),
+    pais: t("Ciudades distintas dentro de un mismo país (el tuyo con más ciudades)."),
+    antartica: t("Logro secreto: correr en la Antártica."),
+    barrio: t("Carreras que empiezan en tu comuna o barrio más corrido."),
+    ciudad: t("Carreras en tu ciudad más corrida."),
+    calle: t("Veces que pasaste por el tramo más corrido de tu calle favorita."),
+    km: t("Kilómetros totales corridos (el total de Strava)."),
+    racha: t("Tu racha más larga de semanas seguidas con al menos una carrera."),
+    madrugador: t("Carreras que empiezan antes de las 7:00."),
+    nocturno: t("Carreras que empiezan a las 21:00 o después."),
+  }[x.id] || n;
+}
+function infoLogro(x) {
+  const [b, p, o] = x.umbrales, falta = x.tier < 3 ? x.umbrales[x.tier] - x.valor : 0;
+  const estado = x.tier === 3 ? t("¡Oro conseguido!")
+    : t("Te faltan {n} para {nivel}: «{l}».", { n: num(falta), nivel: t(TIER[x.tier + 1]), l: esc(x.nombres[x.tier]) });
+  return `${queMide(x)}<br><span class="umb">${x.secreto ? "" : t("Bronce {b} · Plata {p} · Oro {o}", { b: num(b), p: num(p), o: num(o) }) + " · "}${t("Tienes {v}.", { v: num(x.valor) })}</span><br>${estado}`;
 }
 
 // Lo próximo: el logro al que le falta menos (en proporción) para subir.
@@ -2045,15 +2116,31 @@ function loProximo(P) {
 function htmlPasaporte(P) {
   const L = P.nivel, desde = xpDeNivel(L), hasta = xpDeNivel(L + 1);
   const avance = Math.round((P.xp - desde) / (hasta - desde) * 100);
-  const sellos = P.paises.filter((x) => x && x !== "AQ").map((cc) => `<span class="sello" title="${esc(nombrePais(cc))}">${bandera(cc)}</span>`).join("");
-  const conts = [...CONTINENTES, ...(P.conts.has("AN") ? ["AN"] : [])]
-    .map((x) => `<span class="cont${P.conts.has(x) ? " on" : ""}">${t(NOMBRE_CONT[x])}</span>`).join("");
+  const info = (tit, txt) => `tabindex="0" data-tit="${esc(tit)}" data-txt="${esc(txt)}"`;
+  const fechaLarga = (c) => localDe(c).toLocaleDateString(idioma === "en" ? "en-US" : "es-CL", { day: "numeric", month: "long", year: "numeric" });
+  const sellos = P.paises.filter((x) => x && x !== "AQ").map((cc) => {
+    const d = P.porPais.get(cc), cs = [...(P.ciudadesPorPais.get(cc) || [])];
+    const txt = t("{n} carreras · {k} km", { n: num(d.carreras), k: num(d.km) })
+      + (cs.length ? "<br>" + t("Ciudades: {c}", { c: esc(cs.slice(0, 5).join(", ") + (cs.length > 5 ? "…" : "")) }) : "")
+      + "<br>" + t("Primera vez: {f}", { f: fechaLarga(d.primera) })
+      + "<br><span class=\"umb\">" + t("Cada país nuevo suma 100 puntos.") + "</span>";
+    return `<span class="sello" ${info(bandera(cc) + " " + nombrePais(cc), txt)}>${bandera(cc)}</span>`;
+  }).join("");
+  const conts = [...CONTINENTES, ...(P.conts.has("AN") ? ["AN"] : [])].map((x) => {
+    const ps = [...(P.paisesDeCont.get(x) || [])];
+    const txt = ps.length ? t("Has corrido en {p}.", { p: esc(ps.map(nombrePais).join(", ")) }) + "<br><span class=\"umb\">" + t("Continente conseguido: +500 puntos.") + "</span>"
+      : t("Aún no corres aquí. La primera carrera en este continente suma 500 puntos.");
+    return `<span class="cont${P.conts.has(x) ? " on" : ""}" ${info(t(NOMBRE_CONT[x]), txt)}>${t(NOMBRE_CONT[x])}</span>`;
+  }).join("");
+  const infoNivel = info(t("Nivel {n} · {nombre}", { n: L, nombre: nombreNivel(L) }),
+    t("Subes de nivel con puntos: 1 por km, 25 por ciudad nueva, 100 por país, 500 por continente y 50, 150 o 400 por cada logro de bronce, plata u oro.")
+    + "<br>" + t("Te faltan {n} puntos para el nivel {s}.", { n: num(hasta - P.xp), s: L + 1 }));
   const tarjeta = (x) => {
     if (x.secreto && !x.tier) return "";
     const sig = x.tier < 3 ? x.umbrales[x.tier] : null;
     const nombre = x.nombres[Math.max(0, x.tier - 1)];
     const pct = sig ? Math.min(100, Math.round(x.valor / sig * 100)) : 100;
-    return `<div class="logro t${x.tier}" title="${esc(x.unidad)}">
+    return `<div class="logro t${x.tier}" ${info(x.icono + " " + (x.tier ? nombre : x.nombres[0]), infoLogro(x))}>
       <div class="medalla">${x.icono}</div>
       <b>${esc(x.tier ? nombre : x.nombres[0])}</b>
       <small>${x.pendiente ? t("calculando…") : sig ? `${num(x.valor)} / ${num(sig)} ${esc(x.unidad)}` : `${num(x.valor)} ${esc(x.unidad)}`}</small>
@@ -2061,7 +2148,7 @@ function htmlPasaporte(P) {
   };
   const grupo = (g, titulo) => `<h4>${titulo}</h4><div class="logros">${P.logros.filter((x) => x.grupo === g).map(tarjeta).join("")}</div>`;
   return `<div class="pasaporte">
-    <div class="pas-cab"><div class="nivel"><span>${L}</span></div>
+    <div class="pas-cab"><div class="nivel" ${infoNivel}><span>${L}</span></div>
       <div class="pas-nivel"><small>${t("Pasaporte")} · ${t("Nivel {n}", { n: L })}</small><b>${nombreNivel(L)}</b>
         <div class="xp"><i style="width:${avance}%"></i></div>
         <small>${num(P.xp)} / ${num(hasta)} ${t("puntos")}</small></div></div>
@@ -2076,6 +2163,39 @@ function htmlPasaporte(P) {
         { km: num(P.puntos.km), c: num(P.puntos.ciudades), p: num(P.puntos.paises), o: num(P.puntos.continentes), l: num(P.puntos.logros) })}</p></details>
     <button class="sec" id="compartirPasaporte" type="button">${t("Compartir mi pasaporte")}</button>
   </div>`;
+}
+
+// Burbuja de explicación: al pasar el mouse (si hay) o al tocar un sello,
+// continente, logro o el nivel. Otro toque, o tocar fuera, la cierra.
+function activarInfoPasaporte() {
+  const caja = $("pasaporte")?.querySelector(".pasaporte");
+  if (!caja) return;
+  const burbuja = document.createElement("div");
+  burbuja.className = "pas-info"; burbuja.hidden = true; burbuja.setAttribute("role", "tooltip");
+  caja.appendChild(burbuja);
+  const conMouse = () => window.matchMedia("(hover: hover)").matches;
+  let actual = null;
+  const mostrar = (el) => {
+    burbuja.innerHTML = `<b></b>${el.dataset.txt}`;        // txt ya viene escapado; el título va como texto
+    burbuja.firstChild.textContent = el.dataset.tit;
+    burbuja.hidden = false;
+    const r = el.getBoundingClientRect(), c = caja.getBoundingClientRect(), w = burbuja.offsetWidth;
+    burbuja.style.left = Math.max(8, Math.min(c.width - w - 8, r.left - c.left + r.width / 2 - w / 2)) + "px";
+    burbuja.style.top = (r.bottom - c.top + 8) + "px";
+    burbuja.style.setProperty("--flecha", Math.max(14, Math.min(w - 14, r.left - c.left + r.width / 2 - parseFloat(burbuja.style.left))) + "px");
+    actual = el;
+  };
+  const ocultar = () => { burbuja.hidden = true; actual = null; };
+  caja.addEventListener("mouseover", (e) => { const el = e.target.closest("[data-tit]"); if (el && conMouse()) mostrar(el); });
+  caja.addEventListener("mouseout", (e) => { const el = e.target.closest("[data-tit]");
+    if (el && conMouse() && !el.contains(e.relatedTarget)) ocultar(); });
+  caja.addEventListener("click", (e) => { const el = e.target.closest("[data-tit]");
+    if (!el) return ocultar();
+    if (actual === el && !conMouse()) ocultar(); else mostrar(el); });
+  // Con teclado (Tab) también; el foco que deja un toque no cuenta (lo maneja el click).
+  caja.addEventListener("focusin", (e) => { const el = e.target.closest("[data-tit]"); if (el && el.matches(":focus-visible")) mostrar(el); });
+  caja.addEventListener("focusout", ocultar);
+  $("hoja").addEventListener("scroll", ocultar, { passive: true });
 }
 
 // Logros nuevos desde la última vez: un aviso (la primera vez, sólo se guardan).
@@ -2114,8 +2234,23 @@ async function compartirPasaporte(P, nombre) {
     while (txt.length > 1 && g.measureText(txt + "…").width > max) txt = txt.slice(0, -1);
     return txt.trimEnd() + "…"; };
   g.fillStyle = "#fff"; g.font = f(800, 40); g.fillText("PacePath", 156, 118);
+  // Tu foto de Strava (la trae el servidor: con una imagen de otro dominio el
+  // navegador no deja exportar la tarjeta). Sin foto, el nombre usa todo el ancho.
+  const foto = await fetch("/api/strava/foto").then((r) => r.ok ? r.blob() : null)
+    .then((b) => b ? createImageBitmap(b) : null).catch(() => null);
+  const R = 96, fx = W - 72 - R, fy = 270;
+  if (foto) {
+    g.save(); g.beginPath(); g.arc(fx, fy, R, 0, 7); g.clip();
+    const k = Math.max(2 * R / foto.width, 2 * R / foto.height);           // cubrir el círculo
+    g.drawImage(foto, fx - foto.width * k / 2, fy - foto.height * k / 2, foto.width * k, foto.height * k);
+    g.restore();
+    const anillo = g.createLinearGradient(fx - R, fy - R, fx + R, fy + R);
+    anillo.addColorStop(0, "#ffb36b"); anillo.addColorStop(1, "#f2541b");
+    g.strokeStyle = anillo; g.lineWidth = 8; g.beginPath(); g.arc(fx, fy, R + 6, 0, 7); g.stroke();
+  }
+  const anchoNombre = foto ? fx - R - 40 - 72 : W - 144;
   g.fillStyle = "#ff9a6b"; g.font = f(700, 26); g.fillText(t("PASAPORTE DEL CORREDOR"), 72, 230);
-  g.fillStyle = "#fff"; g.font = f(800, 72); g.fillText(recortar(nombre || "", W - 144), 72, 316);
+  g.fillStyle = "#fff"; g.font = f(800, 72); g.fillText(recortar(nombre || "", anchoNombre), 72, 316);
   g.font = f(800, 150); g.fillStyle = "#ff8a4f"; g.fillText(String(P.nivel), 72, 500);
   const ancho = g.measureText(String(P.nivel)).width;
   g.fillStyle = "#fff"; g.font = f(800, 56); g.fillText(nombreNivel(P.nivel), 72 + ancho + 30, 440);
@@ -2160,6 +2295,7 @@ async function pintarPasaporte2(todas, pf, nombre) {
     const P = calcularPasaporte(todas, lugares, pf, calles);
     $("pasaporte").innerHTML = htmlPasaporte(P);
     $("compartirPasaporte").onclick = () => compartirPasaporte(P, nombre);
+    activarInfoPasaporte();
     return P;
   };
   dibujar(undefined);

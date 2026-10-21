@@ -17,6 +17,7 @@
     GET  /api/strava/actividades?pagina=&despues=
     POST /api/strava/frecuencia  tus carreras → calles de siempre (no se guarda)
     GET  /api/strava/perfil      perfil y totales (4 semanas, año, histórico)
+    GET  /api/strava/foto        tu foto de perfil (para la tarjeta del Pasaporte)
     POST /api/strava/desconectar revoca el acceso en Strava y borra la cookie
 """
 from __future__ import annotations
@@ -343,6 +344,25 @@ def strava_actividades(request: Request, pagina: int = 1, despues: int | None = 
     except strava.StravaError as exc:
         raise HTTPException(502, str(exc)) from exc
     resp = JSONResponse({"carreras": lista, "ultima": crudas < 100, "pagina": pagina})
+    if renovada:
+        _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
+    return resp
+
+
+@app.get("/api/strava/foto")
+def strava_foto(request: Request) -> Response:
+    """Tu foto de perfil de Strava, servida desde aquí (para la tarjeta del Pasaporte)."""
+    s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
+    if s is None:
+        raise HTTPException(401, tr("Conecta tu cuenta de Strava.", "Connect your Strava account."))
+    try:
+        s, renovada = strava.vigente(s)
+        f = strava.foto(s)
+    except strava.StravaError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    if f is None:
+        raise HTTPException(404, tr("No tienes foto de perfil en Strava.", "You don't have a Strava profile photo."))
+    resp = Response(f[0], media_type=f[1], headers={"Cache-Control": "private, max-age=3600"})
     if renovada:
         _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
     return resp

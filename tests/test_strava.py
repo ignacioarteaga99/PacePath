@@ -111,3 +111,28 @@ def test_sin_cookie_y_cookie_falsa(falso):
     assert cli.get("/api/strava/actividades").status_code == 401
     cli.cookies.set(strava.COOKIE, "basura")
     assert cli.get("/api/strava/actividades").status_code == 401
+
+
+def test_foto_del_atleta(monkeypatch):
+    """La foto sale de la API de Strava (no del teléfono) y sólo si es https e imagen."""
+    perfil_url = {"v": "https://dgalywyr863hv.cloudfront.net/pictures/athletes/7/large.jpg"}
+    monkeypatch.setattr(strava, "_http", lambda m, url, datos=None, token=None: {"id": 7, "profile": perfil_url["v"]})
+    pedidas = []
+
+    class Resp:
+        headers = type("H", (), {"get_content_type": staticmethod(lambda: "image/jpeg")})()
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self, n=-1): return b"\xff\xd8jpeg"
+
+    def abrir(req, timeout=None):
+        pedidas.append(req.full_url)
+        return Resp()
+    monkeypatch.setattr(strava.urllib.request, "urlopen", abrir)
+    s = strava.Sesion("a", "r", 0, 7)
+    assert strava.foto(s) == (b"\xff\xd8jpeg", "image/jpeg")
+    assert pedidas == [perfil_url["v"]]
+    perfil_url["v"] = "avatar/athlete/large.png"            # sin foto: el dibujo genérico de Strava
+    assert strava.foto(s) is None
+    perfil_url["v"] = "http://inseguro/x.jpg"
+    assert strava.foto(s) is None and len(pedidas) == 1

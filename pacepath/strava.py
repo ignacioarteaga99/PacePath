@@ -206,6 +206,30 @@ def _totales(t: dict | None) -> dict:
             "desnivel_m": round(t.get("elevation_gain") or 0)}
 
 
+FOTO_MAX_BYTES = 2_000_000
+
+
+def foto(s: Sesion) -> tuple[bytes, str] | None:
+    """La foto de perfil del propio atleta (la grande), para la tarjeta del
+    Pasaporte. El servidor la trae porque el navegador no deja exportar un
+    canvas con imágenes de otro dominio. La URL sale de la API de Strava, no
+    del teléfono, y sólo se aceptan https."""
+    a = _http("GET", f"{API}/athlete", token=s.access_token)
+    url = a.get("profile") or a.get("profile_medium") or ""
+    if not url.startswith("https://") or "avatar/athlete" in url:      # sin foto: el dibujo genérico
+        return None
+    req = urllib.request.Request(url, headers={"User-Agent": "PacePath/0.1"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:  # noqa: S310
+            tipo = r.headers.get_content_type()
+            datos = r.read(FOTO_MAX_BYTES + 1)
+    except OSError as exc:
+        raise StravaError(tr("No pude traer tu foto de Strava.", "I couldn't get your Strava photo.")) from exc
+    if not tipo.startswith("image/") or len(datos) > FOTO_MAX_BYTES:
+        return None
+    return datos, tipo
+
+
 def perfil(s: Sesion) -> dict:
     """Perfil público y totales de carrera (4 semanas, año, histórico) de Strava."""
     a = _http("GET", f"{API}/athlete", token=s.access_token)
