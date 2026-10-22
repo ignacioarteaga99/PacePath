@@ -167,7 +167,19 @@
   .fila { display: flex; gap: 8px; margin-top: 12px; }
   .fila button { flex: 1; }
   .pista { color: var(--suave); margin: 4px 0; }
+  /* Windows no trae banderas emoji (muestra «CL», «IT»): ahí, y sólo ahí, una
+     fuente con únicamente las banderas (Twemoji, CC BY 4.0). Ver SIN_BANDERAS. */
+  @font-face { font-family: "Twemoji Country Flags"; src: url("/vendor/TwemojiCountryFlags.woff2") format("woff2");
+    unicode-range: U+1F1E6-1F1FF, U+1F3F4, U+E0062-E0063, U+E0065, U+E0067, U+E006C, U+E006E, U+E0073-E0074, U+E0077, U+E007F;
+    font-display: swap; }
+  html.sin-banderas body { font-family: "Twemoji Country Flags", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+  html.sin-banderas .sello, html.sin-banderas .bandera { font-family: "Twemoji Country Flags", sans-serif; }
   #sync.mal { color: var(--error, #d03b3b); }
+  #sync .progreso { display: block; height: 6px; border-radius: 3px; background: var(--gris); overflow: hidden; margin-top: 6px; }
+  #sync .progreso i { display: block; height: 100%; border-radius: 3px; background: var(--acento); transition: width .4s; }
+  #sync .progreso.indef i { animation: indef 1.3s ease-in-out infinite; }
+  @keyframes indef { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  @media (prefers-reduced-motion: reduce) { #sync .progreso.indef i { animation: none; width: 100% !important; opacity: .4; } }
   .sync-fila { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
   .sync-fila .pista { flex: 1; font-size: 13px; margin: 0; }
   button.chico { padding: 5px 10px; font-size: 13px; }
@@ -649,7 +661,10 @@ const EN = {
   "Sin volver": "One way",
   "Dónde has corrido": "Where you've run", "{n} carrera": "{n} run", "{n} carreras": "{n} runs",
   "Otros lugares": "Other places", "cerca de {c}": "near {c}", "Sin ciudad cerca": "No city nearby",
-  "Ciudades: GeoNames (CC BY 4.0)": "Cities: GeoNames (CC BY 4.0)",
+  "Ciudades: GeoNames (CC BY 4.0)": "Cities: GeoNames (CC BY 4.0)", "Banderas: Twemoji (CC BY 4.0)": "Flags: Twemoji (CC BY 4.0)",
+  "Trayendo tu historial de Strava… {p} % ({n} de {t} carreras)": "Fetching your Strava history… {p}% ({n} of {t} runs)",
+  "Trayendo tu historial de Strava… {n} carreras": "Fetching your Strava history… {n} runs",
+  "La descarga se cortó ({n} carreras traídas): {e} Toca «Actualizar» para seguir donde quedó.": "The download stopped ({n} runs fetched): {e} Tap “Refresh” to continue where it left off.",
   "Trotador": "Jogger",
   "Corredor": "Runner",
   "Fondista": "Distance runner",
@@ -729,10 +744,8 @@ const EN = {
   "1 punto por km · 25 por ciudad nueva · 100 por país · 500 por continente · 50, 150 y 400 por logro de bronce, plata y oro.": "1 point per km · 25 per new city · 100 per country · 500 per continent · 50, 150 and 400 per bronze, silver and gold achievement.",
   "Tus puntos: {km} por km, {c} por ciudades, {p} por países, {o} por continentes y {l} por logros.": "Your points: {km} from km, {c} from cities, {p} from countries, {o} from continents and {l} from achievements.",
   "hace un momento": "just now", "hace {n} min": "{n} min ago", "hace {n} h": "{n} h ago", "hace {n} días": "{n} days ago",
-  "La descarga se cortó en la página {p}: {e} Toca «Actualizar» para seguir donde quedó.": "The download stopped at page {p}: {e} Tap “Refresh” to continue where it left off.",
   "No pude sincronizar: {e}": "Couldn't sync: {e}", "Última sincronización con Strava: {h}.": "Last synced with Strava: {h}.",
   "Sin conexión con PacePath.": "No connection to PacePath.", "El servidor respondió {c}.": "The server answered {c}.",
-  "Trayendo tu historial de Strava… página {p} ({n} carreras nuevas)": "Fetching your Strava history… page {p} ({n} new runs)",
   "Buscando carreras nuevas en Strava…": "Looking for new runs on Strava…", "Sincronizando con Strava…": "Syncing with Strava…",
   "¿Volver a traer todas tus carreras de Strava? Sirve si faltan carreras antiguas; puede tardar un minuto.": "Fetch all your Strava runs again? Useful if older runs are missing; it can take a minute.",
   "¿Faltan carreras? Traer todo de nuevo": "Missing runs? Fetch everything again",
@@ -1960,6 +1973,18 @@ async function dibujarCalor(e, aviso, encuadrar) {
 // límites de OpenStreetMap), sin servicios externos. Quedan guardados aquí y
 // se vuelven a preguntar cada semana. Lo usan esta lista y el Pasaporte.
 const LUGARES_DIAS = 7;
+// ¿Este sistema dibuja banderas emoji? Se escribe una en un canvas: si sale
+// sin color, son las letras («CL») y se usa la fuente de banderas.
+const SIN_BANDERAS = (() => {
+  try {
+    const g = Object.assign(document.createElement("canvas"), { width: 24, height: 24 }).getContext("2d", { willReadFrequently: true });
+    g.font = "20px sans-serif"; g.fillText("\u{1F1E8}\u{1F1F1}", 0, 20);
+    const d = g.getImageData(0, 0, 24, 24).data;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] && (d[i] !== d[i + 1] || d[i + 1] !== d[i + 2])) return false;
+    return true;
+  } catch { return false; }
+})();
+if (SIN_BANDERAS) document.documentElement.classList.add("sin-banderas");
 const bandera = (cc) => cc && cc.length === 2
   ? String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) : "🌐";
 const nombrePais = (cc) => { try { return new Intl.DisplayNames([idioma], { type: "region" }).of(cc); }
@@ -2009,7 +2034,7 @@ async function pintarDondeCorri(lista) {
       ${P.ciudades.map((C, j) => `<button type="button" class="ir ciudad-fila" data-p="${i}" data-c="${j}">
         <span>${C.ciudad ? (C.cerca ? t("cerca de {c}", { c: esc(C.ciudad) }) : esc(C.ciudad)) : t("Sin ciudad cerca")}</span>
         <small>${carr(C.carreras)} · ${num(C.km)} km</small></button>`).join("")}</div>`).join("")}
-    <p class="credito">${t("Ciudades: GeoNames (CC BY 4.0)")}</p></div>`;
+    <p class="credito">${t("Ciudades: GeoNames (CC BY 4.0)")}${SIN_BANDERAS ? " · " + t("Banderas: Twemoji (CC BY 4.0)") : ""}</p></div>`;
   for (const b of $("dondeCorri").querySelectorAll(".ir")) b.onclick = () => {
     const P = lugaresCorridos[+b.dataset.p], X = b.dataset.c != null ? P.ciudades[+b.dataset.c] : P;
     $("dondeCorri").querySelectorAll(".ir").forEach((x) => x.classList.toggle("on", x === b));
@@ -2050,16 +2075,22 @@ function haceCuanto(iso) {
 }
 function textoSync() {
   const st = leerSync();
-  if (st.error) return { txt: st.pagina > 1 ? t("La descarga se cortó en la página {p}: {e} Toca «Actualizar» para seguir donde quedó.", { p: st.pagina, e: st.error })
+  if (st.error) return { txt: st.pagina > 1 ? t("La descarga se cortó ({n} carreras traídas): {e} Toca «Actualizar» para seguir donde quedó.", { n: num(st.vistas || 0), e: st.error })
     : t("No pude sincronizar: {e}", { e: st.error }), mal: true };
   if (st.ultima) return { txt: t("Última sincronización con Strava: {h}.", { h: haceCuanto(st.ultima) }), mal: false };
   return { txt: "", mal: false };
 }
-function pintarSync(txt, mal) {
+// progreso: undefined = sin barra; null = barra sin porcentaje; 0–100 = barra.
+let ultimoProgreso = null;
+function pintarSync(txt, mal, progreso) {
   const el = $("sync");
   if (!el) return;
-  if (txt === undefined) ({ txt, mal } = sincronizando ? { txt: t("Sincronizando con Strava…"), mal: false } : textoSync());
-  el.textContent = txt;
+  if (txt === undefined) {
+    if (sincronizando && ultimoProgreso) ({ txt, progreso } = ultimoProgreso);     // la vista se repintó a mitad
+    else ({ txt, mal } = sincronizando ? { txt: t("Sincronizando con Strava…"), mal: false } : textoSync());
+  }
+  el.innerHTML = `<span>${esc(txt)}</span>` + (progreso === undefined ? ""
+    : `<span class="progreso${progreso === null ? " indef" : ""}" role="progressbar"${progreso === null ? "" : ` aria-valuenow="${progreso}"`}><i style="width:${progreso ?? 30}%"></i></span>`);
   el.classList.toggle("mal", !!mal);
 }
 const necesitaSync = () => { const st = leerSync(); return !st.completo || !st.ultima || st.error
@@ -2100,23 +2131,38 @@ async function _sincronizar(e, { todo = false } = {}) {
   const despues = !historial && masNueva ? Math.floor(Date.parse(masNueva) / 1000) - 7 * 86400 : null;
   const yaEstaban = new Set(lista.map((c) => c.id));
   let pagina = historial ? (st.pagina || 1) : 1, nuevas = 0, paginas = 0;
+  // Progreso del historial: carreras recibidas (de la más nueva hacia atrás)
+  // sobre el total de carreras del perfil de Strava. Las de cinta no traen
+  // mapa y no llegan, así que se topa en 99 % hasta terminar.
+  let vistas = historial ? (st.vistas || 0) : 0;
+  if (historial && !perfilGuardado) perfilGuardado = await fetch("/api/strava/perfil").then((r) => r.ok ? r.json() : null).catch(() => null);
+  const total = historial ? perfilGuardado?.historico?.carreras || 0 : 0;
+  const avance = () => {
+    ultimoProgreso = !historial ? { txt: t("Buscando carreras nuevas en Strava…"), progreso: null }
+      : total ? { txt: t("Trayendo tu historial de Strava… {p} % ({n} de {t} carreras)", { p: Math.min(99, Math.round(100 * vistas / total)), n: num(vistas), t: num(total) }),
+                  progreso: Math.min(99, Math.round(100 * vistas / total)) }
+      : { txt: t("Trayendo tu historial de Strava… {n} carreras", { n: num(vistas) }), progreso: null };
+    pintarSync(ultimoProgreso.txt, false, ultimoProgreso.progreso);
+  };
   try {
     for (;;) {
-      pintarSync(historial ? t("Trayendo tu historial de Strava… página {p} ({n} carreras nuevas)", { p: pagina, n: nuevas })
-        : t("Buscando carreras nuevas en Strava…"));
+      avance();
       const j = await paginaStrava(pagina, despues);
       await BD.guardar(j.carreras);
       nuevas += j.carreras.filter((c) => !yaEstaban.has(c.id)).length;
+      vistas += j.carreras.length;
       paginas++;
       if (j.ultima) break;
       pagina++;
-      if (historial) guardarSync({ ...st, pagina, error: null });
+      if (historial) guardarSync({ ...st, pagina, vistas, error: null });
     }
+    ultimoProgreso = null;
     guardarSync({ completo: true, ultima: new Date().toISOString() });
     _fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tipo: "sync", detalle: `${historial ? "historial" : "nuevas"} · ${paginas} pág · ${nuevas} nuevas · ${yaEstaban.size + nuevas} en total` }) }).catch(() => {});
   } catch (err) {
-    guardarSync({ ...st, pagina: historial ? pagina : undefined, error: err.message, fallo: new Date().toISOString() });
+    ultimoProgreso = null;
+    guardarSync({ ...st, pagina: historial ? pagina : undefined, vistas: historial ? vistas : undefined, error: err.message, fallo: new Date().toISOString() });
     _fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tipo: "sync_error", detalle: `página ${pagina}${historial ? " del historial" : ""}: ${err.message}`.slice(0, 200) }) }).catch(() => {});
   }
@@ -2404,7 +2450,8 @@ async function compartirPasaporte(P, nombre) {
   datos.forEach(([v, e], i) => { const x = 72 + i * 240;
     g.fillStyle = "#fff"; g.font = f(800, 60); g.fillText(num(v), x, 640);
     g.fillStyle = "rgba(255,255,255,.65)"; g.font = f(600, 26); g.fillText(e, x, 680); });
-  g.font = f(400, 64); g.fillText(P.paises.filter((x) => x !== "AQ").slice(0, 12).map(bandera).join(" "), 72, 800);
+  if (SIN_BANDERAS) await document.fonts.load('64px "Twemoji Country Flags"', "\u{1F1E8}\u{1F1F1}").catch(() => {});
+  g.font = SIN_BANDERAS ? `400 64px "Twemoji Country Flags", sans-serif` : f(400, 64); g.fillText(P.paises.filter((x) => x !== "AQ").slice(0, 12).map(bandera).join(" "), 72, 800);
   const top = P.logros.filter((x) => x.tier).sort((a, b) => b.tier - a.tier).slice(0, 6);
   const color = ["", "#c47a3a", "#b8c0c8", "#e6b422"];
   top.forEach((x, i) => { const cx = 72 + (i % 2) * 470, cy = 880 + Math.floor(i / 2) * 110;
