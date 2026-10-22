@@ -593,6 +593,7 @@
 </nav>
 
 <script src="/vendor/leaflet/leaflet.js"></script>
+<!--PP_CONFIG-->
 <script>
 const $ = (id) => document.getElementById(id);
 
@@ -863,13 +864,20 @@ const _fetch = window.fetch.bind(window);
 window.fetch = (u, o = {}) => _fetch(u, { ...o, headers: { ...(o.headers || {}), "X-Idioma": idioma } });
 const mapa = L.map("mapa", { zoomControl: false, zoomSnap: 0.25 }).setView([-33.4258, -70.61], 14);
 // ── Capas del mapa y modo día/noche ─────────────────────────────────────────
-// Todas de Esri, sin clave (CARTO la pide fuera de localhost; OSM estándar es
-// recargado para una app de deporte). «Claro» es la base por defecto: gris
-// limpio donde la ruta naranja resalta; de noche pasa a su versión oscura.
+// Todas de Esri. Con clave de ArcGIS Location Platform (ESRI_API_KEY en
+// Render; el servidor la pone en window.PP_ESRI): los mapas base oficiales,
+// en regla y gratis hasta la cuota mensual. La clave es pública a propósito:
+// sólo tiene el permiso de mapas base y Esri la acepta sólo desde nuestros
+// dominios. Sin clave, o si falla (vencida, mal pegada, dominio no
+// autorizado), los servidores públicos de siempre: el mapa nunca queda en blanco.
+// «Claro» es la base por defecto: gris limpio donde la ruta naranja resalta;
+// de noche pasa a su versión oscura.
+const ESRI_CLAVE = window.PP_ESRI || null;
+let esriSinClave = !ESRI_CLAVE;
 const ESRI_SERV = "https://server.arcgisonline.com/ArcGIS/rest/services/";
 const esri = (ruta, extra = {}) => L.tileLayer(ESRI_SERV + ruta + "/MapServer/tile/{z}/{y}/{x}",
   { maxZoom: 19, attribution: "Esri, HERE, Garmin, © OpenStreetMap", ...extra });
-const CAPAS = {
+const CAPAS_PUBLICAS = {
   // Las bases «Canvas» llegan hasta el nivel 16: más cerca, Leaflet las estira.
   claro: () => L.layerGroup([esri("Canvas/World_Light_Gray_Base", { maxNativeZoom: 16 }),
                              esri("Canvas/World_Light_Gray_Reference", { maxNativeZoom: 16 })]),
@@ -882,10 +890,45 @@ const CAPAS = {
   hibrido: () => L.layerGroup([esri("World_Imagery", { attribution: "Esri, Maxar, Earthstar Geographics" }),
                                esri("Reference/World_Boundaries_and_Places")]),
 };
-// Miniatura de cada capa: la misma tesela de Providencia (z14).
+// Con clave: «Static Basemap Tiles» (teselas de 512 px) y las imágenes satelitales.
+const ESTATICO = "https://static-map-tiles-api.arcgis.com/arcgis/rest/services/static-basemap-tiles-service/v1/";
+const IMAGENES = "https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/";
+const token = () => "?token=" + encodeURIComponent(ESRI_CLAVE);
+const estatico = (estilo) => L.tileLayer(`${ESTATICO}${estilo}/static/tile/{z}/{y}/{x}${token()}`,
+  { tileSize: 512, zoomOffset: -1, maxZoom: 19, attribution: "Powered by Esri · Esri, HERE, Garmin, © OpenStreetMap" });
+const imagenes = () => L.tileLayer(`${IMAGENES}{z}/{y}/{x}${token()}`,
+  { maxZoom: 19, attribution: "Powered by Esri · Esri, Maxar, Earthstar Geographics" });
+const CAPAS_CLAVE = {
+  claro: () => estatico("arcgis/light-gray"),
+  oscuro: () => estatico("arcgis/dark-gray"),
+  calles: () => estatico("arcgis/streets"),
+  relieve: () => estatico("arcgis/outdoor"),
+  satelite: () => imagenes(),
+  hibrido: () => L.layerGroup([imagenes(), estatico("arcgis/imagery/labels")]),
+};
+// Si una capa con clave sólo da errores, se vuelve a los servidores públicos
+// y se avisa al panel de administración (para renovar o corregir la clave).
+function vigilarClave(capa) {
+  let ok = 0, mal = 0;
+  const tiles = capa instanceof L.LayerGroup ? capa.getLayers() : [capa];
+  tiles.forEach((t) => t.on("tileload", () => ok++).on("tileerror", () => {
+    if (++mal < 2 || ok || esriSinClave) return;            // teselas de 512: sólo ~4 por pantalla
+    esriSinClave = true;
+    Object.keys(cacheCapas).forEach((k) => delete cacheCapas[k]);
+    ponerCapa(nombreCapa);
+    _fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: "mapa_error", detalle: "La clave de Esri no funciona: se usan los mapas públicos. Revisa ESRI_API_KEY (¿vencida? ¿dominio autorizado?)." }) }).catch(() => {});
+  }));
+  return capa;
+}
+const CAPAS = Object.fromEntries(Object.keys(CAPAS_PUBLICAS).map((k) =>
+  [k, () => esriSinClave ? CAPAS_PUBLICAS[k]() : vigilarClave(CAPAS_CLAVE[k]())]));
+// Miniatura de cada capa: la misma zona de Providencia (z14; z13 en teselas de 512).
 const MINI = { claro: "Canvas/World_Light_Gray_Base", oscuro: "Canvas/World_Dark_Gray_Base",
   calles: "World_Street_Map", relieve: "World_Topo_Map", satelite: "World_Imagery", hibrido: "World_Imagery" };
-const mini = (k) => `url(${ESRI_SERV}${MINI[k]}/MapServer/tile/14/9807/4978)`;
+const MINI_CLAVE = { claro: "arcgis/light-gray", oscuro: "arcgis/dark-gray", calles: "arcgis/streets", relieve: "arcgis/outdoor" };
+const mini = (k) => esriSinClave ? `url(${ESRI_SERV}${MINI[k]}/MapServer/tile/14/9807/4978)`
+  : MINI_CLAVE[k] ? `url(${ESTATICO}${MINI_CLAVE[k]}/static/tile/13/4903/2489${token()})` : `url(${IMAGENES}14/9807/4978${token()})`;
 const cacheCapas = {};
 const capa = (k) => (cacheCapas[k] ??= CAPAS[k]());
 const pref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };

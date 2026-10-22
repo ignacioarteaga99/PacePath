@@ -49,3 +49,14 @@ def test_con_dominio_propio_onrender_redirige_las_paginas(monkeypatch):
     assert r.status_code == 301 and r.headers["location"] == "https://pacepath.com/privacidad?lang=en"
     assert c.get("/api/salud").status_code == 200                              # la API no se mueve
     assert TestClient(app, base_url="https://pacepath.com").get("/", follow_redirects=False).status_code == 200
+
+
+def test_clave_de_mapas_de_esri_va_en_la_pagina_solo_si_existe(monkeypatch):
+    c = TestClient(app)
+    monkeypatch.delenv("ESRI_API_KEY", raising=False)
+    assert "window.PP_ESRI =" not in c.get("/").text
+    monkeypatch.setenv("ESRI_API_KEY", "AAPTclave123")
+    assert '<script>window.PP_ESRI = "AAPTclave123";</script>' in c.get("/").text
+    monkeypatch.setenv("ESRI_API_KEY", 'x"</script><b>')                        # mal pegada: no rompe la página
+    html = c.get("/").text
+    assert "</script><b>" not in html and 'window.PP_ESRI = "x\\"\\u003c/script>\\u003cb>";' in html

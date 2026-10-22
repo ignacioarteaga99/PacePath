@@ -27,6 +27,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import secrets
@@ -40,7 +41,7 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -230,12 +231,18 @@ class PedidoRuta(BaseModel):
 
 
 @app.get("/", include_in_schema=False)
-def index(origen: str | None = None) -> FileResponse:
+def index(origen: str | None = None) -> HTMLResponse:
     uso.registrar("visita", "app instalada" if origen == "app" else None)
-    return FileResponse(WEB / "index.html")
+    # La clave de mapas de Esri va en la página: es pública a propósito (sólo
+    # mapas base y sólo desde nuestros dominios, según la configuró Esri).
+    html = (WEB / "index.html").read_text(encoding="utf-8")
+    clave = os.environ.get("ESRI_API_KEY", "").strip()
+    if clave:
+        html = html.replace("<!--PP_CONFIG-->", f"<script>window.PP_ESRI = {json.dumps(clave).replace('<', chr(92) + 'u003c')};</script>", 1)
+    return HTMLResponse(html)
 
 
-EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar", "sync", "sync_error"}
+EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar", "sync", "sync_error", "mapa_error"}
 
 
 class Evento(BaseModel):
