@@ -74,6 +74,8 @@ app.mount("/vendor", StaticFiles(directory=WEB / "vendor"), name="vendor")
 app.mount("/icons", StaticFiles(directory=WEB / "icons"), name="icons")
 # Logos oficiales de Strava (guía de marca de la API), sin modificar.
 app.mount("/strava", StaticFiles(directory=WEB / "strava"), name="strava")
+# Estilo y miniaturas del mapa propio (las teselas están en Cloudflare R2).
+app.mount("/mapa", StaticFiles(directory=WEB / "mapa"), name="mapa")
 
 
 @app.middleware("http")
@@ -235,10 +237,16 @@ def index(origen: str | None = None) -> HTMLResponse:
     uso.registrar("visita", "app instalada" if origen == "app" else None)
     # La clave de mapas de Esri va en la página: es pública a propósito (sólo
     # mapas base y sólo desde nuestros dominios, según la configuró Esri).
+    # Lo mismo la dirección del mapa propio en Cloudflare R2 (PACEPATH_MAPA_URL).
     html = (WEB / "index.html").read_text(encoding="utf-8")
-    clave = os.environ.get("ESRI_API_KEY", "").strip()
-    if clave:
-        html = html.replace("<!--PP_CONFIG-->", f"<script>window.PP_ESRI = {json.dumps(clave).replace('<', chr(92) + 'u003c')};</script>", 1)
+    js = lambda v: json.dumps(v).replace("<", "\\u003c")
+    config = []
+    if clave := os.environ.get("ESRI_API_KEY", "").strip():
+        config.append(f"window.PP_ESRI = {js(clave)};")
+    if mapa := os.environ.get("PACEPATH_MAPA_URL", "").strip().rstrip("/"):
+        config.append(f"window.PP_MAPA = {js(mapa)};")
+    if config:
+        html = html.replace("<!--PP_CONFIG-->", "<script>" + " ".join(config) + "</script>", 1)
     return HTMLResponse(html)
 
 

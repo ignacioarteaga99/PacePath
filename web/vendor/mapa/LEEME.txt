@@ -1,0 +1,7 @@
+Mapa propio de PacePath (se carga sólo cuando se usa la capa «PacePath»):
+  maplibre-gl.js / .css    MapLibre GL JS 4.7.1        BSD-3-Clause  (npm maplibre-gl)
+  pmtiles.js               PMTiles 3.2.1               BSD-3-Clause  (npm pmtiles)
+  leaflet-maplibre-gl.js   maplibre-gl-leaflet 0.0.22  ISC           (npm @maplibre/maplibre-gl-leaflet)
+  maplibre-contour.min.js  maplibre-contour 0.1.0      BSD-3-Clause  (npm maplibre-contour)
+Datos: © colaboradores de OpenStreetMap (ODbL), teselas de Protomaps;
+relieve: Terrain Tiles de Mapzen en AWS Open Data.

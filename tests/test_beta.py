@@ -60,3 +60,14 @@ def test_clave_de_mapas_de_esri_va_en_la_pagina_solo_si_existe(monkeypatch):
     monkeypatch.setenv("ESRI_API_KEY", 'x"</script><b>')                        # mal pegada: no rompe la página
     html = c.get("/").text
     assert "</script><b>" not in html and 'window.PP_ESRI = "x\\"\\u003c/script>\\u003cb>";' in html
+
+
+def test_mapa_propio_su_direccion_y_su_estilo(monkeypatch):
+    c = TestClient(app)
+    monkeypatch.delenv("PACEPATH_MAPA_URL", raising=False)
+    assert "window.PP_MAPA =" not in c.get("/").text                            # sin mapa propio: Esri
+    monkeypatch.setenv("PACEPATH_MAPA_URL", "https://mapas.pacepathapp.com/")
+    assert 'window.PP_MAPA = "https://mapas.pacepathapp.com";' in c.get("/").text
+    assert "estiloPacePath" in c.get("/mapa/estilo.js").text
+    assert c.get("/mapa/mini-dia.png").status_code == 200
+    assert c.get("/vendor/mapa/maplibre-gl.js").status_code == 200

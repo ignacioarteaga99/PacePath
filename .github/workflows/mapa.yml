@@ -1,0 +1,101 @@
+name: Mapa de Chile (R2)
+# Arma el mapa propio de PacePath: recorta Chile (hasta el zoom 15) del mapa
+# mundial de Protomaps (OpenStreetMap, teselas vectoriales), lo sube a
+# Cloudflare R2 con las fuentes de los nombres, y deja fotos de cómo se ve en
+# la rama «mapa-preview». La app lo lee de PACEPATH_MAPA_URL.
+# Correrlo una o dos veces al año basta (calles y parques nuevos).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 1 1,7 *"          # 1 de enero y 1 de julio
+  push:
+    paths: [".github/workflows/mapa.yml"]
+
+permissions:
+  contents: write                     # para publicar las fotos en la rama mapa-preview
+
+concurrency:
+  group: mapa
+  cancel-in-progress: true
+
+jobs:
+  mapa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      # Chile continental (con un margen de Argentina, Bolivia y Perú)
+      BBOX: "-76.0,-56.1,-66.0,-17.4"
+      MAXZOOM: "15"
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      # R2 no acepta las sumas de verificación que agregan las versiones nuevas de aws-cli
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      BUCKET: ${{ secrets.R2_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Revisar los secretos
+        run: |
+          [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ] && [ -n "$BUCKET" ] && [ "$R2" != "https://.r2.cloudflarestorage.com" ] \
+            || { echo "::error::Faltan los secretos R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY o R2_BUCKET"; exit 1; }
+          aws s3 ls "s3://$BUCKET" --endpoint-url "$R2" >/dev/null && echo "Acceso a R2: ok"
+
+      - name: Herramienta pmtiles
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release download --repo protomaps/go-pmtiles --pattern '*Linux_x86_64.tar.gz' --output pmtiles.tgz
+          tar xzf pmtiles.tgz pmtiles && ./pmtiles version
+
+      - name: Recortar Chile del mapa mundial de Protomaps
+        run: |
+          # La versión más reciente (se publican a diario en build.protomaps.com)
+          BUILD=$(curl -fsS https://build-metadata.protomaps.dev/builds.json | jq -r 'map(.key) | sort | last' || true)
+          if [ -z "$BUILD" ] || [ "$BUILD" = "null" ]; then
+            for i in $(seq 0 20); do
+              d=$(date -u -d "-$i day" +%Y%m%d)
+              if curl -fsI "https://build.protomaps.com/$d.pmtiles" >/dev/null; then BUILD="$d.pmtiles"; break; fi
+            done
+          fi
+          echo "Versión de Protomaps: $BUILD"
+          mkdir -p sitio
+          ./pmtiles extract "https://build.protomaps.com/$BUILD" sitio/chile.pmtiles \
+            --bbox="$BBOX" --maxzoom="$MAXZOOM" --download-threads=8
+          ./pmtiles show sitio/chile.pmtiles | head -30
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+          echo "### Mapa de Chile" >> "$GITHUB_STEP_SUMMARY"
+          echo "Protomaps $BUILD · $(du -h sitio/chile.pmtiles | cut -f1) · zoom 0–$MAXZOOM" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fuentes de los nombres
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/protomaps/basemaps-assets fuentes
+          (cd fuentes && git sparse-checkout set "fonts/Noto Sans Regular" "fonts/Noto Sans Medium" "fonts/Noto Sans Italic")
+          cp -r fuentes/fonts sitio/fonts && du -sh sitio/fonts
+
+      - name: Fotos de prueba (antes de publicar)
+        run: |
+          python -m pip install -q playwright==1.48.0
+          python -m playwright install --with-deps chromium >/dev/null
+          python scripts/servidor_rango.py sitio 8799 &
+          sleep 2
+          python scripts/vista_mapa.py http://localhost:8799 sitio
+
+      - name: Subir a Cloudflare R2
+        run: |
+          aws s3 cp sitio/chile.pmtiles "s3://$BUCKET/chile.pmtiles" --endpoint-url "$R2" \
+            --content-type application/octet-stream --cache-control "public, max-age=86400"
+          aws s3 sync sitio/fonts "s3://$BUCKET/fonts" --endpoint-url "$R2" \
+            --content-type application/x-protobuf --cache-control "public, max-age=2592000" --only-show-errors
+          aws s3 ls "s3://$BUCKET/" --endpoint-url "$R2" --human-readable
+          echo "Subido a R2: chile.pmtiles y fonts/" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar las fotos en la rama mapa-preview
+        run: |
+          mkdir preview && cp sitio/*.png preview/
+          cd preview
+          printf "# Vista previa del mapa de Chile\n\nProtomaps %s · generado %s\n" "$BUILD" "$(date -u +%F)" > README.md
+          git init -q -b mapa-preview && git add . \
+            && git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -qm "Vista previa del mapa ($BUILD)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" mapa-preview
