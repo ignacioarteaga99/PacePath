@@ -103,12 +103,21 @@
       { id: "autopista", type: "line", source: "pp", "source-layer": "roads", minzoom: 6, filter: ["==", ["get", "kind"], "highway"],
         layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": C.autopista, "line-width": ancho([6, 0.6, 18, 22]) } },
       // Lo que importa para correr: senderos, huellas y ciclovías
+      // Huellas y senderos de cerro: desde lejos y bien marcados.
       { id: "huellas", type: "line", source: "pp", "source-layer": "roads", minzoom: 12,
         filter: ["all", ["==", ["get", "kind"], "path"], es("kind_detail", ["track", "bridleway"])],
         paint: { "line-color": C.huella, "line-width": ancho([12, 0.8, 18, 3.5]), "line-dasharray": [2.5, 1.5] } },
-      { id: "senderos", type: "line", source: "pp", "source-layer": "roads", minzoom: 13,
-        filter: ["all", ["==", ["get", "kind"], "path"], ["!", es("kind_detail", ["track", "bridleway", "cycleway"])]],
-        paint: { "line-color": C.senda, "line-width": ancho([13, 0.8, 18, 3.5]), "line-dasharray": [1.5, 1] } },
+      { id: "senderos", type: "line", source: "pp", "source-layer": "roads", minzoom: 12,
+        filter: ["all", ["==", ["get", "kind"], "path"], ["==", ["get", "kind_detail"], "path"]],
+        paint: { "line-color": C.senda, "line-width": ancho([12, 0.8, 18, 3.5]), "line-dasharray": [1.5, 1] } },
+      // Veredas, cruces y pasajes peatonales: en Santiago están casi todas
+      // mapeadas aparte de la calle; sólo de muy cerca y suaves (si no, el
+      // mapa queda lleno de líneas verdes).
+      { id: "peatonales", type: "line", source: "pp", "source-layer": "roads", minzoom: 16,
+        filter: ["all", ["==", ["get", "kind"], "path"],
+                 ["!", es("kind_detail", ["path", "track", "bridleway", "cycleway", "sidewalk", "crossing"])],
+                 ["!", es("footway", ["sidewalk", "crossing"])]],
+        paint: { "line-color": C.senda, "line-opacity": 0.45, "line-width": ancho([16, 0.6, 18, 1.6]), "line-dasharray": [1, 1.5] } },
       { id: "ciclovias", type: "line", source: "pp", "source-layer": "roads", minzoom: 13, filter: ["==", ["get", "kind_detail"], "cycleway"],
         paint: { "line-color": C.cicl, "line-width": ancho([13, 0.8, 18, 3]), "line-dasharray": [2, 1.2] } },
       { id: "limites", type: "line", source: "pp", "source-layer": "boundaries", filter: es("kind", ["country", "region"]),

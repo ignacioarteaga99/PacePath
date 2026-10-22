@@ -6,10 +6,17 @@ name: Mapa de Chile (R2)
 # Correrlo una o dos veces al año basta (calles y parques nuevos).
 on:
   workflow_dispatch:
+    inputs:
+      rehacer:
+        description: "Volver a recortar Chile de Protomaps (si no, sólo fotos con el mapa que ya está en R2)"
+        type: boolean
+        default: true
   schedule:
     - cron: "17 6 1 1,7 *"          # 1 de enero y 1 de julio
   push:
-    paths: [".github/workflows/mapa.yml"]
+    # Cambios de estilo: fotos nuevas con el mapa que ya está en R2 (sin volver
+    # a bajar Chile entero). Si R2 está vacío, lo arma.
+    paths: [".github/workflows/mapa.yml", "web/mapa/estilo.js", "scripts/vista_mapa.py"]
 
 permissions:
   contents: write                     # para publicar las fotos en la rama mapa-preview
@@ -43,6 +50,16 @@ jobs:
             || { echo "::error::Faltan los secretos R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY o R2_BUCKET"; exit 1; }
           aws s3 ls "s3://$BUCKET" --endpoint-url "$R2" >/dev/null && echo "Acceso a R2: ok"
 
+      - name: ¿Rehacer el mapa o sólo fotos?
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && aws s3 ls "s3://$BUCKET/chile.pmtiles" --endpoint-url "$R2" >/dev/null 2>&1; then
+            echo "REHACER=0" >> "$GITHUB_ENV"; echo "Sólo fotos, con el mapa que ya está en R2"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.rehacer }}" != "true" ]; then
+            echo "REHACER=0" >> "$GITHUB_ENV"; echo "Sólo fotos, con el mapa que ya está en R2"
+          else
+            echo "REHACER=1" >> "$GITHUB_ENV"; echo "Rehacer el mapa de Chile"
+          fi
+
       - name: Herramienta pmtiles
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
@@ -50,6 +67,7 @@ jobs:
           tar xzf pmtiles.tgz pmtiles && ./pmtiles version
 
       - name: Recortar Chile del mapa mundial de Protomaps
+        if: env.REHACER == '1'
         run: |
           # La versión más reciente (se publican a diario en build.protomaps.com)
           BUILD=$(curl -fsS https://build-metadata.protomaps.dev/builds.json | jq -r 'map(.key) | sort | last' || true)
@@ -68,6 +86,14 @@ jobs:
           echo "### Mapa de Chile" >> "$GITHUB_STEP_SUMMARY"
           echo "Protomaps $BUILD · $(du -h sitio/chile.pmtiles | cut -f1) · zoom 0–$MAXZOOM" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Bajar de R2 el mapa que ya está (sólo fotos)
+        if: env.REHACER == '0'
+        run: |
+          mkdir -p sitio
+          aws s3 cp "s3://$BUCKET/chile.pmtiles" sitio/chile.pmtiles --endpoint-url "$R2" --only-show-errors
+          echo "BUILD=el de R2" >> "$GITHUB_ENV"
+          echo "Sólo fotos nuevas (estilo), con el mapa que ya está en R2: $(du -h sitio/chile.pmtiles | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Fuentes de los nombres
         run: |
           git clone --depth 1 --filter=blob:none --sparse https://github.com/protomaps/basemaps-assets fuentes
@@ -83,6 +109,7 @@ jobs:
           python scripts/vista_mapa.py http://localhost:8799 sitio
 
       - name: Subir a Cloudflare R2
+        if: env.REHACER == '1'
         run: |
           aws s3 cp sitio/chile.pmtiles "s3://$BUCKET/chile.pmtiles" --endpoint-url "$R2" \
             --content-type application/octet-stream --cache-control "public, max-age=86400"

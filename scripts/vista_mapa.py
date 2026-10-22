@@ -19,6 +19,7 @@ SALIDA.mkdir(parents=True, exist_ok=True)
 VISTAS = [  # nombre, centro (lat, lon), zoom, noche
     ("providencia_dia", (-33.4300, -70.6150), 14.5, False),
     ("providencia_noche", (-33.4300, -70.6150), 14.5, True),
+    ("providencia_cerca", (-33.4265, -70.6105), 16.5, False),
     ("san_cristobal", (-33.4230, -70.6330), 14, False),
     ("santiago", (-33.4450, -70.6300), 11.5, False),
     ("cajon_del_maipo", (-33.6400, -70.3500), 11, False),
@@ -53,5 +54,12 @@ with sync_playwright() as p:
             print(nombre, "no terminó de cargar en 90 s")
         pg.screenshot(path=str(SALIDA / f"{nombre}.png"))
         print(nombre, "errores:", (pg.evaluate("window.errores || []"))[:3])
+        if nombre == "providencia_cerca":   # qué traen los senderos y veredas (para afinar el estilo)
+            print(pg.evaluate("""(() => { const c = {}, ej = {};
+              for (const f of m.querySourceFeatures("pp", { sourceLayer: "roads" })) {
+                if (f.properties.kind !== "path") continue;
+                const k = f.properties.kind_detail + " | " + Object.keys(f.properties).sort().join(",");
+                c[k] = (c[k] || 0) + 1; ej[k] ||= JSON.stringify(f.properties).slice(0, 160); }
+              return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, n]) => n + " × " + k + "  ej: " + ej[k]); })()"""))
         pg.close()
     b.close()
