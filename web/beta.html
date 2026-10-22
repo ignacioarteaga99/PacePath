@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guía beta · PacePath</title>
+<meta name="description" content="Cómo probar PacePath y ayudarnos a mejorarlo.">
+<link rel="icon" href="/icons/icono-192.png">
+<style>
+  :root { --acento: #f2541b; --tinta: #1d1d21; --suave: #5d5d68; --linea: #e6e6ea; --fondo: #fff; --caja: #fff6f1; }
+  @media (prefers-color-scheme: dark) { :root { --tinta: #f4f4f6; --suave: #a8a8b3; --linea: #2c2c33; --fondo: #141418; --caja: #2a1c16; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta); font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 24px 18px 64px; }
+  .marca { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; color: var(--tinta); text-decoration: none; }
+  .marca img { width: 34px; height: 34px; border-radius: 9px; }
+  h1 { font-size: 30px; line-height: 1.15; letter-spacing: -.6px; margin: 26px 0 8px; }
+  .lead { color: var(--suave); margin: 0 0 22px; }
+  h2 { font-size: 20px; margin: 34px 0 10px; display: flex; align-items: center; gap: 10px; }
+  h2 .n { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--acento); color: #fff; font-size: 15px;
+          display: inline-flex; align-items: center; justify-content: center; }
+  ol, ul { padding-left: 22px; margin: 8px 0; }
+  li { margin: 6px 0; }
+  b { font-weight: 700; }
+  code { background: var(--linea); border-radius: 6px; padding: 1px 6px; font-size: 15px; }
+  .caja { background: var(--caja); border-radius: 14px; padding: 14px 16px; margin: 14px 0; }
+  .boton { display: inline-block; background: var(--acento); color: #fff; font-weight: 700; text-decoration: none;
+           padding: 12px 20px; border-radius: 12px; margin: 6px 0; }
+  .mision { border: 1px solid var(--linea); border-radius: 14px; padding: 12px 14px; margin: 10px 0; }
+  .mision > b:first-child { display: block; }
+  .mision span { color: var(--suave); font-size: 15px; }
+  .pie { margin-top: 40px; color: var(--suave); font-size: 14px; border-top: 1px solid var(--linea); padding-top: 16px; }
+  a { color: var(--acento); }
+</style>
+</head>
+<body>
+<main>
+  <a class="marca" href="/"><img src="/icons/icono-192.png" alt="">PacePath</a>
+
+  <h1>Gracias por probar PacePath 🧡</h1>
+  <p class="lead">PacePath arma la ruta perfecta para tu entrenamiento de hoy: escribes la sesión («6x1k», «fondo 12k
+    plano») y te dice por dónde correrla. Está en beta: tu ayuda sirve muchísimo. Te toma 10 minutos.</p>
+
+  <a class="boton" href="/">Abrir PacePath</a>
+
+  <h2><span class="n">1</span>Instálala en tu teléfono</h2>
+  <p>No hay que descargar nada de la App Store: se instala desde el navegador.</p>
+  <ul>
+    <li><b>iPhone:</b> abre <code>pacepathapp.com</code> en <b>Safari</b> → botón <b>Compartir</b> (el cuadrado con flecha)
+      → <b>Agregar a inicio</b>.</li>
+    <li><b>Android:</b> abre <code>pacepathapp.com</code> en <b>Chrome</b> → menú <b>⋮</b> → <b>Instalar app</b>
+      (o «Agregar a pantalla principal»).</li>
+  </ul>
+  <p>Queda con su ícono naranja, como cualquier app.</p>
+
+  <h2><span class="n">2</span>Arma tu primera ruta</h2>
+  <ol>
+    <li>En <b>Hoy</b>, escribe tu sesión. Ejemplos: <code>6x1k</code>, <code>tempo 8k</code>, <code>fondo 12k plano</code>,
+      <code>cuestas 8x300 6%</code>, <code>suave 6k</code>.</li>
+    <li>Elige <b>desde dónde sales</b>: tu ubicación (botón «Cerca de mí»), una dirección (<code>Pocuro 2500</code>,
+      <code>Pocuro con Tobalaba</code>) o toca el mapa.</li>
+    <li>Si quieres, abre <b>Opciones</b>: volver o no al inicio, terminar en otro lugar, desnivel máximo, radio máximo,
+      circuito o vueltas.</li>
+    <li>Toca <b>Crear ruta</b>. Verás la ruta, los semáforos y cruces, y la altimetría.</li>
+    <li>Toca <b>Descargar GPX</b> para pasarla a tu reloj (Garmin, Coros, Apple Watch con alguna app de rutas…).</li>
+  </ol>
+  <div class="caja">📍 Por ahora funciona en <b>Las Condes, Lo Barnechea, Ñuñoa, Providencia, Santiago Centro y
+    Vitacura</b>. Si sales de otra comuna, la app te avisa: ¡cuéntanos cuál quieres que agreguemos!</div>
+
+  <h2><span class="n">3</span>Conecta tu Strava (opcional)</h2>
+  <p>Con Strava ves todas tus carreras como un <b>mapa de calor</b>, en qué países y ciudades has corrido, tus
+    <b>estadísticas</b> y tus <b>logros</b>, y las rutas prefieren tus calles de siempre.</p>
+  <ol>
+    <li>Ve a <b>Mi ciudad</b> → <b>Conectar con Strava</b> → autoriza.</li>
+    <li>Espera a que termine la barra de descarga (con muchos años de carreras puede tardar un minuto).</li>
+    <li>Mira <b>Mi ciudad</b> (mapa de calor y «Dónde has corrido») y <b>Perfil</b> (estadísticas y logros).</li>
+  </ol>
+  <div class="caja">⚠️ Mientras Strava revisa la app, <b>sólo pueden conectarse unas pocas cuentas</b>. Si te da un error
+    de «límite», avísame y te hago espacio. Tus datos de Strava quedan en tu teléfono y sólo los ves tú
+    (<a href="/privacidad">privacidad</a>).</div>
+
+  <h2><span class="n">4</span>Misiones para probar</h2>
+  <p>No hace falta hacerlas todas. Lo más valioso es <b>salir a correr una ruta de verdad</b>.</p>
+  <div class="mision"><b>🏃 Corre una ruta de PacePath</b><span>¿Tenía sentido? ¿Te mandó por alguna calle fea, peligrosa o
+    cerrada? ¿La distancia calzó con tu reloj?</span></div>
+  <div class="mision"><b>⏱️ Series</b><span>Pide <code>6x1k</code> o <code>8x400</code>: ¿la recta para las series tenía
+    pocos semáforos y cruces?</span></div>
+  <div class="mision"><b>🏞️ Fondo en circuito</b><span>Pide <code>fondo 15k</code> con «Circuito» en Opciones: ¿repite
+    pocas calles? ¿Pasa por parques?</span></div>
+  <div class="mision"><b>⛰️ Cuestas y «plano»</b><span>Prueba <code>cuestas 8x300 6%</code> y <code>fondo 12k plano</code>:
+    ¿la pendiente se sintió como pedías?</span></div>
+  <div class="mision"><b>🗺️ El mapa</b><span>Mira el mapa de día y de noche (🌙), acércate a un cerro: ¿se entiende bien?
+    ¿Echas de menos algo?</span></div>
+  <div class="mision"><b>📊 Strava</b><span>Si conectaste: ¿están todas tus carreras? ¿Los logros y países son
+    correctos?</span></div>
+  <div class="mision"><b>🇬🇧 Inglés</b><span>Toca <b>EN</b> en el mapa: ¿todo quedó en inglés?</span></div>
+
+  <h2><span class="n">5</span>Cuéntanos qué pasó</h2>
+  <ol>
+    <li>En la app, baja hasta el final del panel y toca <b>💬 Enviar comentario</b>.</li>
+    <li>Escribe lo que viste. Deja marcado «Incluir lo que estaba haciendo»: nos ayuda a reproducirlo.</li>
+    <li>Se abre WhatsApp: elige el <b>grupo de la beta</b> y envía.</li>
+  </ol>
+  <div class="caja">✍️ <b>Un buen comentario tiene:</b> qué hiciste, qué esperabas y qué pasó. Si puedes, agrega una
+    <b>captura de pantalla</b>. Ej.: «Pedí 6x1k desde Plaza Ñuñoa, la recta tenía 3 semáforos y esperaba 0».</div>
+  <p>También sirve lo bueno: «me encantó X» nos dice qué no tocar. 😉</p>
+
+  <h2><span class="n">6</span>Cosas que ya sabemos</h2>
+  <ul>
+    <li>Es una beta: puede haber errores. Si algo se ve raro, recarga la página.</li>
+    <li>Strava está limitado a pocas cuentas mientras lo revisan.</li>
+    <li>Sólo hay mapa de rutas en las 6 comunas de arriba (vamos agregando).</li>
+    <li>Si la app no carga el mapa nuevo, usa uno de respaldo automáticamente: avísanos si lo ves distinto.</li>
+  </ul>
+
+  <p class="pie">PacePath · hecho en Santiago de Chile · <a href="/privacidad">Privacidad</a> · ¡Gracias por correr con nosotros!</p>
+</main>
+</body>
+</html>

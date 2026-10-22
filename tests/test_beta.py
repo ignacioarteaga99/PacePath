@@ -71,3 +71,8 @@ def test_mapa_propio_su_direccion_y_su_estilo(monkeypatch):
     assert "estiloPacePath" in c.get("/mapa/estilo.js").text
     assert c.get("/mapa/mini-dia.png").status_code == 200
     assert c.get("/vendor/mapa/maplibre-gl.js").status_code == 200
+
+
+def test_guia_beta():
+    r = TestClient(app).get("/beta")
+    assert r.status_code == 200 and "Enviar comentario" in r.text and "Agregar a inicio" in r.text

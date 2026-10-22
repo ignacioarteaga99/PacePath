@@ -89,7 +89,7 @@ async def _idioma(request: Request, call_next):
 # Qué se registra: sólo estas direcciones (no los archivos, ni /api/salud, que
 # Render consulta cada pocos segundos, ni el propio panel).
 CONSULTAS = {
-    "/": "visita", "/privacidad": "privacidad", "/privacy": "privacidad",
+    "/": "visita", "/privacidad": "privacidad", "/privacy": "privacidad", "/beta": "guia_beta",
     "/api/ruta": "ruta", "/api/ruta.gpx": "gpx", "/api/trazar": "trazado", "/api/trazar.gpx": "gpx",
     "/api/sesion": "interpretar", "/api/lugares": "busqueda", "/api/donde": "donde_corri",
     "/api/comunas": "comunas", "/api/evento": "evento",
@@ -313,6 +313,12 @@ def manifiesto() -> FileResponse:
 @app.get("/sw.js", include_in_schema=False)
 def service_worker() -> FileResponse:
     return FileResponse(WEB / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/beta", include_in_schema=False)
+def guia_beta() -> FileResponse:
+    """Guía para quienes prueban la beta (se comparte por WhatsApp)."""
+    return FileResponse(WEB / "beta.html")
 
 
 @app.get("/privacidad", include_in_schema=False)
