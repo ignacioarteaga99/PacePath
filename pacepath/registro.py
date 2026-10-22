@@ -9,9 +9,9 @@ Dónde se guarda:
   · DATABASE_URL (Postgres, p. ej. Neon) → persiste aunque Render duerma.
   · Sin ella, SQLite en /tmp: sirve en local, pero en Render se borra al dormir.
 
-Las filas se escriben en segundo plano, de a lotes, para no demorar las
-respuestas; si la base no responde se reintenta y, como último recurso, la
-fila queda en el log del servidor.
+Las filas se escriben en segundo plano, de a lotes (con Postgres, cada 10
+minutos: ver _Escritor), para no demorar las respuestas ni despertar a Neon a
+cada rato; si la base no responde se reintenta en la vuelta siguiente.
 """
 from __future__ import annotations
 
@@ -110,51 +110,62 @@ class _Base:
 
 
 class _Escritor:
-    """Hilo que vacía la cola de filas en la base, de a lotes."""
+    """Hilo que guarda las filas en la base, de a lotes.
+
+    Con Postgres (Neon) se escribe cada `PACEPATH_REGISTRO_SEG` segundos (10 min
+    por defecto) y no a cada consulta: Neon se duerme a los 5 min sin uso y el
+    plan gratis da 100 horas de cómputo al mes; escribiendo a cada rato no se
+    dormiría nunca (~180 h). Abrir el panel o apagar el servidor guardan al tiro.
+    """
 
     def __init__(self, base: _Base):
         self.base = base
+        self.intervalo = float(os.environ.get("PACEPATH_REGISTRO_SEG") or (600 if base.pg else 2))
         self.cola: queue.Queue[tuple] = queue.Queue()
         self.pendientes: list[tuple] = []
         self.ultimo_error: str | None = None
         self._ultima_poda = 0.0
+        self._ahora = threading.Event()
         threading.Thread(target=self._bucle, name="registro", daemon=True).start()
 
     def _bucle(self) -> None:
-        espera = 1.0
         while True:
-            try:
-                self.pendientes.append(self.cola.get(timeout=2))
-            except queue.Empty:
-                if not self.pendientes:
-                    continue
-            while len(self.pendientes) < 500:
+            self._ahora.wait(timeout=self.intervalo)
+            self._ahora.clear()
+            while True:
                 try:
                     self.pendientes.append(self.cola.get_nowait())
                 except queue.Empty:
                     break
+            if not self.pendientes:
+                continue
             try:
-                self.base.insertar(self.pendientes)
+                for i in range(0, len(self.pendientes), 500):
+                    self.base.insertar(self.pendientes[i:i + 500])
                 for _ in self.pendientes:
                     self.cola.task_done()
                 self.pendientes = []
                 self.ultimo_error = None
-                espera = 1.0
                 if time.time() - self._ultima_poda > 6 * 3600:
                     self._ultima_poda = time.time()
                     self.base.podar()
             except Exception as exc:  # noqa: BLE001 — la base caída no debe tumbar la app
+                # Lo que no se pudo guardar se reintenta en la próxima vuelta.
                 self.ultimo_error = f"{type(exc).__name__}: {exc}"[:300]
                 print(f"[registro] no pude guardar {len(self.pendientes)} filas: {self.ultimo_error}", flush=True)
                 if len(self.pendientes) > MAX_PENDIENTES:
                     for _ in self.pendientes[:-MAX_PENDIENTES]:
                         self.cola.task_done()
                     self.pendientes = self.pendientes[-MAX_PENDIENTES:]
-                time.sleep(espera)
-                espera = min(espera * 2, 60)
+
+    def anotar(self, fila: tuple) -> None:
+        self.cola.put(fila)
+        if self.cola.qsize() >= 2000:            # mucho tráfico: no acumular tanto en memoria
+            self._ahora.set()
 
     def vaciar(self, plazo: float = 5.0) -> bool:
-        """Espera a que todo lo anotado esté guardado (tests y apagado)."""
+        """Guarda ya lo pendiente y espera a que termine (panel, apagado, tests)."""
+        self._ahora.set()
         fin = time.time() + plazo
         while time.time() < fin:
             if self.cola.unfinished_tasks == 0:
@@ -185,7 +196,7 @@ def _el_escritor() -> _Escritor:
 def anotar(fila: dict) -> None:
     ts, dia = ahora()
     fila = {"ts": ts, "dia": dia} | fila
-    _el_escritor().cola.put(tuple(_corto(fila.get(c)) for c in COLUMNAS))
+    _el_escritor().anotar(tuple(_corto(fila.get(c)) for c in COLUMNAS))
 
 
 def _corto(v):

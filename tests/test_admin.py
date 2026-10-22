@@ -114,3 +114,15 @@ def test_primer_uso_sin_configurar_no_se_traba(tmp_path, monkeypatch):
     hilo.join(3)
     assert not hilo.is_alive()
     assert registro.vaciar() and registro.consultar(registro.hoy(), registro.hoy())["filas"]
+
+
+def test_con_postgres_se_guarda_de_a_lotes_y_el_panel_fuerza_el_guardado(tmp_path, monkeypatch):
+    """Con un intervalo largo nada se escribe hasta que alguien pide los datos."""
+    monkeypatch.setenv("PACEPATH_REGISTRO_SEG", "3600")
+    esc = registro._Escritor(registro._Base(str(tmp_path / "r.sqlite")))
+    esc.anotar((*registro.ahora(), "0123456789", 0, "visita", "visita", None, None, None, 1, 200, 5, None, "es", "iPhone"))
+    import time
+    time.sleep(0.3)
+    assert esc.cola.unfinished_tasks == 1                    # sigue en memoria
+    assert esc.vaciar(3)                                     # el panel (o el apagado) lo guarda al tiro
+    assert len(esc.base.consultar(registro.hoy(), registro.hoy(), 10)) == 1
