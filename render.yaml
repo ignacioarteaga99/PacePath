@@ -23,7 +23,7 @@ services:
       # URL pública: con ella se arma la dirección de vuelta de Strava, que debe
       # coincidir con el «Authorization Callback Domain» de la app de Strava.
       - key: PACEPATH_URL
-        value: https://pacepath.onrender.com
+        value: https://pacepathapp.com
       # Strava (Fase 2). El Client ID es público; el secreto se pega en Render,
       # nunca en el repositorio.
       - key: STRAVA_CLIENT_ID
@@ -37,6 +37,12 @@ services:
       # Postgres para el registro del panel /admin (p. ej. Neon gratis). Sin ella
       # el registro vive en /tmp y se borra cada vez que Render duerme.
       - key: DATABASE_URL
+        sync: false
+      # Mapa propio de Chile en Cloudflare R2 (lo arma .github/workflows/mapa.yml).
+      - key: PACEPATH_MAPA_URL
+        value: https://mapas.pacepathapp.com
+      # Clave de mapas de Esri (ArcGIS Location Platform), sólo mapas base.
+      - key: ESRI_API_KEY
         sync: false
       # «1» cuando Strava apruebe la app (quita el aviso de beta junto al botón).
       - key: PACEPATH_STRAVA_ABIERTO
