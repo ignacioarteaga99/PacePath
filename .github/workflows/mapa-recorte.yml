@@ -1,0 +1,46 @@
+name: Recorte del mapa (Santiago)
+# Recorta Santiago (zoom 0–15) del mapa de Chile que está en R2 y lo deja,
+# con las fuentes, en la rama «mapa-recorte»: sirve para sacar fotos y videos
+# de la app con el mapa real desde un entorno sin acceso a R2.
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/mapa-recorte.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  recorte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      BUCKET: ${{ secrets.R2_BUCKET }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Mapa de Chile desde R2
+        run: |
+          aws s3 cp "s3://$BUCKET/chile.pmtiles" chile.pmtiles --endpoint-url "$R2" --only-show-errors
+          gh release download --repo protomaps/go-pmtiles --pattern '*Linux_x86_64.tar.gz' --output pmtiles.tgz
+          tar xzf pmtiles.tgz pmtiles
+      - name: Recortar Santiago y sus cerros
+        run: |
+          mkdir recorte
+          # Gran Santiago con San Cristóbal, Manquehue y el Cajón del Maipo
+          ./pmtiles extract chile.pmtiles recorte/chile.pmtiles --bbox="-70.95,-33.75,-70.25,-33.25" --maxzoom=15
+          ls -la recorte
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/protomaps/basemaps-assets fuentes
+          (cd fuentes && git sparse-checkout set "fonts/Noto Sans Regular" "fonts/Noto Sans Medium" "fonts/Noto Sans Italic")
+          cp -r fuentes/fonts recorte/fonts
+      - name: Publicar en la rama mapa-recorte
+        run: |
+          cd recorte
+          git init -q -b mapa-recorte && git add . \
+            && git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -qm "Recorte de Santiago del mapa en R2"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" mapa-recorte
