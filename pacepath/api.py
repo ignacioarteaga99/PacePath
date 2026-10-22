@@ -27,6 +27,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -41,6 +42,7 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
@@ -76,6 +78,25 @@ app.mount("/icons", StaticFiles(directory=WEB / "icons"), name="icons")
 app.mount("/strava", StaticFiles(directory=WEB / "strava"), name="strava")
 # Estilo y miniaturas del mapa propio (las teselas están en Cloudflare R2).
 app.mount("/mapa", StaticFiles(directory=WEB / "mapa"), name="mapa")
+
+# ── Tráfico de Render (5 GB al mes en el plan gratis) ───────────────────────
+# Comprimido todo lo que sea texto, y los archivos fijos guardados en el
+# teléfono: librerías, íconos y logos una semana; el estilo del mapa una hora
+# (cambia más). Después preguntan con ETag y, si no cambiaron, la respuesta
+# es un «304» sin cuerpo.
+app.add_middleware(GZipMiddleware, minimum_size=800)
+_CACHE = (("/vendor/", "public, max-age=604800"), ("/icons/", "public, max-age=604800"),
+          ("/strava/", "public, max-age=604800"), ("/mapa/", "public, max-age=3600"))
+
+
+@app.middleware("http")
+async def _cache_estaticos(request: Request, call_next):
+    resp = await call_next(request)
+    for prefijo, valor in _CACHE:
+        if request.url.path.startswith(prefijo) and resp.status_code in (200, 304):
+            resp.headers["Cache-Control"] = valor
+            break
+    return resp
 
 
 @app.middleware("http")
@@ -233,7 +254,7 @@ class PedidoRuta(BaseModel):
 
 
 @app.get("/", include_in_schema=False)
-def index(origen: str | None = None) -> HTMLResponse:
+def index(request: Request, origen: str | None = None) -> Response:
     uso.registrar("visita", "app instalada" if origen == "app" else None)
     # La clave de mapas de Esri va en la página: es pública a propósito (sólo
     # mapas base y sólo desde nuestros dominios, según la configuró Esri).
@@ -247,7 +268,12 @@ def index(origen: str | None = None) -> HTMLResponse:
         config.append(f"window.PP_MAPA = {js(mapa)};")
     if config:
         html = html.replace("<!--PP_CONFIG-->", "<script>" + " ".join(config) + "</script>", 1)
-    return HTMLResponse(html)
+    # Si el teléfono ya tiene esta versión, «304» sin cuerpo (no gasta tráfico).
+    etiqueta = '"' + hashlib.sha1(html.encode()).hexdigest()[:16] + '"'
+    cabeceras = {"ETag": etiqueta, "Cache-Control": "no-cache"}
+    if request.headers.get("if-none-match") == etiqueta:
+        return Response(status_code=304, headers=cabeceras)
+    return HTMLResponse(html, headers=cabeceras)
 
 
 EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar", "sync", "sync_error", "mapa_error"}

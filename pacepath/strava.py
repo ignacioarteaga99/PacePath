@@ -19,8 +19,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import math
 import os
 import secrets
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -101,6 +103,58 @@ class Sesion:
             return None
 
 
+# ── Cupo de la API (de toda la app, no por persona) ─────────────────────────
+# Strava permite a la app ~200 lecturas cada 15 min y ~2.000 al día, contando a
+# todos los usuarios juntos, y lo informa en cada respuesta
+# (X-ReadRateLimit-Usage / -Limit). Al llegar al 90 % se frena aquí, con un
+# mensaje amable, antes de que Strava responda 429 a todo el mundo. Las
+# ventanas de Strava son los cuartos de hora en punto y el día en UTC.
+FRENO = 0.9
+_cupo = {"ventana": None, "dia": None, "uso15": 0, "usodia": 0, "lim15": 200, "limdia": 2000}
+_lock_cupo = threading.Lock()
+
+
+def _ventana(t: float) -> int:
+    return int(t // 900)
+
+
+def _dia(t: float) -> str:
+    return time.strftime("%Y-%m-%d", time.gmtime(t))
+
+
+def _anotar_cupo(cabeceras, agotado: bool = False) -> None:
+    ahora = time.time()
+    try:
+        u15, ud = (int(x) for x in cabeceras.get("X-ReadRateLimit-Usage", "").split(",")[:2])
+        l15, ld = (int(x) for x in cabeceras.get("X-ReadRateLimit-Limit", "").split(",")[:2])
+    except (AttributeError, ValueError):
+        if not agotado:
+            return
+        with _lock_cupo:                    # 429 sin cabeceras: dar por lleno este cuarto de hora
+            _cupo.update(ventana=_ventana(ahora), uso15=_cupo["lim15"])
+        return
+    with _lock_cupo:
+        _cupo.update(ventana=_ventana(ahora), dia=_dia(ahora), uso15=u15, usodia=ud, lim15=l15, limdia=ld)
+
+
+def revisar_cupo() -> None:
+    """Antes de leer de Strava: si el cupo de toda la app está casi agotado, esperar."""
+    ahora = time.time()
+    with _lock_cupo:
+        c = dict(_cupo)
+    if c["dia"] == _dia(ahora) and c["usodia"] >= FRENO * c["limdia"]:
+        raise StravaEspera(tr("Strava ya recibió muchas consultas de PacePath hoy. Vuelve mañana: "
+                              "tus carreras siguen guardadas en tu teléfono.",
+                              "Strava has had a lot of requests from PacePath today. Come back tomorrow: "
+                              "your runs are still saved on your phone."))
+    if c["ventana"] == _ventana(ahora) and c["uso15"] >= FRENO * c["lim15"]:
+        minutos = max(1, math.ceil(((c["ventana"] + 1) * 900 - ahora) / 60))
+        raise StravaEspera(tr(f"Strava está con mucha demanda de PacePath en este momento. "
+                              f"Vuelve en {minutos} min y sigue donde quedó.",
+                              f"Strava is getting a lot of requests from PacePath right now. "
+                              f"Come back in {minutos} min to continue where it left off."))
+
+
 # ── HTTP (una función, para poder simularla en los tests) ───────────────────
 
 def _http(metodo: str, url: str, datos: dict | None = None,
@@ -110,10 +164,17 @@ def _http(metodo: str, url: str, datos: dict | None = None,
                                  headers={"User-Agent": "PacePath/0.1"})
     if token:
         req.add_header("Authorization", f"Bearer {token}")
+    lectura = metodo == "GET" and token is not None          # cuenta en el cupo de lecturas
+    if lectura:
+        revisar_cupo()
     try:
         with urllib.request.urlopen(req, timeout=20) as r:  # noqa: S310
+            if lectura:
+                _anotar_cupo(r.headers)
             return json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as exc:
+        if lectura:
+            _anotar_cupo(exc.headers or {}, agotado=exc.code == 429)
         if exc.code == 429:
             raise StravaEspera(tr("Strava pide esperar un poco (límite de uso de la API). "
                                  "Prueba en 15 minutos.",

@@ -76,3 +76,42 @@ def test_mapa_propio_su_direccion_y_su_estilo(monkeypatch):
 def test_guia_beta():
     r = TestClient(app).get("/beta")
     assert r.status_code == 200 and "Enviar comentario" in r.text and "Agregar a inicio" in r.text
+
+
+def test_trafico_comprimido_y_guardado_en_el_telefono():
+    c = TestClient(app)
+    r = c.get("/", headers={"Accept-Encoding": "gzip"})
+    assert r.headers["content-encoding"] == "gzip" and r.headers["etag"]
+    assert c.get("/", headers={"If-None-Match": r.headers["etag"]}).status_code == 304        # sin cambios: sin cuerpo
+    assert "max-age=604800" in c.get("/vendor/mapa/pmtiles.js").headers["cache-control"]
+    assert "max-age=3600" in c.get("/mapa/estilo.js").headers["cache-control"]
+
+
+def test_freno_al_cupo_de_strava(monkeypatch):
+    """Strava informa el cupo de toda la app en cada respuesta: al 90 % se frena antes de llamarlo."""
+    monkeypatch.setattr(strava, "_cupo", dict(strava._cupo, ventana=None, dia=None))
+    llamadas = []
+
+    class Resp(io.BytesIO):
+        def __init__(self, uso):
+            super().__init__(b"[]")
+            self.headers = {"X-ReadRateLimit-Usage": uso, "X-ReadRateLimit-Limit": "200,2000"}
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+
+    uso = {"v": "50,300"}
+    def abrir(req, timeout=None):
+        llamadas.append(req.full_url)
+        return Resp(uso["v"])
+    monkeypatch.setattr(strava.urllib.request, "urlopen", abrir)
+    s = strava.Sesion(access_token="a", refresh_token="r", expires_at=4_000_000_000, atleta_id=1)
+    strava.carreras(s, 1)                                   # 50 de 200: sigue
+    uso["v"] = "181,300"
+    strava.carreras(s, 2)                                   # llega al 90 % de los 15 minutos
+    with pytest.raises(strava.StravaEspera, match="Vuelve en"):
+        strava.carreras(s, 3)
+    assert len(llamadas) == 2                               # la tercera ni siquiera llamó a Strava
+    monkeypatch.setattr(strava, "_cupo", dict(strava._cupo, ventana=None, uso15=0, usodia=1850))
+    with pytest.raises(strava.StravaEspera, match="mañana"):
+        strava.carreras(s, 1)                               # 92 % del día: hasta mañana
+    strava._http("POST", strava.TOKEN, {"x": 1})             # conectar/renovar no se frena (no es lectura)
