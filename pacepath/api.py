@@ -140,6 +140,20 @@ async def _registrar(request: Request, call_next):
         registro.anotar(info)
 
 
+@app.middleware("http")
+async def _dominio_propio(request: Request, call_next):
+    """Con dominio propio (PACEPATH_URL), quien entra por *.onrender.com va al
+    dominio. Sólo las páginas: la API sigue respondiendo en la dirección vieja
+    para no romper una pestaña ya abierta (y Render revisa /api/salud ahí)."""
+    destino = os.environ.get("PACEPATH_URL", "").rstrip("/")
+    host = request.headers.get("host", "").split(":")[0].lower()
+    if (destino and host.endswith(".onrender.com") and host not in destino
+            and request.method in ("GET", "HEAD") and not request.url.path.startswith("/api/")):
+        q = f"?{request.url.query}" if request.url.query else ""
+        return RedirectResponse(destino + request.url.path + q, status_code=301)
+    return await call_next(request)
+
+
 def _anotar(**campos) -> None:
     """Agrega datos a la consulta en curso (si se está registrando)."""
     info = uso.consulta.get()

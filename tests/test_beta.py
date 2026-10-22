@@ -38,3 +38,14 @@ def test_tope_de_atletas_de_strava(monkeypatch):
     monkeypatch.setattr(strava.urllib.request, "urlopen", tope)
     with pytest.raises(strava.StravaLimite):
         strava._http("POST", strava.TOKEN, {"code": "x"})
+
+
+def test_con_dominio_propio_onrender_redirige_las_paginas(monkeypatch):
+    c = TestClient(app, base_url="https://pacepath.onrender.com")
+    monkeypatch.setenv("PACEPATH_URL", "https://pacepath.onrender.com")       # sin dominio propio: nada cambia
+    assert c.get("/", follow_redirects=False).status_code == 200
+    monkeypatch.setenv("PACEPATH_URL", "https://pacepath.com")
+    r = c.get("/privacidad?lang=en", follow_redirects=False)
+    assert r.status_code == 301 and r.headers["location"] == "https://pacepath.com/privacidad?lang=en"
+    assert c.get("/api/salud").status_code == 200                              # la API no se mueve
+    assert TestClient(app, base_url="https://pacepath.com").get("/", follow_redirects=False).status_code == 200
