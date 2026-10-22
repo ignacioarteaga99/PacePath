@@ -14,6 +14,8 @@ dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "pydantic>=2.7",
+  "psycopg[binary]>=3.2", # registro de consultas en Postgres (Neon) para el panel /admin
+  "tzdata>=2024.1",       # zona horaria de Santiago aunque la imagen no traiga /usr/share/zoneinfo
 ]
 
 [project.optional-dependencies]

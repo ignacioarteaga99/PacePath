@@ -167,6 +167,11 @@
   .fila { display: flex; gap: 8px; margin-top: 12px; }
   .fila button { flex: 1; }
   .pista { color: var(--suave); margin: 4px 0; }
+  #sync.mal { color: var(--error, #d03b3b); }
+  .sync-fila { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
+  .sync-fila .pista { flex: 1; font-size: 13px; margin: 0; }
+  button.chico { padding: 5px 10px; font-size: 13px; }
+  button.enlace { background: none; border: 0; padding: 6px 0; color: var(--suave); text-decoration: underline; font: inherit; font-size: 13px; cursor: pointer; }
   .cargando { display: flex; align-items: center; gap: 10px; color: var(--suave); padding: 6px 0; }
   .rueda { width: 18px; height: 18px; border-radius: 50%; border: 3px solid #f7c5b2;
     border-top-color: var(--acento); animation: g .8s linear infinite; }
@@ -723,6 +728,15 @@ const EN = {
   "Cómo se ganan los puntos": "How points are earned",
   "1 punto por km · 25 por ciudad nueva · 100 por país · 500 por continente · 50, 150 y 400 por logro de bronce, plata y oro.": "1 point per km · 25 per new city · 100 per country · 500 per continent · 50, 150 and 400 per bronze, silver and gold achievement.",
   "Tus puntos: {km} por km, {c} por ciudades, {p} por países, {o} por continentes y {l} por logros.": "Your points: {km} from km, {c} from cities, {p} from countries, {o} from continents and {l} from achievements.",
+  "hace un momento": "just now", "hace {n} min": "{n} min ago", "hace {n} h": "{n} h ago", "hace {n} días": "{n} days ago",
+  "La descarga se cortó en la página {p}: {e} Toca «Actualizar» para seguir donde quedó.": "The download stopped at page {p}: {e} Tap “Refresh” to continue where it left off.",
+  "No pude sincronizar: {e}": "Couldn't sync: {e}", "Última sincronización con Strava: {h}.": "Last synced with Strava: {h}.",
+  "Sin conexión con PacePath.": "No connection to PacePath.", "El servidor respondió {c}.": "The server answered {c}.",
+  "Trayendo tu historial de Strava… página {p} ({n} carreras nuevas)": "Fetching your Strava history… page {p} ({n} new runs)",
+  "Buscando carreras nuevas en Strava…": "Looking for new runs on Strava…", "Sincronizando con Strava…": "Syncing with Strava…",
+  "¿Volver a traer todas tus carreras de Strava? Sirve si faltan carreras antiguas; puede tardar un minuto.": "Fetch all your Strava runs again? Useful if older runs are missing; it can take a minute.",
+  "¿Faltan carreras? Traer todo de nuevo": "Missing runs? Fetch everything again",
+  "Cuando lleguen tus carreras de Strava verás aquí tu volumen, ritmo, récords y hábitos.": "Once your Strava runs arrive you'll see your volume, pace, records and habits here.",
   "Compartir mi pasaporte": "Share my passport", "Armando tu pasaporte…": "Building your passport…",
   "No pude armar tu pasaporte ({e}). Toca «Perfil» para intentarlo de nuevo.": "I couldn't build your passport ({e}). Tap “Profile” to try again.",
   "¡Nuevo logro!": "New achievement!",
@@ -1894,7 +1908,7 @@ async function abrirCiudad(aviso) {
     return;
   }
   await dibujarCalor(e, aviso, true);
-  sincronizar(e);
+  if (necesitaSync()) sincronizar(e);
 }
 
 async function dibujarCalor(e, aviso, encuadrar) {
@@ -1920,14 +1934,19 @@ async function dibujarCalor(e, aviso, encuadrar) {
     ${seccionPreferencias(true)}
     <div class="fila"><button class="sec" id="actualizar" type="button">${t("Actualizar")}</button>
       <button class="sec" id="desconectar" type="button">${t("Desconectar")}</button></div>
+    <button class="enlace" id="traerTodo" type="button">${t("¿Faltan carreras? Traer todo de nuevo")}</button>
     ${POWERED_STRAVA()}`);
   activarPreferencias();
   $("actualizar").onclick = () => sincronizar(e);
+  $("traerTodo").onclick = () => {
+    if (confirm(t("¿Volver a traer todas tus carreras de Strava? Sirve si faltan carreras antiguas; puede tardar un minuto."))) sincronizar(e, { todo: true });
+  };
+  pintarSync();
   $("desconectar").onclick = async () => {
     if (!confirm(t("¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso."))) return;
     await fetch("/api/strava/desconectar", { method: "POST" });
     await BD.borrar();
-    Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_") || ["pp_donde", "pp_lugares", "pp_logros_vistos"].includes(k))
+    Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_") || ["pp_donde", "pp_lugares", "pp_logros_vistos", "pp_sync"].includes(k))
       .forEach((k) => localStorage.removeItem(k));
     abrirCiudad(t("Strava desconectado: se borraron tus datos."));
   };
@@ -2011,34 +2030,102 @@ function encuadrarCalor(lista) {
     paddingBottomRight: [70, esEscritorio() ? 20 : $("hoja").offsetHeight + 70], animate: false });
 }
 
-let sincronizando = false;
-async function sincronizar(e) {
-  if (sincronizando) return;
-  sincronizando = true;
+// Sincronización con Strava. Estado en este teléfono («pp_sync»):
+//   completo: ya se trajo el historial entero (después sólo se pide lo nuevo)
+//   pagina:   si la descarga del historial se cortó, por qué página seguir
+//   ultima:   cuándo terminó bien la última vez · error: por qué falló la última
+// Antes, si la descarga se cortaba a la mitad, las carreras antiguas no se
+// pedían nunca más (sólo «lo posterior a la más nueva»).
+const leerSync = () => leer("pp_sync", {}) || {};
+const guardarSync = (st) => escribir("pp_sync", st);
+const SYNC_AUTO_MIN = 15;          // al abrir Mi ciudad o Perfil, sincronizar sólo si pasó este rato
+let sincronizando = null;
+
+function haceCuanto(iso) {
+  const min = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  if (!(min >= 1)) return t("hace un momento");
+  if (min < 60) return t("hace {n} min", { n: min });
+  if (min < 48 * 60) return t("hace {n} h", { n: Math.round(min / 60) });
+  return t("hace {n} días", { n: Math.round(min / 1440) });
+}
+function textoSync() {
+  const st = leerSync();
+  if (st.error) return { txt: st.pagina > 1 ? t("La descarga se cortó en la página {p}: {e} Toca «Actualizar» para seguir donde quedó.", { p: st.pagina, e: st.error })
+    : t("No pude sincronizar: {e}", { e: st.error }), mal: true };
+  if (st.ultima) return { txt: t("Última sincronización con Strava: {h}.", { h: haceCuanto(st.ultima) }), mal: false };
+  return { txt: "", mal: false };
+}
+function pintarSync(txt, mal) {
+  const el = $("sync");
+  if (!el) return;
+  if (txt === undefined) ({ txt, mal } = sincronizando ? { txt: t("Sincronizando con Strava…"), mal: false } : textoSync());
+  el.textContent = txt;
+  el.classList.toggle("mal", !!mal);
+}
+const necesitaSync = () => { const st = leerSync(); return !st.completo || !st.ultima || st.error
+  || Date.now() - Date.parse(st.ultima) > SYNC_AUTO_MIN * 60000; };
+
+// Una página de actividades, con reintentos cuando el servidor está despertando
+// o Strava falla un momento (no ante «espera» ni «vuelve a conectar»).
+async function paginaStrava(pagina, despues) {
+  const url = `/api/strava/actividades?pagina=${pagina}${despues ? "&despues=" + despues : ""}`;
+  let ultimoError;
+  for (const espera of [0, 2500, 6000]) {
+    if (espera) await new Promise((ok) => setTimeout(ok, espera));
+    let r;
+    try { r = await fetch(url); } catch { ultimoError = new Error(t("Sin conexión con PacePath.")); continue; }
+    const j = await r.json().catch(() => null);          // Render despertando responde HTML
+    if (r.ok && j) return j;
+    ultimoError = new Error((j && j.detail) || t("El servidor respondió {c}.", { c: r.status }));
+    if ([401, 429].includes(r.status)) break;
+  }
+  throw ultimoError;
+}
+
+function sincronizar(e, opciones = {}) {
+  if (!sincronizando) sincronizando = _sincronizar(e, opciones).finally(() => { sincronizando = null; });
+  return sincronizando;
+}
+async function _sincronizar(e, { todo = false } = {}) {
+  let st = leerSync();
+  let lista = await BD.todas();
+  // Carreras guardadas antes de que el perfil pidiera tiempo y desnivel: se
+  // vuelven a traer una vez.
+  if (lista.some((c) => c.tiempo_s === undefined)) { await BD.borrar(); lista = []; st = {}; }
+  if (todo || !lista.length) st = {};
+  const historial = !st.completo;                       // traer todo (o seguir donde se cortó)
+  // Con el historial completo, sólo lo nuevo; una semana de margen por las
+  // carreras que se suben a Strava días después.
+  const masNueva = lista.map((c) => c.fecha).sort().at(-1);
+  const despues = !historial && masNueva ? Math.floor(Date.parse(masNueva) / 1000) - 7 * 86400 : null;
+  const yaEstaban = new Set(lista.map((c) => c.id));
+  let pagina = historial ? (st.pagina || 1) : 1, nuevas = 0, paginas = 0;
   try {
-    let lista = await BD.todas();
-    // Carreras guardadas antes de que el perfil pidiera tiempo y desnivel: se
-    // vuelven a traer una vez.
-    if (lista.some((c) => c.tiempo_s === undefined)) { await BD.borrar(); lista = []; }
-    const ultima = lista.map((c) => c.fecha).sort().at(-1);
-    const despues = ultima ? Math.floor(Date.parse(ultima) / 1000) : null;
-    let pagina = 1, nuevas = 0;
     for (;;) {
-      if ($("sync")) $("sync").textContent = t("Trayendo carreras de Strava… ({n} nuevas)", { n: nuevas });
-      const r = await fetch(`/api/strava/actividades?pagina=${pagina}${despues ? "&despues=" + despues : ""}`);
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.detail || t("No pude leer Strava."));
+      pintarSync(historial ? t("Trayendo tu historial de Strava… página {p} ({n} carreras nuevas)", { p: pagina, n: nuevas })
+        : t("Buscando carreras nuevas en Strava…"));
+      const j = await paginaStrava(pagina, despues);
       await BD.guardar(j.carreras);
-      nuevas += j.carreras.length;
+      nuevas += j.carreras.filter((c) => !yaEstaban.has(c.id)).length;
+      paginas++;
       if (j.ultima) break;
       pagina++;
+      if (historial) guardarSync({ ...st, pagina, error: null });
     }
-    if (vista === "perfil") await abrirPerfil(true);
-    else await dibujarCalor(e, null, !lista.length && nuevas > 0);
-    if ($("sync")) $("sync").textContent = nuevas ? t("{n} carreras nuevas.", { n: nuevas }) : t("Al día.");
+    guardarSync({ completo: true, ultima: new Date().toISOString() });
+    _fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: "sync", detalle: `${historial ? "historial" : "nuevas"} · ${paginas} pág · ${nuevas} nuevas · ${yaEstaban.size + nuevas} en total` }) }).catch(() => {});
   } catch (err) {
-    if ($("sync")) $("sync").textContent = err.message;
-  } finally { sincronizando = false; }
+    guardarSync({ ...st, pagina: historial ? pagina : undefined, error: err.message, fallo: new Date().toISOString() });
+    _fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: "sync_error", detalle: `página ${pagina}${historial ? " del historial" : ""}: ${err.message}`.slice(0, 200) }) }).catch(() => {});
+  }
+  // Repintar sólo si sigue en la vista que lo pidió (antes pintaba el mapa de
+  // calor encima de «Hoy» si cambiabas de pestaña a mitad de la descarga).
+  if (nuevas && vista === "perfil") await abrirPerfil(true, true);
+  else if (nuevas && vista === "ciudad") await dibujarCalor(e, null, !lista.length);
+  const fin = textoSync();
+  pintarSync(nuevas && !fin.mal ? t("{n} carreras nuevas.", { n: nuevas }) + " " + fin.txt : fin.txt, fin.mal);
 }
 
 // ── Pasaporte: logros, puntos y nivel ───────────────────────────────────────
@@ -2480,7 +2567,7 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
     : await fetch("/api/strava/perfil").then((r) => r.ok ? r.json() : null).catch(() => null);
   perfilGuardado = pf;
   const todas = (await BD.todas()).filter((c) => c.tiempo_s !== undefined);
-  if (!todas.length && !sinSincronizar) sincronizar(e);
+  if (!sinSincronizar && (necesitaSync() || !todas.length)) sincronizar(e);
   const hoy = new Date(), esteAnio = hoy.getFullYear();
   const anioDe = (c) => localDe(c).getFullYear();
   const anios = [...new Set(todas.map(anioDe))].sort((a, b) => b - a);
@@ -2538,6 +2625,7 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
     <div class="atleta">${pf?.foto ? `<img src="${esc(pf.foto)}" alt="">` : '<div class="sin-foto"></div>'}
       <div><h2>${esc(pf ? `${pf.nombre} ${pf.apellido}` : e.nombre || t("Tú"))}</h2>
       <small>${esc([pf?.ciudad, pf?.desde ? t("en Strava desde {a}", { a: pf.desde.slice(0, 4) }) : ""].filter(Boolean).join(" · "))}</small></div></div>
+    <div class="sync-fila"><p class="pista" id="sync"></p><button class="sec chico" id="actualizarPerfil" type="button">${t("Actualizar")}</button></div>
     ${anios.length > 1 ? `<div class="anios" role="tablist" aria-label="${t("Año")}">
       ${[null, ...anios].map((a) => `<button type="button" class="chip${a === anioPerfil ? " on" : ""}" data-a="${a ?? ""}">${a ?? t("Todo")}</button>`).join("")}</div>` : ""}
     ${anioPerfil ? kpisAnio(todas, anioPerfil, anios, promSem, nSem)
@@ -2570,8 +2658,10 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
       ${record(t("Hora típica"), `${String(mediana(horas)).padStart(2, "0")}:00`, t("la mitad sale antes"))}
       ${record(t("Distancia típica"), `${num(mediana(dist) / 1000, 1)} km`, t("de {n} carreras", { n: num(lista.length) }))}
       ${record(t(anioPerfil ? "Ritmo del año" : "Ritmo de siempre"), ritmo(lista.reduce((t, c) => t + c.tiempo_s, 0) / (lista.reduce((t, c) => t + c.distancia_m, 0) / 1000)), t("promedio de todas"))}
-    </div></div>` : `<p class="pista" id="sync">${t("Trayendo tus carreras de Strava…")}</p>`}
+    </div></div>` : `<p class="pista">${t("Cuando lleguen tus carreras de Strava verás aquí tu volumen, ritmo, récords y hábitos.")}</p>`}
     ${POWERED_STRAVA()}`);
+  pintarSync();
+  $("actualizarPerfil").onclick = () => sincronizar(e);
   activarGrafico("g-semanas", semanas.map((w) => t("Semana del {f}: {k} km · {n} {c}", { f: fechaCorta(w.ini), k: num(w.m / 1000, 1), n: w.n, c: t(w.n === 1 ? "carrera" : "carreras") })));
   activarGrafico("g-ritmo", anioPerfil
     ? meses.map((x, i) => x.m ? `${mesN(i)} ${anio}: ${ritmo(x.s / (x.m / 1000))}` : "")

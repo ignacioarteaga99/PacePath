@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Panel · PacePath</title>
+<link rel="icon" href="/icons/icono-192.png">
+<style>
+  :root {
+    --acento: #f2541b; --tinta: #1d1d21; --suave: #5d5d68; --tenue: #8a8a94; --linea: #e6e6ea;
+    --fondo: #f6f6f8; --tarjeta: #fff; --campo: #fff; --grilla: #ececf0;
+    --ok: #2a78d6; --error: #d03b3b; --ok-suave: #e8f1fc; --error-suave: #fbeaea; --verde: #0b8a0b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --tinta: #f4f4f6; --suave: #b0b0ba; --tenue: #85858f; --linea: #2c2c33; --fondo: #111114;
+      --tarjeta: #1a1a1e; --campo: #222227; --grilla: #26262c; --ok: #4f93e6; --error: #e5605f;
+      --ok-suave: #1b2a3d; --error-suave: #3a1e1f; --verde: #3cc13c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; }
+  main { max-width: 1240px; margin: 0 auto; padding: 18px 16px 60px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .marca { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; }
+  .marca img { width: 32px; height: 32px; border-radius: 9px; }
+  .marca span { color: var(--suave); font-weight: 600; }
+  .almacen { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; background: var(--tarjeta); border: 1px solid var(--linea); color: var(--suave); }
+  .almacen.mal { color: var(--error); border-color: var(--error); }
+  .acciones { margin-left: auto; display: flex; gap: 8px; }
+  button, select, input { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 1px solid var(--linea); background: var(--tarjeta); border-radius: 10px; padding: 7px 12px; font-weight: 600; }
+  button:hover { border-color: var(--tenue); }
+  button.prim { background: var(--acento); border-color: var(--acento); color: #fff; }
+  select, input { background: var(--campo); border: 1px solid var(--linea); border-radius: 10px; padding: 7px 10px; font-size: 16px; min-width: 0; }
+  @media (min-width: 700px) { select, input { font-size: 14px; } }
+
+  .filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0 6px; }
+  .chips { display: flex; gap: 4px; background: var(--tarjeta); border: 1px solid var(--linea); border-radius: 12px; padding: 3px; }
+  .chips button { border: 0; padding: 5px 10px; border-radius: 9px; background: none; color: var(--suave); }
+  .chips button.on { background: var(--tinta); color: var(--fondo); }
+  .rango { display: flex; gap: 6px; align-items: center; color: var(--suave); }
+  .rango input { width: 140px; }
+  .mas-filtros { display: contents; }
+  .filtros input[type=search] { flex: 1 1 180px; }
+  #verFiltros { display: none; }
+  @media (max-width: 700px) {
+    header .almacen { order: 3; flex-basis: 100%; text-align: center; }
+    .acciones button { padding: 6px 10px; }
+    #verFiltros { display: block; }
+    .mas-filtros { display: none; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+    .mas-filtros.abierto { display: grid; }
+    .mas-filtros select { width: 100%; }
+    .mas-filtros .rango, .mas-filtros input[type=search] { grid-column: 1 / -1; }
+    .rango input { flex: 1; width: auto; }
+    .chips { flex: 1 1 100%; justify-content: space-between; }
+    .chips button { padding: 6px 4px; flex: 1; white-space: nowrap; }
+    #verFiltros { flex: 1 1 100%; }
+    .kpi { padding: 10px 12px; }
+    .kpi b { font-size: 22px; }
+  }
+  .resumen-filtro { color: var(--suave); font-size: 12.5px; margin: 0 0 14px; min-height: 18px; }
+  .resumen-filtro button { padding: 1px 8px; font-size: 12px; margin-left: 6px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 480px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: var(--tarjeta); border: 1px solid var(--linea); border-radius: 14px; padding: 12px 14px; }
+  .kpi span { display: block; font-size: 12px; color: var(--suave); }
+  .kpi b { display: block; font-size: 26px; letter-spacing: -.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .kpi small { color: var(--tenue); font-size: 12px; }
+
+  .grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .tarjeta { background: var(--tarjeta); border: 1px solid var(--linea); border-radius: 14px; padding: 14px 16px; min-width: 0; margin-bottom: 14px; }
+  .grid .tarjeta { margin-bottom: 0; }
+  .tarjeta h2 { font-size: 15px; margin: 0 0 2px; }
+  .tarjeta .sub { color: var(--suave); font-size: 12.5px; margin: 0 0 10px; }
+  .leyenda { display: flex; gap: 14px; font-size: 12.5px; color: var(--suave); margin-bottom: 6px; }
+  .leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  svg { display: block; width: 100%; overflow: visible; }
+  svg text { fill: var(--tenue); font-size: 11px; }
+  .barra-h { display: grid; grid-template-columns: minmax(0, 170px) 1fr auto; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 8px; cursor: pointer; }
+  .barra-h:hover, .barra-h.on { background: var(--fondo); }
+  .barra-h span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+  .barra-h .pista { height: 10px; display: flex; gap: 2px; }
+  .barra-h .pista i { display: block; height: 100%; border-radius: 0 4px 4px 0; }
+  .barra-h .pista i.e { border-radius: 0 4px 4px 0; }
+  .barra-h .pista i.o:not(:last-child) { border-radius: 0; }
+  .barra-h b { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--suave); font-weight: 600; }
+
+  .tabla { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th { text-align: left; color: var(--suave); font-weight: 600; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--linea); white-space: nowrap; position: sticky; top: 0; background: var(--tarjeta); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--grilla); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.clic { cursor: pointer; }
+  tr.clic:hover td { background: var(--fondo); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .nowrap { white-space: nowrap; }
+  .err { color: var(--error); max-width: 420px; }
+  .det { max-width: 280px; color: var(--suave); }
+  .res { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 12px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+  .res.ok { color: var(--verde); background: color-mix(in srgb, var(--verde) 12%, transparent); }
+  .res.mal { color: var(--error); background: var(--error-suave); }
+  .tag { font-size: 11px; color: var(--suave); border: 1px solid var(--linea); border-radius: 999px; padding: 0 6px; white-space: nowrap; }
+  .mas { margin-top: 10px; }
+  a { color: var(--ok); }
+  td.err { min-width: 220px; }
+  td.det { min-width: 140px; }
+  .fichas { display: none; }
+  .ficha { padding: 10px 0; border-bottom: 1px solid var(--grilla); display: grid; gap: 3px; }
+  .ficha .l1 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ficha .l1 b { font-size: 13.5px; }
+  .ficha .l1 .res { margin-left: auto; }
+  .ficha small { color: var(--suave); font-size: 12.5px; }
+  .ficha .err { font-size: 12.5px; }
+  @media (max-width: 700px) {
+    #tRegistro .tabla { display: none; }
+    #tRegistro .fichas { display: block; max-height: 75vh; overflow: auto; }
+  }
+  .vacio { color: var(--suave); padding: 18px 0; text-align: center; }
+  .scroll { max-height: 420px; overflow: auto; }
+  .tabla.alta { max-height: 70vh; overflow: auto; }
+
+  #tip { position: fixed; pointer-events: none; z-index: 10; background: var(--tinta); color: var(--fondo); padding: 7px 10px; border-radius: 9px; font-size: 12.5px; line-height: 1.4; display: none; white-space: nowrap; }
+  #login { max-width: 380px; margin: 12vh auto; background: var(--tarjeta); border: 1px solid var(--linea); border-radius: 16px; padding: 22px; }
+  #login h1 { font-size: 20px; margin: 0 0 6px; }
+  #login p { color: var(--suave); margin: 0 0 14px; }
+  #login form { display: flex; gap: 8px; }
+  #login input { flex: 1; }
+  #login .mal { color: var(--error); margin-top: 10px; min-height: 1em; }
+  .cargando { color: var(--suave); padding: 30px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div id="login" hidden>
+  <h1>Panel de PacePath</h1>
+  <p>Escribe la clave de administración (la variable <code>PACEPATH_ADMIN</code> de Render).</p>
+  <form id="formLogin"><input id="clave" type="password" autocomplete="current-password" placeholder="Clave" required>
+    <button class="prim" type="submit">Entrar</button></form>
+  <div class="mal" id="loginError"></div>
+</div>
+
+<main id="panel" hidden>
+  <header>
+    <div class="marca"><img src="/icons/icono-192.png" alt="">PacePath <span>· Panel</span></div>
+    <span class="almacen" id="almacen"></span>
+    <div class="acciones">
+      <button id="actualizar" type="button">Actualizar</button>
+      <button id="csv" type="button">CSV</button>
+      <button id="salir" type="button">Salir</button>
+    </div>
+  </header>
+
+  <div class="filtros">
+    <div class="chips" id="periodos" role="group" aria-label="Periodo">
+      <button type="button" data-d="1">Hoy</button><button type="button" data-d="7">7 días</button>
+      <button type="button" data-d="30">30 días</button><button type="button" data-d="90">90 días</button>
+      <button type="button" data-d="365">1 año</button>
+    </div>
+    <button type="button" id="verFiltros" aria-expanded="false">Filtros</button>
+    <div class="mas-filtros" id="masFiltros">
+    <div class="rango"><input type="date" id="desde" aria-label="Desde"> – <input type="date" id="hasta" aria-label="Hasta"></div>
+    <select id="fConsulta" aria-label="Tipo de consulta"></select>
+    <select id="fResultado" aria-label="Resultado">
+      <option value="">Todos los resultados</option><option value="1">Exitosas</option><option value="0">Con error</option></select>
+    <select id="fUsuario" aria-label="Usuario"></select>
+    <select id="fComuna" aria-label="Comuna"></select>
+    <select id="fStrava" aria-label="Strava">
+      <option value="">Con y sin Strava</option><option value="1">Con Strava</option><option value="0">Sin Strava</option></select>
+    <select id="fDisp" aria-label="Dispositivo"></select>
+    <input type="search" id="fTexto" placeholder="Buscar en detalle o error…" aria-label="Buscar">
+    </div>
+  </div>
+  <p class="resumen-filtro" id="resumenFiltro"></p>
+
+  <div id="contenido"><div class="cargando">Cargando…</div></div>
+</main>
+<div id="tip"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = (n) => Number(n).toLocaleString("es-CL");
+const ZONA = "America/Santiago";
+
+const NOMBRES = {
+  visita: "Visita", privacidad: "Privacidad", ruta: "Ruta por sesión", gpx: "Descarga GPX", trazado: "Ruta a mano",
+  interpretar: "Interpretar sesión", busqueda: "Búsqueda de dirección", donde_corri: "Dónde has corrido",
+  comunas: "Lista de comunas", evento: "Evento de la app", strava_conectar: "Strava · conectar",
+  strava_conexion: "Strava · vuelta de conexión", strava_sync: "Strava · descargar carreras",
+  strava_perfil: "Strava · perfil", strava_foto: "Strava · foto", strava_calles: "Strava · calles de siempre",
+  strava_desconectar: "Strava · desconectar",
+};
+const nombre = (c) => NOMBRES[c] || c;
+
+let CLAVE = null;
+try { CLAVE = sessionStorage.getItem("pp_admin"); } catch {}
+let datos = null;          // { filas: [...objetos], almacen, ... }
+let periodo = 30;
+let mostrar = 100;
+
+// ── Acceso ──
+$("formLogin").onsubmit = async (e) => {
+  e.preventDefault();
+  CLAVE = $("clave").value;
+  $("loginError").textContent = "";
+  if (await cargar()) { try { sessionStorage.setItem("pp_admin", CLAVE); } catch {} }
+};
+$("salir").onclick = () => { try { sessionStorage.removeItem("pp_admin"); } catch {} CLAVE = null; datos = null; verLogin(); };
+function verLogin(msg) { $("panel").hidden = true; $("login").hidden = false; $("loginError").textContent = msg || ""; $("clave").focus(); }
+
+// ── Fechas (días de Santiago) ──
+const diaLocal = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+const sumarDias = (dia, n) => { const d = new Date(dia + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const horaLocal = (ts) => new Intl.DateTimeFormat("es-CL", { timeZone: ZONA, day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(ts));
+const diaCorto = (dia) => { const [, m, d] = dia.split("-"); return `${+d}/${+m}`; };
+
+function ponerPeriodo(d) {
+  periodo = d;
+  const hoy = diaLocal(new Date());
+  $("hasta").value = hoy;
+  $("desde").value = sumarDias(hoy, -(d - 1));
+  document.querySelectorAll("#periodos button").forEach((b) => b.classList.toggle("on", +b.dataset.d === d));
+}
+document.querySelectorAll("#periodos button").forEach((b) => b.onclick = () => { ponerPeriodo(+b.dataset.d); cargar(); });
+$("desde").onchange = $("hasta").onchange = () => { periodo = null; document.querySelectorAll("#periodos button").forEach((b) => b.classList.remove("on")); cargar(); };
+
+$("verFiltros").onclick = () => {
+  const abierto = $("masFiltros").classList.toggle("abierto");
+  $("verFiltros").setAttribute("aria-expanded", abierto);
+};
+
+// ── Datos ──
+async function cargar() {
+  if (!CLAVE) { verLogin(); return false; }
+  $("contenido").innerHTML = '<div class="cargando">Cargando…</div>';
+  let r;
+  try {
+    r = await fetch(`/api/admin/eventos?desde=${$("desde").value}&hasta=${$("hasta").value}`, { headers: { "X-Admin-Clave": CLAVE } });
+  } catch { $("contenido").innerHTML = '<div class="vacio">No pude conectar con el servidor (¿Render está despertando? Prueba de nuevo en unos segundos).</div>'; return false; }
+  if (r.status === 404) { verLogin("Clave incorrecta."); return false; }
+  if (!r.ok) { $("contenido").innerHTML = `<div class="vacio">El servidor respondió ${r.status}.</div>`; return false; }
+  const j = await r.json();
+  datos = { ...j, filas: j.filas.map((f) => Object.fromEntries(j.columnas.map((c, i) => [c, f[i]]))) };
+  $("login").hidden = true; $("panel").hidden = false;
+  const a = $("almacen");
+  a.className = "almacen" + (j.almacen !== "postgres" || j.error_almacen ? " mal" : "");
+  a.textContent = j.error_almacen ? `Base de datos con problemas: ${j.error_almacen}`
+    : j.almacen === "postgres" ? "Guardado en Postgres" : "Sin base de datos: se borra cuando Render duerme";
+  llenarFiltros();
+  mostrar = 100;
+  pintar();
+  return true;
+}
+$("actualizar").onclick = cargar;
+
+function opciones(sel, valores, todos, etiqueta = (v) => v) {
+  const actual = sel.value;
+  sel.innerHTML = `<option value="">${todos}</option>` + valores.map(([v, n]) =>
+    `<option value="${esc(v)}">${esc(etiqueta(v))} (${num(n)})</option>`).join("");
+  if (valores.some(([v]) => String(v) === actual)) sel.value = actual;
+}
+const contar = (filas, k) => [...filas.reduce((m, f) => f[k] != null && f[k] !== "" ? m.set(f[k], (m.get(f[k]) || 0) + 1) : m, new Map())].sort((a, b) => b[1] - a[1]);
+function llenarFiltros() {
+  const F = datos.filas;
+  opciones($("fConsulta"), contar(F, "consulta"), "Todas las consultas", nombre);
+  opciones($("fUsuario"), contar(F, "usuario"), "Todos los usuarios");
+  opciones($("fComuna"), contar(F, "comuna"), "Todas las comunas");
+  opciones($("fDisp"), contar(F, "disp"), "Todos los dispositivos");
+}
+["fConsulta", "fResultado", "fUsuario", "fComuna", "fStrava", "fDisp"].forEach((id) => $(id).onchange = () => { mostrar = 100; pintar(); });
+let tTexto; $("fTexto").oninput = () => { clearTimeout(tTexto); tTexto = setTimeout(() => { mostrar = 100; pintar(); }, 200); };
+
+function filtradas() {
+  const c = $("fConsulta").value, r = $("fResultado").value, u = $("fUsuario").value, co = $("fComuna").value,
+    s = $("fStrava").value, d = $("fDisp").value, q = $("fTexto").value.trim().toLowerCase();
+  return datos.filas.filter((f) => (!c || f.consulta === c) && (r === "" || String(f.exito) === r) && (!u || f.usuario === u)
+    && (!co || f.comuna === co) && (s === "" || String(f.strava) === s) && (!d || f.disp === d)
+    && (!q || `${f.detalle || ""} ${f.error || ""} ${f.evento || ""} ${f.tipo || ""}`.toLowerCase().includes(q)));
+}
+function filtrar(id, valor) { $(id).value = valor; mostrar = 100; pintar(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+
+// ── Pintar ──
+function pintar() {
+  const F = filtradas();
+  const activos = [["fConsulta", "consulta"], ["fResultado", "resultado"], ["fUsuario", "usuario"], ["fComuna", "comuna"],
+    ["fStrava", "Strava"], ["fDisp", "dispositivo"], ["fTexto", "texto"]].filter(([id]) => $(id).value);
+  $("resumenFiltro").innerHTML = `${num(F.length)} de ${num(datos.filas.length)} consultas`
+    + `${datos.truncado ? " (el periodo tiene más: se muestran las más recientes)" : ""}`
+    + (activos.length ? ` · filtrado por ${activos.map(([, n]) => n).join(", ")} <button type="button" id="limpiar">Quitar filtros</button>` : "");
+  $("verFiltros").textContent = activos.length ? `Filtros (${activos.length})` : "Filtros";
+  if ($("limpiar")) $("limpiar").onclick = () => { activos.forEach(([id]) => $(id).value = ""); pintar(); };
+
+  if (!datos.filas.length) {
+    $("contenido").innerHTML = `<div class="tarjeta vacio">No hay consultas en este periodo${datos.almacen !== "postgres" ? " (sin base de datos, el registro empieza de cero cada vez que Render despierta)" : ""}.</div>`;
+    return;
+  }
+  const errores = F.filter((f) => !f.exito);
+  const usuarios = new Set(F.map((f) => f.usuario));
+  const rutas = F.filter((f) => f.consulta === "ruta" && f.exito).length;
+  const ms = F.map((f) => f.ms).filter((x) => x != null).sort((a, b) => a - b);
+  const mediana = ms.length ? ms[ms.length >> 1] : 0;
+  const pct = F.length ? Math.round(100 * (F.length - errores.length) / F.length) : 0;
+  const tiempo = (x) => x >= 1000 ? `${(x / 1000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} s` : `${num(x)} ms`;
+
+  $("contenido").innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><span>Consultas</span><b>${num(F.length)}</b></div>
+      <div class="kpi"><span>Usuarios</span><b>${num(usuarios.size)}</b><small>${num(new Set(F.filter((f) => f.strava).map((f) => f.usuario)).size)} con Strava</small></div>
+      <div class="kpi"><span>Rutas creadas</span><b>${num(rutas)}</b></div>
+      <div class="kpi"><span>Exitosas</span><b>${pct}%</b></div>
+      <div class="kpi"><span>Con error</span><b>${num(errores.length)}</b></div>
+      <div class="kpi"><span>Tiempo mediano</span><b>${tiempo(mediana)}</b><small>p90 ${tiempo(ms[Math.floor(ms.length * 0.9)] || 0)}</small></div>
+    </div>
+    <div class="grid">
+      <div class="tarjeta"><h2>Consultas por día</h2><p class="sub">Hora de Santiago</p>
+        <div class="leyenda"><span><i style="background:var(--ok)"></i>Exitosas</span><span><i style="background:var(--error)"></i>Con error</span></div>
+        <div id="gDias"></div></div>
+      <div class="tarjeta"><h2>Por tipo de consulta</h2><p class="sub">Toca uno para filtrar</p><div id="gTipos" class="scroll"></div></div>
+    </div>
+    <div class="grid">
+      <div class="tarjeta"><h2>Errores más frecuentes</h2><p class="sub">Agrupados por consulta y mensaje · toca uno para verlos</p><div id="tErrores"></div></div>
+      <div class="tarjeta"><h2>Usuarios</h2><p class="sub">Identificador anónimo por teléfono · toca uno para filtrar</p><div id="tUsuarios"></div></div>
+    </div>
+    <div class="tarjeta"><h2>Registro</h2><p class="sub">Las más recientes primero</p><div id="tRegistro"></div></div>`;
+
+  graficoDias(F);
+  graficoTipos(F);
+  tablaErrores(errores);
+  tablaUsuarios(F);
+  tablaRegistro(F);
+}
+
+function graficoDias(F) {
+  const desde = $("desde").value, hasta = $("hasta").value;
+  const dias = [];
+  for (let d = desde; d <= hasta && dias.length < 400; d = sumarDias(d, 1)) dias.push(d);
+  const por = new Map(dias.map((d) => [d, { ok: 0, mal: 0 }]));
+  F.forEach((f) => { const x = por.get(f.dia); if (x) f.exito ? x.ok++ : x.mal++; });
+  const W = 640, H = 200, iz = 34, ab = 22, ar = 8;
+  const max = Math.max(1, ...[...por.values()].map((x) => x.ok + x.mal));
+  const paso = niceStep(max), tope = Math.ceil(max / paso) * paso;
+  const y = (v) => ar + (H - ar - ab) * (1 - v / tope);
+  const bw = (W - iz) / dias.length, ancho = Math.max(1, Math.min(28, bw - 2));
+  let s = "";
+  for (let v = 0; v <= tope; v += paso) s += `<line x1="${iz}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grilla)"/><text x="${iz - 6}" y="${y(v) + 4}" text-anchor="end">${num(v)}</text>`;
+  const cada = Math.ceil(dias.length / 10);
+  dias.forEach((d, i) => {
+    const x = iz + i * bw + (bw - ancho) / 2, { ok, mal } = por.get(d);
+    const r = Math.min(4, ancho / 2);
+    if (ok) s += barraV(x, y(ok), ancho, y(0) - y(ok), r, "var(--ok)", !mal);
+    if (mal) s += barraV(x, y(ok + mal), ancho, y(ok) - y(ok + mal) - (ok ? 2 : 0), r, "var(--error)", true);
+    s += `<rect x="${iz + i * bw}" y="${ar}" width="${bw}" height="${H - ar - ab}" fill="transparent" data-tip="${esc(`<b>${diaCorto(d)}</b><br>${num(ok + mal)} consultas<br>${num(ok)} exitosas · ${num(mal)} con error`)}"/>`;
+    if (i % cada === 0) s += `<text x="${iz + i * bw + bw / 2}" y="${H - 6}" text-anchor="middle">${diaCorto(d)}</text>`;
+  });
+  $("gDias").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Consultas por día">${s}</svg>`;
+}
+// Barra vertical con las puntas de arriba redondeadas (4 px) y la base recta.
+function barraV(x, y, w, h, r, color, redondo) {
+  if (h <= 0) return "";
+  r = redondo ? Math.min(r, h) : 0;
+  return `<path d="M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z" fill="${color}"/>`;
+}
+function niceStep(max) { const p = 10 ** Math.floor(Math.log10(max / 4 || 1)); return [1, 2, 5, 10].map((m) => m * p).find((s) => max / s <= 5) || p * 10; }
+
+function graficoTipos(F) {
+  const por = new Map();
+  F.forEach((f) => { const x = por.get(f.consulta) || { ok: 0, mal: 0 }; f.exito ? x.ok++ : x.mal++; por.set(f.consulta, x); });
+  const lista = [...por].sort((a, b) => (b[1].ok + b[1].mal) - (a[1].ok + a[1].mal));
+  const max = Math.max(1, ...lista.map(([, x]) => x.ok + x.mal));
+  const sel = $("fConsulta").value;
+  $("gTipos").innerHTML = lista.map(([c, { ok, mal }]) => `
+    <div class="barra-h${c === sel ? " on" : ""}" data-c="${esc(c)}" data-tip="${esc(`<b>${nombre(c)}</b><br>${num(ok)} exitosas · ${num(mal)} con error`)}">
+      <span>${esc(nombre(c))}</span>
+      <div class="pista">${ok ? `<i class="o" style="width:${100 * ok / max}%;background:var(--ok)"></i>` : ""}${mal ? `<i class="e" style="width:${100 * mal / max}%;background:var(--error)"></i>` : ""}</div>
+      <b>${num(ok + mal)}${mal ? ` · <span style="color:var(--error)">${num(mal)} ✕</span>` : ""}</b></div>`).join("");
+  document.querySelectorAll("#gTipos .barra-h").forEach((el) => el.onclick = () => filtrar("fConsulta", el.dataset.c === sel ? "" : el.dataset.c));
+}
+
+function tablaErrores(errores) {
+  if (!errores.length) { $("tErrores").innerHTML = '<div class="vacio">Sin errores 🎉</div>'; return; }
+  const grupos = new Map();
+  errores.forEach((f) => {
+    const msg = (f.error || `HTTP ${f.estado}`).replace(/\d{3,}/g, "#");
+    const k = f.consulta + "|" + msg;
+    const g = grupos.get(k) || { consulta: f.consulta, msg: f.error || `HTTP ${f.estado}`, buscar: f.error || "", n: 0, usuarios: new Set(), ultima: f.ts };
+    g.n++; g.usuarios.add(f.usuario); if (f.ts > g.ultima) g.ultima = f.ts;
+    grupos.set(k, g);
+  });
+  const filas = [...grupos.values()].sort((a, b) => b.n - a.n).slice(0, 30);
+  $("tErrores").innerHTML = `<div class="tabla scroll"><table><thead><tr><th>Consulta</th><th>Error</th><th class="num">Veces</th><th class="num">Usuarios</th><th>Última</th></tr></thead><tbody>
+    ${filas.map((g, i) => `<tr class="clic" data-i="${i}"><td class="nowrap">${esc(nombre(g.consulta))}</td><td class="err">${esc(g.msg)}</td>
+      <td class="num">${num(g.n)}</td><td class="num">${num(g.usuarios.size)}</td><td class="nowrap">${horaLocal(g.ultima)}</td></tr>`).join("")}</tbody></table></div>`;
+  document.querySelectorAll("#tErrores tr.clic").forEach((tr) => tr.onclick = () => {
+    const g = filas[+tr.dataset.i];
+    $("fConsulta").value = g.consulta; $("fResultado").value = "0"; $("fTexto").value = g.buscar.slice(0, 60);
+    mostrar = 100; pintar(); $("tRegistro").scrollIntoView({ behavior: "smooth" });
+  });
+}
+
+function tablaUsuarios(F) {
+  const por = new Map();
+  F.forEach((f) => {
+    const u = por.get(f.usuario) || { id: f.usuario, n: 0, rutas: 0, mal: 0, strava: false, disp: new Set(), primera: f.ts, ultima: f.ts };
+    u.n++; if (f.consulta === "ruta" && f.exito) u.rutas++; if (!f.exito) u.mal++;
+    if (f.strava) u.strava = true; if (f.disp) u.disp.add(f.disp);
+    if (f.ts < u.primera) u.primera = f.ts; if (f.ts > u.ultima) u.ultima = f.ts;
+    por.set(f.usuario, u);
+  });
+  const lista = [...por.values()].sort((a, b) => b.ultima.localeCompare(a.ultima));
+  const sel = $("fUsuario").value;
+  $("tUsuarios").innerHTML = `<div class="tabla scroll"><table><thead><tr><th>Usuario</th><th class="num">Consultas</th><th class="num">Rutas</th><th class="num">Errores</th><th>Strava</th><th>Dispositivo</th><th>Primera vez</th><th>Última vez</th></tr></thead><tbody>
+    ${lista.map((u) => `<tr class="clic" data-u="${esc(u.id)}"${u.id === sel ? ' style="font-weight:700"' : ""}><td class="mono">${esc(u.id)}</td>
+      <td class="num">${num(u.n)}</td><td class="num">${num(u.rutas)}</td><td class="num"${u.mal ? ' style="color:var(--error)"' : ""}>${num(u.mal)}</td>
+      <td>${u.strava ? "Sí" : "–"}</td><td class="nowrap">${esc([...u.disp].join(", "))}</td>
+      <td class="nowrap">${horaLocal(u.primera)}</td><td class="nowrap">${horaLocal(u.ultima)}</td></tr>`).join("")}</tbody></table></div>`;
+  document.querySelectorAll("#tUsuarios tr.clic").forEach((tr) => tr.onclick = () => filtrar("fUsuario", tr.dataset.u === sel ? "" : tr.dataset.u));
+}
+
+// ✓/✕ y el código HTTP (salvo un 200 en un fallo informado por la app, que confunde).
+const insignia = (f) => `<span class="res ${f.exito ? "ok" : "mal"}" title="HTTP ${f.estado ?? "?"}">${f.exito ? "✓" : "✕"}${f.estado && !(f.estado === 200 && !f.exito) ? " " + f.estado : ""}</span>`;
+function tablaRegistro(F) {
+  const vista = F.slice(0, mostrar);
+  $("tRegistro").innerHTML = !F.length ? '<div class="vacio">Nada con estos filtros.</div>' : `
+    <div class="tabla alta"><table><thead><tr><th>Hora</th><th>Usuario</th><th>Consulta</th><th>Tipo</th><th>Comuna</th><th>Detalle</th><th>Resultado</th><th class="num">Tiempo</th><th>Error</th></tr></thead><tbody>
+    ${vista.map((f) => `<tr><td class="nowrap">${horaLocal(f.ts)}</td>
+      <td><a href="#" class="mono" data-u="${esc(f.usuario)}">${esc(f.usuario)}</a>${f.strava ? ' <span class="tag">Strava</span>' : ""}</td>
+      <td class="nowrap">${esc(nombre(f.consulta))}${f.evento && f.evento !== f.consulta ? ` <span class="tag">${esc(f.evento)}</span>` : ""}</td>
+      <td>${esc(f.tipo || "")}</td><td class="nowrap">${esc(f.comuna || "")}</td><td class="det">${esc(f.detalle !== f.error ? f.detalle || "" : "")}</td>
+      <td>${insignia(f)}</td>
+      <td class="num nowrap">${f.ms != null ? num(f.ms) + " ms" : ""}</td><td class="err">${esc(f.error || "")}</td></tr>`).join("")}</tbody></table></div>
+    <div class="fichas">${vista.map((f) => `<div class="ficha">
+      <div class="l1"><small>${horaLocal(f.ts)}</small><b>${esc(nombre(f.consulta))}</b>${f.evento && f.evento !== f.consulta ? `<span class="tag">${esc(f.evento)}</span>` : ""}
+        ${insignia(f)}</div>
+      ${(() => { const d = [f.tipo, f.comuna, f.detalle !== f.error ? f.detalle : null].filter(Boolean); return d.length ? `<small>${esc(d.join(" · "))}</small>` : ""; })()}
+      ${f.error ? `<div class="err">${esc(f.error)}</div>` : ""}
+      <small><a href="#" class="mono" data-u="${esc(f.usuario)}">${esc(f.usuario)}</a>${f.strava ? " · Strava" : ""}${f.disp ? " · " + esc(f.disp) : ""}${f.ms != null ? ` · ${num(f.ms)} ms` : ""}</small></div>`).join("")}</div>
+    ${F.length > mostrar ? `<button class="mas" id="mas" type="button">Mostrar más (${num(F.length - mostrar)} restantes)</button>` : ""}`;
+  document.querySelectorAll("#tRegistro a[data-u]").forEach((a) => a.onclick = (e) => { e.preventDefault(); filtrar("fUsuario", a.dataset.u); });
+  if ($("mas")) $("mas").onclick = () => { mostrar += 300; tablaRegistro(F); };
+}
+
+// ── Tooltip ──
+const tip = $("tip");
+document.addEventListener("pointermove", (e) => {
+  const el = e.target.closest?.("[data-tip]");
+  if (!el) { tip.style.display = "none"; return; }
+  tip.innerHTML = el.dataset.tip; tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(innerWidth - w - 8, Math.max(8, e.clientX - w / 2)) + "px";
+  tip.style.top = (e.clientY - h - 12 < 8 ? e.clientY + 16 : e.clientY - h - 12) + "px";
+});
+document.addEventListener("pointerdown", (e) => { if (!e.target.closest?.("[data-tip]")) tip.style.display = "none"; });
+
+// ── CSV ──
+$("csv").onclick = () => {
+  const F = filtradas(), cols = datos.columnas;
+  const celda = (v) => { const s = String(v ?? ""); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const csv = [cols.join(","), ...F.map((f) => cols.map((c) => celda(f[c])).join(","))].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+  a.download = `pacepath_consultas_${$("desde").value}_${$("hasta").value}.csv`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+ponerPeriodo(30);
+if (CLAVE) cargar(); else verLogin();
+</script>
+</body>
+</html>

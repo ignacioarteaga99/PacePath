@@ -30,9 +30,13 @@ services:
         value: "289395"
       - key: STRAVA_CLIENT_SECRET
         sync: false
-      # Beta: clave para ver las métricas anónimas en /api/uso?clave=… (invéntala
-      # larga y pégala en Render; sin ella, /api/uso no existe).
+      # Beta: clave del panel /admin (y de /api/uso?clave=…). Invéntala larga y
+      # pégala en Render; sin ella, el panel no abre.
       - key: PACEPATH_ADMIN
+        sync: false
+      # Postgres para el registro del panel /admin (p. ej. Neon gratis). Sin ella
+      # el registro vive en /tmp y se borra cada vez que Render duerme.
+      - key: DATABASE_URL
         sync: false
       # «1» cuando Strava apruebe la app (quita el aviso de beta junto al botón).
       - key: PACEPATH_STRAVA_ABIERTO

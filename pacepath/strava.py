@@ -52,6 +52,13 @@ class StravaLimite(StravaError):
     Strava la revise y apruebe)."""
 
 
+class StravaEspera(StravaError):
+    """Límite de uso de la API (429): hay que esperar, reintentar ya no sirve."""
+
+
+class StravaSinAcceso(StravaError):
+    """Strava rechazó el token (401/403): hay que volver a conectar."""
+
 def client_id() -> str:
     return os.environ.get("STRAVA_CLIENT_ID", "")
 
@@ -108,7 +115,7 @@ def _http(metodo: str, url: str, datos: dict | None = None,
             return json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as exc:
         if exc.code == 429:
-            raise StravaError(tr("Strava pide esperar un poco (límite de uso de la API). "
+            raise StravaEspera(tr("Strava pide esperar un poco (límite de uso de la API). "
                                  "Prueba en 15 minutos.",
                                  "Strava asks us to wait (API rate limit). Try again in "
                                  "15 minutes.")) from exc
@@ -123,7 +130,7 @@ def _http(metodo: str, url: str, datos: dict | None = None,
                                       "Strava still limits how many people can connect PacePath "
                                       "(the app is under review).")) from exc
         if exc.code in (401, 403):
-            raise StravaError(tr("Strava rechazó el acceso: vuelve a conectar.",
+            raise StravaSinAcceso(tr("Strava rechazó el acceso: vuelve a conectar.",
                                  "Strava rejected access: please reconnect.")) from exc
         raise StravaError(tr(f"Strava respondió {exc.code}.",
                              f"Strava answered {exc.code}.")) from exc

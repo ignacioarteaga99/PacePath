@@ -20,25 +20,34 @@
     GET  /api/strava/foto        tu foto de perfil (para la tarjeta del Pasaporte)
     POST /api/evento             eventos anónimos del teléfono (errores, comentarios)
     GET  /api/uso?clave=         métricas de la beta (clave = PACEPATH_ADMIN)
+    GET  /admin                  panel de administración (registro de consultas)
+    GET  /api/admin/eventos      sus datos (cabecera X-Admin-Clave = PACEPATH_ADMIN)
     GET  /privacidad             política de privacidad
     POST /api/strava/desconectar revoca el acceso en Strava y borra la cookie
 """
 from __future__ import annotations
 
 import os
+import re
 import secrets
 import threading
+import time
+from contextlib import asynccontextmanager
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import ciudades, comunas, frecuencia, idioma, lugares, nombres, strava, uso
+from . import ciudades, comunas, frecuencia, idioma, lugares, nombres, registro, strava, uso
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -48,7 +57,15 @@ from .trazado import MAX_PUNTOS, TrazadoInvalido, trazar
 
 WEB = Path(__file__).resolve().parents[1] / "web"
 
-app = FastAPI(title="PacePath", version="0.1.0")
+
+
+@asynccontextmanager
+async def _vida(_app):
+    yield
+    registro.vaciar(5)            # al apagarse (Render duerme): guardar lo que quede en la cola
+
+
+app = FastAPI(title="PacePath", version="0.1.0", lifespan=_vida)
 # Una ruta a la vez: el A* de RaceEngine reutiliza buffers por grafo (no es
 # seguro entre hilos) y en 512 MB tampoco caben dos comunas cargando a la vez.
 _motor = threading.Lock()
@@ -63,6 +80,84 @@ async def _idioma(request: Request, call_next):
     """Idioma de la respuesta: cabecera X-Idioma (la app) o ?lang= (enlaces)."""
     idioma.usar(request.headers.get("x-idioma") or request.query_params.get("lang"))
     return await call_next(request)
+
+
+# ── Registro de consultas (panel /admin) ────────────────────────────────────
+# Qué se registra: sólo estas direcciones (no los archivos, ni /api/salud, que
+# Render consulta cada pocos segundos, ni el propio panel).
+CONSULTAS = {
+    "/": "visita", "/privacidad": "privacidad", "/privacy": "privacidad",
+    "/api/ruta": "ruta", "/api/ruta.gpx": "gpx", "/api/trazar": "trazado", "/api/trazar.gpx": "gpx",
+    "/api/sesion": "interpretar", "/api/lugares": "busqueda", "/api/donde": "donde_corri",
+    "/api/comunas": "comunas", "/api/evento": "evento",
+    "/api/strava/conectar": "strava_conectar", "/api/strava/vuelta": "strava_conexion",
+    "/api/strava/actividades": "strava_sync", "/api/strava/perfil": "strava_perfil",
+    "/api/strava/foto": "strava_foto", "/api/strava/frecuencia": "strava_calles",
+    "/api/strava/desconectar": "strava_desconectar",
+}
+# Identificador anónimo del teléfono: al azar, sin relación con nombre ni Strava.
+COOKIE_USUARIO = "pp_u"
+_DISPOSITIVOS = (("iphone", "iPhone"), ("ipad", "iPad"), ("android", "Android"),
+                 ("macintosh", "Mac"), ("windows", "Windows"), ("linux", "Linux"))
+
+
+def _dispositivo(ua: str) -> str:
+    ua = ua.lower()
+    return next((nombre for clave, nombre in _DISPOSITIVOS if clave in ua), "otro")
+
+
+@app.middleware("http")
+async def _registrar(request: Request, call_next):
+    consulta = CONSULTAS.get(request.url.path)
+    if consulta is None:
+        return await call_next(request)
+    usuario = request.cookies.get(COOKIE_USUARIO, "")
+    nuevo = not re.fullmatch(r"[0-9a-f]{10}", usuario)
+    if nuevo:
+        usuario = secrets.token_hex(5)
+    lang = request.headers.get("x-idioma") or request.query_params.get("lang") \
+        or request.headers.get("accept-language", "es")
+    info: dict = {"consulta": consulta, "usuario": usuario, "strava": strava.COOKIE in request.cookies,
+                  "idioma": "en" if lang.lower().startswith("en") else "es",
+                  "disp": _dispositivo(request.headers.get("user-agent", ""))}
+    marca = uso.consulta.set(info)
+    t0 = time.perf_counter()
+    try:
+        resp = await call_next(request)
+        info["estado"] = resp.status_code
+        if nuevo:
+            resp.set_cookie(COOKIE_USUARIO, usuario, max_age=400 * 24 * 3600, httponly=True,
+                            samesite="lax", secure=_base(request).startswith("https"))
+        return resp
+    except Exception as exc:
+        info.update(estado=500, exito=False, error=f"{type(exc).__name__}: {exc}")
+        raise
+    finally:
+        uso.consulta.reset(marca)
+        info["ms"] = round((time.perf_counter() - t0) * 1000)
+        info.setdefault("exito", info.get("estado", 500) < 400)
+        info.setdefault("evento", consulta)
+        registro.anotar(info)
+
+
+def _anotar(**campos) -> None:
+    """Agrega datos a la consulta en curso (si se está registrando)."""
+    info = uso.consulta.get()
+    if info is not None:
+        info.update({k: v for k, v in campos.items() if v is not None})
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _error_http(request: Request, exc: StarletteHTTPException):
+    _anotar(error=str(exc.detail))
+    return await http_exception_handler(request, exc)
+
+
+@app.exception_handler(RequestValidationError)
+async def _error_validacion(request: Request, exc: RequestValidationError):
+    _anotar(error="datos inválidos: " + "; ".join(
+        f"{'.'.join(str(x) for x in e.get('loc', [])[1:])} {e.get('msg', '')}" for e in exc.errors()[:3]))
+    return await request_validation_exception_handler(request, exc)
 
 
 class Punto(BaseModel):
@@ -126,7 +221,7 @@ def index(origen: str | None = None) -> FileResponse:
     return FileResponse(WEB / "index.html")
 
 
-EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar"}
+EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar", "sync", "sync_error"}
 
 
 class Evento(BaseModel):
@@ -138,7 +233,10 @@ class Evento(BaseModel):
 def evento(body: Evento) -> dict:
     """Eventos anónimos del teléfono (errores de la interfaz, comentarios enviados…)."""
     if body.tipo in EVENTOS_CLIENTE:
-        uso.registrar(body.tipo, body.detalle)
+        fallo = body.tipo.endswith("error")
+        uso.registrar(body.tipo, body.detalle, exito=not fallo)
+        if fallo:
+            _anotar(error=body.detalle)
     return {"ok": True}
 
 
@@ -149,6 +247,32 @@ def ver_uso(clave: str = "") -> dict:
     if not admin or not secrets.compare_digest(clave, admin):
         raise HTTPException(404, "Not Found")
     return uso.resumen()
+
+
+def _es_admin(clave: str) -> bool:
+    admin = os.environ.get("PACEPATH_ADMIN", "")
+    return bool(admin) and secrets.compare_digest(clave.encode(), admin.encode())
+
+
+@app.get("/admin", include_in_schema=False)
+def panel_admin() -> FileResponse:
+    return FileResponse(WEB / "admin.html", headers={"X-Robots-Tag": "noindex", "Cache-Control": "no-store"})
+
+
+@app.get("/api/admin/eventos", include_in_schema=False)
+def admin_eventos(request: Request, desde: str | None = None, hasta: str | None = None) -> dict:
+    """Las consultas entre dos días (de Santiago). La clave va en una cabecera,
+    no en la dirección, para que no quede en historiales ni logs."""
+    if not _es_admin(request.headers.get("x-admin-clave", "")):
+        time.sleep(1)                       # que adivinar la clave sea lento
+        raise HTTPException(404, "Not Found")
+    hoy = date.fromisoformat(registro.hoy())
+    try:
+        d = date.fromisoformat(desde) if desde else hoy - timedelta(days=29)
+        h = date.fromisoformat(hasta) if hasta else hoy
+    except ValueError as exc:
+        raise HTTPException(422, "Fechas en formato AAAA-MM-DD.") from exc
+    return registro.consultar(d.isoformat(), h.isoformat())
 
 
 # App instalable (PWA): manifiesto y service worker en la raíz (su alcance es «/»).
@@ -193,10 +317,12 @@ def buscar_lugares(q: str, limite: int = 8) -> list[dict]:
 
 @app.post("/api/sesion")
 def sesion(body: TextoSesion) -> dict:
+    _anotar(detalle=body.texto)
     try:
         s = interpretar(body.texto)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+    _anotar(tipo=s.tipo.value)
     return s.model_dump(mode="json") | {"resumen": s.resumen}
 
 
@@ -204,7 +330,8 @@ def _fuera_de_mapa(lat: float, lon: float):
     """Fuera de las comunas con grafo: decir cuáles hay y contar la que se pidió
     (sólo su nombre, para saber qué comunas agregar)."""
     lugar = ciudades.nombrar(lat, lon) or {}
-    uso.registrar("fuera_de_mapa", lugar.get("barrio") or lugar.get("ciudad") or "?", lugar.get("pais"))
+    uso.registrar("fuera_de_mapa", lugar.get("pais"), comuna=lugar.get("barrio") or lugar.get("ciudad") or "?",
+                  exito=False)
     hay = ", ".join(c["nombre"] for c in comunas.disponibles())
     raise HTTPException(422, tr(f"Todavía no hay mapa ahí. Por ahora PacePath funciona en: {hay}. "
                                 "Cuéntanos tu comuna en «Enviar comentario».",
@@ -216,7 +343,7 @@ def _plan(body: PedidoRuta) -> dict:
     try:
         s = body.sesion or interpretar(body.texto or "")
     except ValueError as exc:
-        uso.registrar("sesion_no_entendida")
+        uso.registrar("sesion_no_entendida", body.texto, exito=False)
         raise HTTPException(422, str(exc)) from exc
     if body.max_subida_m is not None:
         s = s.model_copy(update={"max_subida_m": body.max_subida_m})
@@ -232,11 +359,12 @@ def _plan(body: PedidoRuta) -> dict:
                               preferidas=pref, radio_max_m=body.radio_max_m,
                               forma=body.forma, n_vueltas=body.vueltas)
             plan["preferencias"] = info
-            uso.registrar("ruta", s.tipo.value, comuna, body.forma if body.forma != "auto" else None,
-                          "sin volver" if not body.volver else None, "strava" if info["frecuentes"] else None)
+            uso.registrar("ruta", body.texto, body.forma if body.forma != "auto" else None,
+                          "sin volver" if not body.volver else None, "strava" if info["frecuentes"] else None,
+                          tipo=s.tipo.value, comuna=comuna)
             return plan
     except SinTramo as exc:
-        uso.registrar("ruta_sin_tramo", s.tipo.value, comuna)
+        uso.registrar("ruta_sin_tramo", body.texto, tipo=s.tipo.value, comuna=comuna, exito=False)
         raise HTTPException(404, str(exc)) from exc
 
 
@@ -333,13 +461,22 @@ def trazar_gpx(body: PedidoTrazado) -> Response:
 @app.post("/api/ruta.gpx")
 def ruta_gpx(body: PedidoRuta) -> Response:
     plan = _plan(body)
-    uso.registrar("gpx", plan["sesion"]["tipo"])
+    uso.registrar("gpx", tipo=plan["sesion"]["tipo"], comuna=plan.get("comuna"))
     nombre = plan["sesion"]["resumen"].split(" (")[0].replace("×", "x").replace(" ", "")
     return Response(plan_a_gpx(plan), media_type="application/gpx+xml",
                     headers={"Content-Disposition": f'attachment; filename="pacepath-{nombre}.gpx"'})
 
 
 # ── Strava ──────────────────────────────────────────────────────────────────
+
+def _error_strava(exc: strava.StravaError) -> HTTPException:
+    """429: hay que esperar (no reintentar); 401: volver a conectar; 502: lo demás."""
+    if isinstance(exc, strava.StravaEspera):
+        return HTTPException(429, str(exc))
+    if isinstance(exc, strava.StravaSinAcceso):
+        return HTTPException(401, str(exc))
+    return HTTPException(502, str(exc))
+
 
 def _base(request: Request) -> str:
     """URL pública de la app. Render termina el HTTPS antes de llegar aquí, así
@@ -373,18 +510,26 @@ def strava_vuelta(request: Request, code: str | None = None, state: str | None =
                   scope: str = "", error: str | None = None) -> Response:
     destino = "/#ciudad"
     if error or not code:
+        uso.registrar("strava_cancelado", error)
         return RedirectResponse(destino + "-cancelado")
     if not state or state != request.cookies.get(strava.COOKIE_ESTADO):
+        uso.registrar("strava_error", exito=False)
+        _anotar(error="el estado de la vuelta no coincide (cookie vencida o perdida)")
         return RedirectResponse(destino + "-error")
     try:
         s = strava.canjear_codigo(code, scope)
-    except strava.StravaLimite:
-        uso.registrar("strava_limite")
+    except strava.StravaLimite as exc:
+        uso.registrar("strava_limite", exito=False)
+        _anotar(error=str(exc))
         return RedirectResponse(destino + "-limite")
-    except strava.StravaError:
-        uso.registrar("strava_error")
+    except strava.StravaError as exc:
+        uso.registrar("strava_error", exito=False)
+        _anotar(error=str(exc))
         return RedirectResponse(destino + "-error")
-    uso.registrar("strava_conectado")
+    if "activity:read" in scope:
+        uso.registrar("strava_conectado")
+    else:
+        uso.registrar("strava_conectado", "sin permiso para actividades", exito=False)
     resp = RedirectResponse(destino if "activity:read" in scope else destino + "-sin-permiso")
     _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
     resp.delete_cookie(strava.COOKIE_ESTADO)
@@ -415,7 +560,9 @@ def strava_actividades(request: Request, pagina: int = 1, despues: int | None = 
         s, renovada = strava.vigente(s)
         lista, crudas = strava.carreras(s, max(1, pagina), despues)
     except strava.StravaError as exc:
-        raise HTTPException(502, str(exc)) from exc
+        raise _error_strava(exc) from exc
+    _anotar(detalle=f"página {pagina}{' · desde ' + time.strftime('%Y-%m-%d', time.gmtime(despues)) if despues else ''}"
+                    f" · {crudas} actividades → {len(lista)} carreras")
     resp = JSONResponse({"carreras": lista, "ultima": crudas < 100, "pagina": pagina})
     if renovada:
         _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
@@ -432,7 +579,7 @@ def strava_foto(request: Request) -> Response:
         s, renovada = strava.vigente(s)
         f = strava.foto(s)
     except strava.StravaError as exc:
-        raise HTTPException(502, str(exc)) from exc
+        raise _error_strava(exc) from exc
     if f is None:
         raise HTTPException(404, tr("No tienes foto de perfil en Strava.", "You don't have a Strava profile photo."))
     resp = Response(f[0], media_type=f[1], headers={"Cache-Control": "private, max-age=3600"})
@@ -451,7 +598,7 @@ def strava_perfil(request: Request) -> Response:
         s, renovada = strava.vigente(s)
         datos = strava.perfil(s)
     except strava.StravaError as exc:
-        raise HTTPException(502, str(exc)) from exc
+        raise _error_strava(exc) from exc
     resp = JSONResponse(datos)
     if renovada:
         _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
