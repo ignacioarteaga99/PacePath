@@ -266,6 +266,9 @@ def index(request: Request, origen: str | None = None) -> Response:
         config.append(f"window.PP_ESRI = {js(clave)};")
     if mapa := os.environ.get("PACEPATH_MAPA_URL", "").strip().rstrip("/"):
         config.append(f"window.PP_MAPA = {js(mapa)};")
+    # Link para apoyar el proyecto (Ko-fi, Mercado Pago…): sin él, no hay botón.
+    if (aporte := os.environ.get("PACEPATH_APORTE_URL", "").strip()).startswith("https://"):
+        config.append(f"window.PP_APORTE = {js(aporte)};")
     if config:
         html = html.replace("<!--PP_CONFIG-->", "<script>" + " ".join(config) + "</script>", 1)
     # Si el teléfono ya tiene esta versión, «304» sin cuerpo (no gasta tráfico).
@@ -276,7 +279,7 @@ def index(request: Request, origen: str | None = None) -> Response:
     return HTMLResponse(html, headers=cabeceras)
 
 
-EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar", "sync", "sync_error", "mapa_error"}
+EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar", "sync", "sync_error", "mapa_error", "aporte"}
 
 
 class Evento(BaseModel):

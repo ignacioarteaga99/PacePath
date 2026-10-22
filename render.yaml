@@ -44,6 +44,9 @@ services:
       # Clave de mapas de Esri (ArcGIS Location Platform), sólo mapas base.
       - key: ESRI_API_KEY
         sync: false
+      # Link para apoyar PacePath (Ko-fi, Mercado Pago…). Vacío: no hay botón.
+      - key: PACEPATH_APORTE_URL
+        sync: false
       # «1» cuando Strava apruebe la app (quita el aviso de beta junto al botón).
       - key: PACEPATH_STRAVA_ABIERTO
         value: "0"

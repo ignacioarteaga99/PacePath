@@ -115,3 +115,13 @@ def test_freno_al_cupo_de_strava(monkeypatch):
     with pytest.raises(strava.StravaEspera, match="mañana"):
         strava.carreras(s, 1)                               # 92 % del día: hasta mañana
     strava._http("POST", strava.TOKEN, {"x": 1})             # conectar/renovar no se frena (no es lectura)
+
+
+def test_boton_de_aporte_solo_con_link(monkeypatch):
+    c = TestClient(app)
+    monkeypatch.delenv("PACEPATH_APORTE_URL", raising=False)
+    assert "window.PP_APORTE =" not in c.get("/").text
+    monkeypatch.setenv("PACEPATH_APORTE_URL", "javascript:alert(1)")              # sólo https
+    assert "window.PP_APORTE =" not in c.get("/").text
+    monkeypatch.setenv("PACEPATH_APORTE_URL", "https://ko-fi.com/pacepath")
+    assert 'window.PP_APORTE = "https://ko-fi.com/pacepath";' in c.get("/").text
