@@ -285,6 +285,14 @@
   .xp i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #f2541b, #ffb36b); }
   .proximo { margin: 12px 0 0; font-size: 13.5px; color: rgba(255,255,255,.85); }
   .proximo:empty { display: none; }
+  .pas-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+    margin: 10px 0 0; padding: 9px 12px; border-radius: 12px; background: rgba(255,255,255,.08); color: #fff;
+    border: 1px solid rgba(255,255,255,.12); font-size: 13px; text-align: left; }
+  .pas-toggle span { color: rgba(255,255,255,.75); min-width: 0; flex: 1; white-space: normal; line-height: 1.35; }
+  .pas-toggle b { flex: none; font-weight: 700; white-space: nowrap; }
+  .pas-toggle i { display: inline-block; font-style: normal; transition: transform .2s; }
+  .pas-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+  .pas-detalle[hidden] { display: none; }
   .sellos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
   .sello { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 20px;
     border: 1.5px dashed rgba(255,255,255,.4); transform: rotate(-8deg); }
@@ -743,7 +751,8 @@ const EN = {
   "Pasaporte": "Passport",
   "Nivel {n}": "Level {n}",
   "puntos": "points",
-  "Logros": "Achievements",
+  "Logros": "Achievements", "Ocultar": "Hide", "Ver todo": "See all",
+  "{p} países · {c} ciudades · {l} logros": "{p} countries · {c} cities · {l} achievements",
   "Explorador": "Explorer",
   "Local": "Local",
   "Constancia": "Consistency",
@@ -2420,7 +2429,10 @@ function loProximo(P) {
   return t("Te faltan {n} {u} para «{l}».", { n: num(c.sig - c.x.valor), u: c.x.unidad, l: c.x.nombres[c.x.tier] });
 }
 
+// Plegado por defecto (sólo nivel, progreso y lo próximo); se recuerda.
+const pasaporteAbierto = () => leer("pp_pasaporte_abierto", false) === true;
 function htmlPasaporte(P) {
+  const abierto = pasaporteAbierto();
   const L = P.nivel, desde = xpDeNivel(L), hasta = xpDeNivel(L + 1);
   const avance = Math.round((P.xp - desde) / (hasta - desde) * 100);
   const info = (tit, txt) => `tabindex="0" data-tit="${esc(tit)}" data-txt="${esc(txt)}"`;
@@ -2460,6 +2472,11 @@ function htmlPasaporte(P) {
         <div class="xp"><i style="width:${avance}%"></i></div>
         <small>${num(P.xp)} / ${num(hasta)} ${t("puntos")}</small></div></div>
     <p class="proximo">${loProximo(P)}</p>
+    <button class="pas-toggle" type="button" aria-expanded="${abierto}" aria-controls="pasDetalle">
+      <span>${t("{p} países · {c} ciudades · {l} logros", { p: num(P.paises.filter((x) => x && x !== "AQ").length),
+        c: num(P.ciudades), l: num(P.logros.filter((x) => x.tier).length) })}</span>
+      <b>${t(abierto ? "Ocultar" : "Ver todo")} <i aria-hidden="true">▾</i></b></button>
+    <div class="pas-detalle" id="pasDetalle"${abierto ? "" : " hidden"}>
     ${sellos ? `<div class="sellos">${sellos}</div>` : ""}
     <div class="conts">${conts}</div>
     <h3>${t("Logros")}</h3>
@@ -2469,6 +2486,7 @@ function htmlPasaporte(P) {
       <p>${t("Tus puntos: {km} por km, {c} por ciudades, {p} por países, {o} por continentes y {l} por logros.",
         { km: num(P.puntos.km), c: num(P.puntos.ciudades), p: num(P.puntos.paises), o: num(P.puntos.continentes), l: num(P.puntos.logros) })}</p></details>
     <button class="sec" id="compartirPasaporte" type="button">${t("Compartir mi pasaporte")}</button>
+    </div>
   </div>`;
 }
 
@@ -2602,6 +2620,14 @@ async function pintarPasaporte2(todas, pf, nombre) {
     if (!$("pasaporte")) return null;
     const P = calcularPasaporte(todas, lugares, pf, calles);
     $("pasaporte").innerHTML = htmlPasaporte(P);
+    const toggle = $("pasaporte").querySelector(".pas-toggle");
+    toggle.onclick = () => {
+      const abrir = !pasaporteAbierto();
+      escribir("pp_pasaporte_abierto", abrir);
+      $("pasDetalle").hidden = !abrir;
+      toggle.setAttribute("aria-expanded", abrir);
+      toggle.querySelector("b").firstChild.textContent = t(abrir ? "Ocultar" : "Ver todo") + " ";
+    };
     $("compartirPasaporte").onclick = () => { compartirPasaporte(P, nombre);
       fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tipo: "compartir_pasaporte" }) }).catch(() => {}); };
