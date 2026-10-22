@@ -130,3 +130,11 @@ def test_boton_de_aporte_solo_con_link(monkeypatch):
 def test_guia_beta_en_ingles():
     t = TestClient(app).get("/beta").text
     assert 'lang="en"' in t and "Send feedback" in t and "Add to Home Screen" in t and "long run 12k flat" in t
+
+
+def test_terminos_de_uso():
+    c = TestClient(app)
+    for ruta in ["/terms", "/terminos"]:
+        r = c.get(ruta)
+        assert r.status_code == 200 and "Términos de uso" in r.text and "Terms of use" in r.text and "19.496" in r.text
+    assert "/terminos" in c.get("/privacidad").text and "/terms" in c.get("/privacy").text

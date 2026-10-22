@@ -668,7 +668,7 @@ const EN = {
   "Sin volver": "One way",
   "Dónde has corrido": "Where you've run", "{n} carrera": "{n} run", "{n} carreras": "{n} runs",
   "Otros lugares": "Other places", "cerca de {c}": "near {c}", "Sin ciudad cerca": "No city nearby",
-  "Ciudades: GeoNames (CC BY 4.0)": "Cities: GeoNames (CC BY 4.0)", "Guía beta": "Beta guide", "Apoya PacePath": "Support PacePath", "Banderas: Twemoji (CC BY 4.0)": "Flags: Twemoji (CC BY 4.0)",
+  "Ciudades: GeoNames (CC BY 4.0)": "Cities: GeoNames (CC BY 4.0)", "Guía beta": "Beta guide", "Términos": "Terms", "Apoya PacePath": "Support PacePath", "Banderas: Twemoji (CC BY 4.0)": "Flags: Twemoji (CC BY 4.0)",
   "Trayendo tu historial de Strava… {p} % ({n} de {t} carreras)": "Fetching your Strava history… {p}% ({n} of {t} runs)",
   "Trayendo tu historial de Strava… {n} carreras": "Fetching your Strava history… {n} runs",
   "La descarga se cortó ({n} carreras traídas): {e} Toca «Actualizar» para seguir donde quedó.": "The download stopped ({n} runs fetched): {e} Tap “Refresh” to continue where it left off.",
@@ -1045,7 +1045,8 @@ let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), anima
 const PIE_HOJA = () => `<p class="pie-hoja"><button type="button" data-comentario>💬 ${t("Enviar comentario")}</button>
   ${window.PP_APORTE ? `· <a href="${esc(window.PP_APORTE)}" target="_blank" rel="noopener" data-aporte>☕ ${t("Apoya PacePath")}</a>` : ""}
   · <a href="/beta" target="_blank" rel="noopener">${t("Guía beta")}</a>
-  · <a href="/privacidad" target="_blank" rel="noopener">${t("Privacidad")}</a></p>`;
+  · <a href="/privacidad" target="_blank" rel="noopener">${t("Privacidad")}</a>
+  · <a href="/terminos" target="_blank" rel="noopener">${t("Términos")}</a></p>`;
 const hoja = (html) => {
   $("hoja").classList.remove("plegada");
   const pie = html.includes('class="cargando"') ? "" : PIE_HOJA();       // no en las esperas

@@ -111,6 +111,7 @@ async def _idioma(request: Request, call_next):
 # Render consulta cada pocos segundos, ni el propio panel).
 CONSULTAS = {
     "/": "visita", "/privacidad": "privacidad", "/privacy": "privacidad", "/beta": "guia_beta",
+    "/terminos": "terminos", "/terms": "terminos",
     "/api/ruta": "ruta", "/api/ruta.gpx": "gpx", "/api/trazar": "trazado", "/api/trazar.gpx": "gpx",
     "/api/sesion": "interpretar", "/api/lugares": "busqueda", "/api/donde": "donde_corri",
     "/api/comunas": "comunas", "/api/evento": "evento",
@@ -348,6 +349,12 @@ def service_worker() -> FileResponse:
 def guia_beta() -> FileResponse:
     """Guía para quienes prueban la beta (se comparte por WhatsApp)."""
     return FileResponse(WEB / "beta.html")
+
+
+@app.get("/terminos", include_in_schema=False)
+@app.get("/terms", include_in_schema=False)
+def terminos() -> FileResponse:
+    return FileResponse(WEB / "terminos.html")
 
 
 @app.get("/privacidad", include_in_schema=False)
