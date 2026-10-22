@@ -883,7 +883,12 @@ window.fetch = (u, o = {}) => {
   if (url.origin !== location.origin) return _fetch(u, o);
   const h = new Headers(o.headers || (u instanceof Request ? u.headers : undefined));
   h.set("X-Idioma", idioma);
-  return _fetch(u, { ...o, headers: h });
+  return _fetch(u, { ...o, headers: h }).then((r) => {
+    // Beta cerrada y la sesión de tester ya no vale (p. ej. cambió la clave):
+    // al recargar aparece la página de entrada.
+    if (r.status === 401 && r.headers.get("X-PacePath-Beta")) location.reload();
+    return r;
+  });
 };
 const mapa = L.map("mapa", { zoomControl: false, zoomSnap: 0.25 }).setView([-33.4258, -70.61], 14);
 // ── Capas del mapa y modo día/noche ─────────────────────────────────────────

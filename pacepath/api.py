@@ -22,6 +22,9 @@
     GET  /api/uso?clave=         métricas de la beta (clave = PACEPATH_ADMIN)
     GET  /admin                  panel de administración (registro de consultas)
     GET  /api/admin/eventos      sus datos (cabecera X-Admin-Clave = PACEPATH_ADMIN)
+    GET  /api/admin/acceso       beta cerrada: activa o no y el usuario (misma cabecera)
+    POST /api/admin/acceso       activarla o desactivarla, cambiar usuario y clave
+    POST /api/beta/entrar        entrar a la beta cerrada (usuario y clave de tester)
     GET  /privacidad             política de privacidad
     POST /api/strava/desconectar revoca el acceso en Strava y borra la cookie
 """
@@ -50,7 +53,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import ciudades, comunas, frecuencia, idioma, lugares, nombres, registro, strava, uso
+from . import acceso, ciudades, comunas, frecuencia, idioma, lugares, nombres, registro, strava, uso
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -106,6 +109,28 @@ async def _idioma(request: Request, call_next):
     return await call_next(request)
 
 
+# ── Beta cerrada: usuario y clave antes de entrar (se activa en /admin) ────
+# Sin la cookie de tester, las páginas de la app muestran la de entrada y la
+# API responde 401. Quedan abiertos el panel, las páginas legales (Strava las
+# exige públicas), la guía beta, los archivos fijos y la revisión de Render.
+_ABIERTAS = {"/admin", "/api/salud", "/api/beta/entrar", "/api/uso", "/manifest.webmanifest", "/sw.js",
+             "/favicon.ico", "/privacidad", "/privacy", "/terminos", "/terms", "/beta"}
+_ABIERTAS_PREFIJO = ("/api/admin/", "/vendor/", "/icons/", "/strava/", "/mapa/")
+
+
+@app.middleware("http")
+async def _beta_cerrada(request: Request, call_next):
+    ruta = request.url.path
+    if (ruta in _ABIERTAS or ruta.startswith(_ABIERTAS_PREFIJO) or not acceso.activo()
+            or acceso.cookie_valida(request.cookies.get(acceso.COOKIE))):
+        return await call_next(request)
+    _anotar(evento="beta_cerrada")
+    if ruta.startswith("/api/"):
+        return JSONResponse({"detail": "PacePath está en beta cerrada: entra con tu usuario y clave."},
+                            status_code=401, headers={"X-PacePath-Beta": "1"})
+    return FileResponse(WEB / "entrar.html", headers={"Cache-Control": "no-store"})
+
+
 # ── Registro de consultas (panel /admin) ────────────────────────────────────
 # Qué se registra: sólo estas direcciones (no los archivos, ni /api/salud, que
 # Render consulta cada pocos segundos, ni el propio panel).
@@ -118,7 +143,7 @@ CONSULTAS = {
     "/api/strava/conectar": "strava_conectar", "/api/strava/vuelta": "strava_conexion",
     "/api/strava/actividades": "strava_sync", "/api/strava/perfil": "strava_perfil",
     "/api/strava/foto": "strava_foto", "/api/strava/frecuencia": "strava_calles",
-    "/api/strava/desconectar": "strava_desconectar",
+    "/api/strava/desconectar": "strava_desconectar", "/api/beta/entrar": "beta_entrar",
 }
 # Identificador anónimo del teléfono: al azar, sin relación con nombre ni Strava.
 COOKIE_USUARIO = "pp_u"
@@ -332,6 +357,53 @@ def admin_eventos(request: Request, desde: str | None = None, hasta: str | None 
     except ValueError as exc:
         raise HTTPException(422, "Fechas en formato AAAA-MM-DD.") from exc
     return registro.consultar(d.isoformat(), h.isoformat())
+
+
+class Entrada(BaseModel):
+    usuario: str = Field(max_length=80)
+    clave: str = Field(max_length=200)
+
+
+@app.post("/api/beta/entrar", include_in_schema=False)
+def beta_entrar(body: Entrada, request: Request) -> JSONResponse:
+    """Usuario y clave de tester → cookie de la beta cerrada (90 días)."""
+    if not acceso.entrar(body.usuario, body.clave):
+        time.sleep(1)                       # que adivinar la clave sea lento
+        _anotar(exito=False, detalle=body.usuario[:40])
+        raise HTTPException(401, tr("Usuario o clave incorrectos.", "Wrong username or password."))
+    resp = JSONResponse({"ok": True})
+    resp.set_cookie(acceso.COOKIE, acceso.ficha(), max_age=acceso.DURACION, httponly=True,
+                    samesite="lax", secure=_base(request).startswith("https"))
+    return resp
+
+
+class AjustesAcceso(BaseModel):
+    activo: bool | None = None
+    usuario: str | None = Field(default=None, min_length=1, max_length=80)
+    clave: str | None = Field(default=None, min_length=4, max_length=200)
+
+
+def _solo_admin(request: Request) -> None:
+    if not _es_admin(request.headers.get("x-admin-clave", "")):
+        time.sleep(1)
+        raise HTTPException(404, "Not Found")
+
+
+@app.get("/api/admin/acceso", include_in_schema=False)
+def admin_acceso(request: Request) -> dict:
+    _solo_admin(request)
+    return acceso.estado()
+
+
+@app.post("/api/admin/acceso", include_in_schema=False)
+def admin_cambiar_acceso(body: AjustesAcceso, request: Request) -> dict:
+    """Activa o desactiva la beta cerrada y cambia el usuario o la clave (se
+    guardan en la base: sobreviven a que Render duerma)."""
+    _solo_admin(request)
+    try:
+        return acceso.configurar(body.activo, body.usuario, body.clave)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(503, f"No pude guardar en la base de datos: {type(exc).__name__}") from exc
 
 
 # App instalable (PWA): manifiesto y service worker en la raíz (su alcance es «/»).

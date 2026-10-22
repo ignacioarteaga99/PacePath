@@ -23,3 +23,7 @@ def _registro_temporal(tmp_path_factory):
     """El registro de consultas de los tests va a una SQLite propia, no a la de /tmp."""
     from pacepath import registro
     registro.configurar(str(tmp_path_factory.mktemp("registro") / "registro.sqlite"))
+    # La beta cerrada (usuario y clave) se prueba aparte, en test_acceso.py.
+    from pacepath import acceso
+    acceso.olvidar()
+    acceso.configurar(activo=False)

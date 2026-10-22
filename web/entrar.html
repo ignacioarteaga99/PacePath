@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>PacePath · Beta</title>
+<link rel="icon" href="/icons/icono-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --a: #f2541b; --a2: #ff8a1f; --tinta: #16161a; --suave: #5d5d68; --linea: #ececf0; --error: #d03b3b; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { min-height: 100vh; min-height: 100dvh; font-family: Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: var(--tinta); -webkit-font-smoothing: antialiased;
+    background: radial-gradient(900px 460px at 85% -80px, #ffe3d6 0, #fff 70%), #fff; }
+  main { max-width: 560px; margin: 0 auto; padding: calc(22px + env(safe-area-inset-top)) 20px calc(26px + env(safe-area-inset-bottom)); }
+  em { font-style: normal; background: linear-gradient(90deg, var(--a), var(--a2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .marca { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: -.3px; }
+  .marca svg { width: 34px; height: 34px; }
+  .idioma { border: 1px solid var(--linea); background: #fff; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 700; color: var(--suave); cursor: pointer; }
+  .tag { display: inline-flex; align-items: center; gap: 7px; margin-top: 30px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.2px;
+    text-transform: uppercase; color: #b8400f; background: #fff1ea; border: 1px solid #ffd9c7; padding: 5px 11px; border-radius: 999px; }
+  .tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--a); animation: late 1.6s ease-in-out infinite; }
+  @keyframes late { 50% { opacity: .25; } }
+  h1 { font-size: clamp(32px, 9vw, 44px); line-height: 1.04; letter-spacing: -1.4px; font-weight: 800; margin-top: 14px; }
+  .sub { font-size: 15.5px; line-height: 1.5; color: var(--suave); margin-top: 14px; }
+  .sub b { color: var(--tinta); }
+
+  .pista { position: relative; margin: 22px -20px 0; height: 132px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .pista canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  .pista small { position: absolute; left: 20px; top: 4px; font-size: 11px; color: #a0a0aa; }
+
+  form { margin-top: 18px; background: #fff; border: 1px solid var(--linea); border-radius: 18px; padding: 18px;
+    box-shadow: 0 14px 34px rgba(20, 20, 30, .07); display: grid; gap: 12px; }
+  label { display: grid; gap: 5px; font-size: 13px; font-weight: 700; color: var(--suave); }
+  input { font: inherit; font-size: 16px; color: var(--tinta); border: 1px solid #dcdce2; border-radius: 12px; padding: 12px 13px; background: #fff; width: 100%; }
+  input:focus { outline: 2px solid color-mix(in srgb, var(--a) 35%, transparent); border-color: var(--a); }
+  button.entrar { font: inherit; font-size: 16px; font-weight: 800; color: #fff; border: 0; border-radius: 12px; padding: 13px;
+    background: linear-gradient(90deg, var(--a), var(--a2)); cursor: pointer; }
+  button.entrar:disabled { opacity: .6; cursor: default; }
+  .mal { color: var(--error); font-size: 13.5px; min-height: 1.2em; text-align: center; }
+  .datos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+  .datos span { font-size: 12px; font-weight: 700; color: #b8400f; padding: 5px 10px; border-radius: 999px; background: #fff; border: 1px solid #ffd9c7; }
+  footer { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--linea); display: flex; flex-wrap: wrap; gap: 6px 14px;
+    justify-content: space-between; font-size: 12.5px; color: var(--suave); }
+  footer a { color: var(--suave); }
+  footer nav { display: flex; gap: 12px; }
+  [hidden] { display: none !important; }
+  @media (min-width: 700px) { main { padding-top: 48px; } .pista { margin: 26px 0 0; } .pista small { left: 0; } }
+  .mal:empty { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="marca"><svg viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="#f2541b"/><path d="M7.5 19.5c0-4 4-4 5.5-6.5s-1.5-4.5 0-6.5c.7-.8 1.6-1 2.5-1" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="7.5" cy="19.5" r="2.2" fill="#fff"/><circle cx="18.6" cy="5.6" r="2.1" fill="none" stroke="#fff" stroke-width="1.8"/></svg>PacePath</div>
+    <button class="idioma" id="idioma" type="button"></button>
+  </header>
+
+  <span class="tag"><i></i><span data-t="tag"></span></span>
+  <h1 data-t="h1"></h1>
+  <p class="sub" data-t="sub"></p>
+
+  <div class="pista" id="pista" role="img"><canvas id="lienzo"></canvas><small data-t="toca"></small></div>
+
+  <form id="form">
+    <label><span data-t="usuario"></span><input id="usuario" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
+    <label><span data-t="clave"></span><input id="clave" name="password" type="password" autocomplete="current-password" required></label>
+    <button class="entrar" type="submit" id="boton" data-t="entrar"></button>
+    <div class="mal" id="mal" role="alert"></div>
+  </form>
+
+  <div class="datos" id="datos"></div>
+
+  <footer>
+    <span><b>pacepathapp.com</b> · <span data-t="hecho"></span></span>
+    <nav><a href="/beta" data-t="guia"></a><a href="/privacidad" data-t="privacidad"></a><a href="/terminos" data-t="terminos"></a></nav>
+  </footer>
+</main>
+<script>
+// ── Textos (español / inglés) ──
+const T = {
+  es: { tag: "Beta privada", h1: "La ruta perfecta para tu entrenamiento <em>de hoy</em>.",
+    sub: "PacePath está en <b>beta</b>: mientras la afinamos, sólo entran los testers. Si te invitaron, escribe el usuario y la clave que te dieron.",
+    toca: "Toca para saltar", usuario: "Usuario", clave: "Clave", entrar: "Entrar", entrando: "Entrando…",
+    error: "Usuario o clave incorrectos.", red: "No pude conectar. Prueba de nuevo en unos segundos.",
+    hecho: "Hecho en Santiago de Chile", guia: "Guía beta", privacidad: "Privacidad", terminos: "Términos",
+    datos: ["Series sin semáforos", "Mapa outdoor", "Tu Strava en mapa de calor"], otro: "EN",
+    alt: "Dos corredores animados saltan semáforos y conos" },
+  en: { tag: "Private beta", h1: "The perfect route for <em>today's</em> workout.",
+    sub: "PacePath is in <b>beta</b>: while we fine-tune it, only testers can get in. If you were invited, enter the username and password you were given.",
+    toca: "Tap to jump", usuario: "Username", clave: "Password", entrar: "Sign in", entrando: "Signing in…",
+    error: "Wrong username or password.", red: "Couldn't connect. Try again in a few seconds.",
+    hecho: "Made in Santiago, Chile", guia: "Beta guide", privacidad: "Privacy", terminos: "Terms",
+    datos: ["No-lights intervals", "Outdoor map", "Your Strava as a heatmap"], otro: "ES",
+    alt: "Two animated runners jump over traffic lights and cones" },
+};
+const $ = (id) => document.getElementById(id);
+let idioma = new URLSearchParams(location.search).get("lang");
+if (!T[idioma]) { try { idioma = JSON.parse(localStorage.getItem("pp_lang")); } catch {} }
+if (!T[idioma]) idioma = (navigator.language || "es").toLowerCase().startsWith("en") ? "en" : "es";
+function textos() {
+  const t = T[idioma];
+  document.documentElement.lang = idioma;
+  document.querySelectorAll("[data-t]").forEach((e) => { e.innerHTML = t[e.dataset.t]; });
+  $("datos").innerHTML = t.datos.map((d) => `<span>${d}</span>`).join("");
+  $("idioma").textContent = t.otro;
+  $("pista").setAttribute("aria-label", t.alt);
+  for (const a of document.querySelectorAll("footer a")) a.href = a.getAttribute("href").split("?")[0] + "?lang=" + idioma;
+}
+$("idioma").onclick = () => {
+  idioma = idioma === "es" ? "en" : "es";
+  try { localStorage.setItem("pp_lang", JSON.stringify(idioma)); } catch {}
+  textos();
+};
+textos();
+
+// ── Entrar ──
+$("form").onsubmit = async (e) => {
+  e.preventDefault();
+  const t = T[idioma];
+  $("boton").disabled = true; $("boton").textContent = t.entrando; $("mal").textContent = "";
+  try {
+    const r = await fetch("/api/beta/entrar", { method: "POST", headers: { "Content-Type": "application/json", "X-Idioma": idioma },
+      body: JSON.stringify({ usuario: $("usuario").value, clave: $("clave").value }) });
+    if (r.ok) { location.reload(); return; }
+    $("mal").textContent = t.error; $("clave").select();
+  } catch { $("mal").textContent = t.red; }
+  $("boton").disabled = false; $("boton").textContent = t.entrar;
+};
+
+// ── Los corredores (pixel art, al estilo del dinosaurio de Chrome) ──
+// Mirando a la derecha. h pelo · s piel · o polera (él) · p polera (ella) ·
+// x short y zapatillas. Dos cuadros por corredor: zancada y paso.
+const EL = [[
+  "...hhhh....",
+  "..hhhhhs...",
+  "..hhsssss..",
+  "...sssss...",
+  "....sss....",
+  "...ooooo...",
+  "..ooooooss.",
+  ".s.ooooo...",
+  "s..ooooo...",
+  "...xxxxx...",
+  "..xxx.xxx..",
+  ".ss.....ss.",
+  "ss.......s.",
+  "xx.......xx",
+], [
+  "...hhhh....",
+  "..hhhhhs...",
+  "..hhsssss..",
+  "...sssss...",
+  "....sss....",
+  "...ooooo...",
+  "...oooooo..",
+  "...ooooos..",
+  "...soooo...",
+  "...xxxxx...",
+  "....xxxx...",
+  "....ss.s...",
+  "....s..ss..",
+  "...xx...xx.",
+]];
+const ELLA = [[
+  "....hhhh...",
+  ".h.hhhhhs..",
+  "hhhhhsssss.",
+  ".h..sssss..",
+  ".....sss...",
+  "....ppppp..",
+  "...ppppppss",
+  "..s.ppppp..",
+  ".s..ppppp..",
+  "....xxxxx..",
+  "...xxx.xxx.",
+  "..ss.....ss",
+  ".ss.......s",
+  ".xx.......x",
+], [
+  "....hhhh...",
+  "...hhhhhs..",
+  "hhhhhsssss.",
+  "....sssss..",
+  ".....sss...",
+  "....ppppp..",
+  "....pppppp.",
+  "....pppppps",
+  "....spppp..",
+  "....xxxxx..",
+  ".....xxxx..",
+  ".....ss.s..",
+  ".....s..ss.",
+  "....xx...xx",
+]];
+// Obstáculos: un semáforo (la app los evita) y un cono.
+const SEMAFORO = ["kkk", "krk", "kkk", "kyk", "kkk", "kgk", "kkk", ".k.", ".k.", ".k.", ".k.", ".k."];
+const CONO = ["..c..", "..c..", ".cwc.", ".ccc.", "cwwwc", "ccccc", "kkkkk"];
+const COLOR = { h: "#2b2b31", s: "#e8a87c", o: "#f2541b", p: "#ff8a1f", x: "#2b2b31",
+  k: "#3a3a42", r: "#ff3b30", y: "#ffcc00", g: "#34c759", c: "#ff7a1a", w: "#ffffff" };
+
+const lienzo = $("lienzo"), ctx = lienzo.getContext("2d");
+let P = 3, ancho = 0, alto = 0, suelo = 0;           // P: px de pantalla por pixel del dibujo
+function medir() {
+  const r = lienzo.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
+  lienzo.width = Math.round(r.width * d); lienzo.height = Math.round(r.height * d);
+  P = (r.width < 420 ? 3 : 4) * d;
+  ancho = Math.ceil(lienzo.width / P); alto = Math.floor(lienzo.height / P); suelo = alto - 7;
+}
+const dibujar = (spr, x, y) => {
+  for (let f = 0; f < spr.length; f++) for (let c = 0; c < spr[f].length; c++) {
+    const k = spr[f][c]; if (k === ".") continue;
+    ctx.fillStyle = COLOR[k]; ctx.fillRect(Math.round(x + c) * P, Math.round(y + f) * P, P, P);
+  }
+};
+const corredores = [
+  { spr: ELLA, x: 30, y: 0, vy: 0, fase: 3 },
+  { spr: EL, x: 12, y: 0, vy: 0, fase: 0 },
+];
+let obstaculos = [], nubes = [], piedras = [], vel = 1.3, km = 0, cuadro = 0, prox = 60;
+const G = 0.24, SALTO = -3.5;
+function saltar(c) { if (c.y === 0) c.vy = SALTO; }
+function paso() {
+  cuadro++;
+  vel = Math.min(2.3, vel + 0.0004);
+  km += vel * 0.00012;
+  if (--prox <= 0) {                                     // el próximo obstáculo
+    obstaculos.push({ spr: Math.random() < .55 ? SEMAFORO : CONO, x: ancho + 4 });
+    prox = Math.round((70 + Math.random() * 90) / vel * 1.3);
+  }
+  if (cuadro % 160 === 1) nubes.push({ x: ancho + 2, y: 3 + Math.random() * 12, v: .25 + Math.random() * .2 });
+  if (cuadro % 9 === 0) piedras.push({ x: ancho + 1, y: suelo + 2 + Math.floor(Math.random() * 4), l: 1 + (Math.random() * 2 | 0) });
+  for (const o of obstaculos) o.x -= vel;
+  for (const n of nubes) n.x -= n.v;
+  for (const p of piedras) p.x -= vel;
+  obstaculos = obstaculos.filter((o) => o.x > -8); nubes = nubes.filter((n) => n.x > -12); piedras = piedras.filter((p) => p.x > -3);
+  for (const c of corredores) {
+    // Saltan solos cuando un obstáculo llega a sus pies (cada uno a su tiempo).
+    const delante = obstaculos.find((o) => o.x + o.spr[0].length > c.x && o.x - (c.x + 11) < vel * 7);
+    if (delante && c.y === 0) saltar(c);
+    if (c.y < 0 || c.vy < 0) { c.vy += G; c.y = Math.min(0, c.y + c.vy); if (c.y === 0) c.vy = 0; }
+  }
+}
+// Cordillera de fondo (fija para cada ancho de pantalla)
+const pico = (x, l) => 1 - Math.abs((((x / l) % 2) + 2) % 2 - 1);      // diente de sierra: cumbres en punta
+const cerro = (x) => 3 + 15 * pico(x, 19) * (.55 + .45 * pico(x + 7, 53)) + 3 * pico(x + 4, 6);
+function pintar() {
+  ctx.clearRect(0, 0, lienzo.width, lienzo.height);
+  const desp = (cuadro * vel * .15) % 10000;
+  ctx.fillStyle = "#f8d9ca";
+  for (let x = 0; x < ancho; x++) { const h = Math.round(cerro(x + desp)); ctx.fillRect(x * P, (suelo - h) * P, P, h * P); }
+  ctx.fillStyle = "#e6e9f1";                                   // nieve en las cumbres
+  for (let x = 0; x < ancho; x++) { const h = Math.round(cerro(x + desp)); if (h >= 13) ctx.fillRect(x * P, (suelo - h) * P, P, Math.min(3, h - 12) * P); }
+  ctx.fillStyle = "#e4e4ea";
+  for (const n of nubes) { ctx.fillRect(Math.round(n.x) * P, Math.round(n.y) * P, 8 * P, P); ctx.fillRect(Math.round(n.x + 2) * P, Math.round(n.y - 1) * P, 4 * P, P); }
+  ctx.fillStyle = "#3a3a42"; ctx.fillRect(0, suelo * P, lienzo.width, P);
+  ctx.fillStyle = "#b9b9c2"; for (const p of piedras) ctx.fillRect(Math.round(p.x) * P, p.y * P, p.l * P, P);
+  for (const o of obstaculos) dibujar(o.spr, o.x, suelo - o.spr.length);
+  for (const c of corredores) {
+    const cuadroSpr = c.y < 0 ? 0 : Math.floor((cuadro + c.fase) / 7) % 2;
+    dibujar(c.spr[cuadroSpr], c.x, suelo - c.spr[0].length + c.y);
+  }
+  // los km, como el puntaje del dinosaurio
+  const texto = km.toFixed(2).replace(".", idioma === "es" ? "," : ".") + " km";
+  ctx.fillStyle = "#8a8a94"; ctx.font = `700 ${Math.round(4 * P)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText(texto, lienzo.width - 6 * P, 2 * P);
+}
+let ultimo = 0, sobra = 0;
+function bucle(t) {
+  sobra = Math.min(sobra + (ultimo ? t - ultimo : 16.7), 100); ultimo = t;
+  while (sobra >= 16.7) { paso(); sobra -= 16.7; }
+  pintar();
+  requestAnimationFrame(bucle);
+}
+const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+medir();
+window.addEventListener("resize", medir);
+if (quieto) {                                                  // sin animación: una escena fija
+  for (let i = 0; i < 400; i++) paso();
+  pintar();
+} else {
+  $("pista").addEventListener("pointerdown", () => corredores.forEach(saltar));
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && !/INPUT|BUTTON/.test(document.activeElement?.tagName || "")) { e.preventDefault(); corredores.forEach(saltar); }
+  });
+  requestAnimationFrame(bucle);
+}
+</script>
+</body>
+</html>

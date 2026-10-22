@@ -36,7 +36,8 @@ _DDL_PG = """CREATE TABLE IF NOT EXISTS pp_eventos (
   id BIGSERIAL PRIMARY KEY, ts TEXT NOT NULL, dia TEXT NOT NULL, usuario TEXT, strava SMALLINT,
   consulta TEXT, evento TEXT, tipo TEXT, comuna TEXT, detalle TEXT, exito SMALLINT,
   estado SMALLINT, ms INTEGER, error TEXT, idioma TEXT, disp TEXT);
-CREATE INDEX IF NOT EXISTS pp_eventos_dia ON pp_eventos (dia)"""
+CREATE INDEX IF NOT EXISTS pp_eventos_dia ON pp_eventos (dia);
+CREATE TABLE IF NOT EXISTS pp_ajustes (clave TEXT PRIMARY KEY, valor TEXT NOT NULL)"""
 _DDL_SQLITE = _DDL_PG.replace("BIGSERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
 
 
@@ -107,6 +108,14 @@ class _Base:
     def consultar(self, desde: str, hasta: str, limite: int) -> list[tuple]:
         return self._ejecutar(f"SELECT {','.join(COLUMNAS)} FROM pp_eventos WHERE dia >= ? AND dia <= ? "
                               "ORDER BY ts DESC, id DESC LIMIT ?", (desde, hasta, limite), traer=True)
+
+
+    def ajustes(self) -> dict[str, str]:
+        return dict(self._ejecutar("SELECT clave, valor FROM pp_ajustes", traer=True))
+
+    def guardar_ajustes(self, valores: dict[str, str]) -> None:
+        self._ejecutar("INSERT INTO pp_ajustes (clave, valor) VALUES (?, ?) "
+                       "ON CONFLICT (clave) DO UPDATE SET valor = excluded.valor", list(valores.items()))
 
 
 class _Escritor:
@@ -218,3 +227,14 @@ def consultar(desde: str, hasta: str) -> dict:
     return {"columnas": list(COLUMNAS), "filas": [list(f) for f in filas[:MAX_FILAS_CONSULTA]],
             "truncado": len(filas) > MAX_FILAS_CONSULTA, "almacen": esc.base.nombre,
             "error_almacen": esc.ultimo_error, "hoy": hoy()}
+
+
+# ── Ajustes del panel (p. ej. el acceso a la beta) ──────────────────────────
+# En la misma base que el registro, porque en Render el disco se borra. Se
+# escriben al tiro (no en lotes): son pocos y sólo cambian desde el panel.
+def ajustes() -> dict[str, str]:
+    return _el_escritor().base.ajustes()
+
+
+def guardar_ajustes(valores: dict[str, str]) -> None:
+    _el_escritor().base.guardar_ajustes(valores)

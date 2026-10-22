@@ -131,6 +131,23 @@
   #login input { flex: 1; }
   #login .mal { color: var(--error); margin-top: 10px; min-height: 1em; }
   .cargando { color: var(--suave); padding: 30px 0; text-align: center; }
+  .acceso { margin: 14px 0 0; }
+  .acc-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .acc-cab .sub { margin: 0; }
+  .acc-cab .sub b.on { color: var(--verde); }
+  .acc-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .acc-form label { display: grid; gap: 3px; font-size: 12px; color: var(--suave); flex: 1 1 180px; }
+  .acc-form button { align-self: end; }
+  .acc-aviso { font-size: 12.5px; color: var(--suave); margin: 8px 0 0; min-height: 1em; }
+  .acc-aviso.mal { color: var(--error); }
+  .interruptor { position: relative; flex: none; width: 50px; height: 30px; }
+  .interruptor input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .interruptor span { position: absolute; inset: 0; border-radius: 999px; background: var(--linea); transition: background .2s; pointer-events: none; }
+  .interruptor span:after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s; }
+  .interruptor input:checked + span { background: var(--acento); }
+  .interruptor input:checked + span:after { transform: translateX(20px); }
+  .interruptor input:focus-visible + span { outline: 2px solid var(--ok); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -152,6 +169,19 @@
       <button id="salir" type="button">Salir</button>
     </div>
   </header>
+
+  <section class="tarjeta acceso" id="acceso">
+    <div class="acc-cab">
+      <div><h2>Acceso beta</h2><p class="sub" id="accEstado">Cargando…</p></div>
+      <label class="interruptor" title="Activar o desactivar"><input type="checkbox" id="accActivo" role="switch" aria-label="Pedir usuario y clave"><span></span></label>
+    </div>
+    <form class="acc-form" id="formAcceso">
+      <label>Usuario<input id="accUsuario" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="80" required></label>
+      <label>Nueva clave<input id="accClave" type="password" autocomplete="new-password" minlength="4" maxlength="200" placeholder="Vacía = no cambia"></label>
+      <button class="prim" type="submit">Guardar</button>
+    </form>
+    <p class="acc-aviso" id="accAviso"></p>
+  </section>
 
   <div class="filtros">
     <div class="chips" id="periodos" role="group" aria-label="Periodo">
@@ -191,7 +221,7 @@ const NOMBRES = {
   comunas: "Lista de comunas", evento: "Evento de la app", strava_conectar: "Strava · conectar",
   strava_conexion: "Strava · vuelta de conexión", strava_sync: "Strava · descargar carreras",
   strava_perfil: "Strava · perfil", strava_foto: "Strava · foto", strava_calles: "Strava · calles de siempre",
-  strava_desconectar: "Strava · desconectar",
+  strava_desconectar: "Strava · desconectar", beta_entrar: "Beta · entrar con clave",
 };
 const nombre = (c) => NOMBRES[c] || c;
 
@@ -244,6 +274,7 @@ async function cargar() {
   if (!r.ok) { $("contenido").innerHTML = `<div class="vacio">El servidor respondió ${r.status}.</div>`; return false; }
   const j = await r.json();
   datos = { ...j, filas: j.filas.map((f) => Object.fromEntries(j.columnas.map((c, i) => [c, f[i]]))) };
+  if ($("panel").hidden) acceso();
   $("login").hidden = true; $("panel").hidden = false;
   const a = $("almacen");
   a.className = "almacen" + (j.almacen !== "postgres" || j.error_almacen ? " mal" : "");
@@ -255,6 +286,43 @@ async function cargar() {
   return true;
 }
 $("actualizar").onclick = cargar;
+
+// ── Acceso beta: la app pide usuario y clave (se guarda en la base) ──
+function pintarAcceso(a) {
+  $("accActivo").checked = a.activo;
+  $("accUsuario").value = a.usuario;
+  $("accEstado").innerHTML = a.activo
+    ? '<b class="on">Activado</b> · la app pide usuario y clave para entrar'
+    : "<b>Desactivado</b> · la app está abierta a todos";
+  avisoAcceso(a.clave_inicial ? "La clave es la inicial (admin123): cámbiala antes de compartir la app." : "", a.clave_inicial);
+}
+function avisoAcceso(texto, mal) { $("accAviso").textContent = texto; $("accAviso").className = "acc-aviso" + (mal ? " mal" : ""); }
+async function acceso(cuerpo) {
+  try {
+    const r = await fetch("/api/admin/acceso", cuerpo ? { method: "POST", headers: { "X-Admin-Clave": CLAVE, "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo) } : { headers: { "X-Admin-Clave": CLAVE } });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      avisoAcceso(typeof j.detail === "string" ? j.detail : `El servidor respondió ${r.status}.`, true);
+      return null;
+    }
+    const a = await r.json(); pintarAcceso(a); return a;
+  } catch { avisoAcceso("No pude conectar con el servidor.", true); return null; }
+}
+$("accActivo").onchange = async () => {
+  const quiere = $("accActivo").checked;
+  if (!await acceso({ activo: quiere })) $("accActivo").checked = !quiere;
+};
+$("formAcceso").onsubmit = async (e) => {
+  e.preventDefault();
+  const cuerpo = { usuario: $("accUsuario").value.trim() };
+  if ($("accClave").value) cuerpo.clave = $("accClave").value;
+  const a = await acceso(cuerpo);
+  if (a) {
+    $("accClave").value = "";
+    if (!a.clave_inicial) avisoAcceso("Guardado. Los testers que ya habían entrado tienen que volver a escribir usuario y clave.");
+  }
+};
 
 function opciones(sel, valores, todos, etiqueta = (v) => v) {
   const actual = sel.value;
