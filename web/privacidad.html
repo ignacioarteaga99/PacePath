@@ -24,9 +24,10 @@
   li { margin: 4px 0; }
   .nota { border: 1px solid var(--linea); border-radius: 12px; padding: 12px 14px; color: var(--suave); font-size: 14.5px; }
   a { color: var(--acento); }
-  [lang="en"] { display: none; }
-  body.en [lang="es"] { display: none; }
-  body.en [lang="en"] { display: block; }
+  /* Sólo los bloques de contenido (no <html>, que también lleva lang) */
+  main [lang="en"] { display: none; }
+  body.en main [lang="es"] { display: none; }
+  body.en main [lang="en"] { display: block; }
 </style>
 </head>
 <body>

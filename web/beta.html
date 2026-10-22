@@ -31,12 +31,23 @@
   .mision span { color: var(--suave); font-size: 15px; }
   .pie { margin-top: 40px; color: var(--suave); font-size: 14px; border-top: 1px solid var(--linea); padding-top: 16px; }
   a { color: var(--acento); }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .idiomas a { color: var(--suave); font-weight: 700; text-decoration: none; margin-left: 10px; }
+  .idiomas a[aria-current] { color: var(--acento); }
+  /* Sólo los bloques de contenido (no <html>, que también lleva lang) */
+  main [lang="en"] { display: none; }
+  body.en main [lang="es"] { display: none; }
+  body.en main [lang="en"] { display: block; }
 </style>
 </head>
 <body>
 <main>
-  <a class="marca" href="/"><img src="/icons/icono-192.png" alt="">PacePath</a>
+  <header>
+    <a class="marca" href="/"><img src="/icons/icono-192.png" alt="">PacePath</a>
+    <nav class="idiomas"><a href="?lang=es" id="es">ES</a><a href="?lang=en" id="en">EN</a></nav>
+  </header>
 
+  <section lang="es">
   <h1>Gracias por probar PacePath 🧡</h1>
   <p class="lead">PacePath arma la ruta perfecta para tu entrenamiento de hoy: escribes la sesión («6x1k», «fondo 12k
     plano») y te dice por dónde correrla. Está en beta: tu ayuda sirve muchísimo. Te toma 10 minutos.</p>
@@ -113,7 +124,98 @@
     <li>Si la app no carga el mapa nuevo, usa uno de respaldo automáticamente: avísanos si lo ves distinto.</li>
   </ul>
 
-  <p class="pie">PacePath · hecho en Santiago de Chile · <a href="/privacidad">Privacidad</a> · ¡Gracias por correr con nosotros!</p>
+  </section>
+
+  <section lang="en">
+  <h1>Thanks for testing PacePath 🧡</h1>
+  <p class="lead">PacePath builds the perfect route for today's workout: type your session ("6x1k", "long run 12k
+    flat") and it tells you where to run it. It's in beta, so your help means a lot. It takes 10 minutes.</p>
+
+  <a class="boton" href="/?lang=en">Open PacePath</a>
+
+  <h2><span class="n">1</span>Install it on your phone</h2>
+  <p>No App Store download needed: you install it from the browser.</p>
+  <ul>
+    <li><b>iPhone:</b> open <code>pacepathapp.com</code> in <b>Safari</b> → <b>Share</b> button (the square with an arrow)
+      → <b>Add to Home Screen</b>.</li>
+    <li><b>Android:</b> open <code>pacepathapp.com</code> in <b>Chrome</b> → <b>⋮</b> menu → <b>Install app</b>
+      (or "Add to Home screen").</li>
+  </ul>
+  <p>It gets its orange icon, like any other app. Tap <b>EN</b> on the map to switch the app to English.</p>
+
+  <h2><span class="n">2</span>Build your first route</h2>
+  <ol>
+    <li>In <b>Today</b>, type your session. Examples: <code>6x1k</code>, <code>tempo 8k</code>, <code>long run 12k flat</code>,
+      <code>hills 8x300 6%</code>, <code>easy 6k</code>.</li>
+    <li>Choose <b>where you start</b>: your location (the location button next to the start field), an address
+      (<code>Pocuro 2500</code>, <code>Pocuro con Tobalaba</code>) or tap the map.</li>
+    <li>If you like, open <b>Options</b>: return to the start or not, finish somewhere else, max climb, max radius,
+      loop or laps.</li>
+    <li>Tap <b>Create route</b>. You'll see the route, the traffic lights and crossings, and the elevation profile.</li>
+    <li>Tap <b>Download GPX</b> to send it to your watch (Garmin, Coros, Apple Watch with a route app…).</li>
+  </ol>
+  <div class="caja">📍 For now it works in <b>Las Condes, Lo Barnechea, Ñuñoa, Providencia, Santiago Centro and
+    Vitacura</b> (Santiago, Chile). If you start somewhere else, the app tells you: let us know which area to add next!</div>
+
+  <h2><span class="n">3</span>Connect your Strava (optional)</h2>
+  <p>With Strava you see all your runs as a <b>heatmap</b>, the countries and cities where you've run, your
+    <b>stats</b> and your <b>achievements</b>, and routes prefer your usual streets.</p>
+  <ol>
+    <li>Go to <b>My city</b> → <b>Connect with Strava</b> → authorize.</li>
+    <li>Wait for the download bar to finish (with many years of runs it can take a minute).</li>
+    <li>Check <b>My city</b> (heatmap and "Where you've run") and <b>Profile</b> (stats and achievements).</li>
+  </ol>
+  <div class="caja">⚠️ While Strava reviews the app, <b>only a few accounts can connect</b>. If you get a "limit"
+    error, let me know and I'll make room. Your Strava data stays on your phone and only you can see it
+    (<a href="/privacy">privacy</a>).</div>
+
+  <h2><span class="n">4</span>Missions to try</h2>
+  <p>You don't need to do them all. The most valuable one is <b>going out to run a real route</b>.</p>
+  <div class="mision"><b>🏃 Run a PacePath route</b><span>Did it make sense? Did it send you down an ugly, dangerous or
+    closed street? Did the distance match your watch?</span></div>
+  <div class="mision"><b>⏱️ Intervals</b><span>Ask for <code>6x1k</code> or <code>8x400</code>: did the straight for the reps
+    have few traffic lights and crossings?</span></div>
+  <div class="mision"><b>🏞️ Long run as a loop</b><span>Ask for <code>long run 15k</code> with "Loop" in Options: does it
+    repeat few streets? Does it go through parks?</span></div>
+  <div class="mision"><b>⛰️ Hills and "flat"</b><span>Try <code>hills 8x300 6%</code> and <code>long run 12k flat</code>:
+    did the gradient feel like what you asked for?</span></div>
+  <div class="mision"><b>🗺️ The map</b><span>Look at the map by day and by night (🌙), zoom into a hill: is it clear?
+    Is anything missing?</span></div>
+  <div class="mision"><b>📊 Strava</b><span>If you connected: are all your runs there? Are the achievements and countries
+    right?</span></div>
+  <div class="mision"><b>🇪🇸 Spanish</b><span>Tap <b>ES</b> on the map: does everything switch to Spanish?</span></div>
+
+  <h2><span class="n">5</span>Tell us what happened</h2>
+  <ol>
+    <li>In the app, scroll to the bottom of the panel and tap <b>💬 Send feedback</b>.</li>
+    <li>Write what you saw. Keep "Include what I was doing" checked: it helps us reproduce it.</li>
+    <li>WhatsApp opens: choose the <b>beta group</b> and send.</li>
+  </ol>
+  <div class="caja">✍️ <b>Good feedback has:</b> what you did, what you expected and what happened. If you can, add a
+    <b>screenshot</b>. E.g.: "I asked for 6x1k from Plaza Ñuñoa, the straight had 3 traffic lights and I expected 0".</div>
+  <p>Good news helps too: "I loved X" tells us what not to touch. 😉</p>
+
+  <h2><span class="n">6</span>Things we already know</h2>
+  <ul>
+    <li>It's a beta: there may be bugs. If something looks off, reload the page.</li>
+    <li>Strava is limited to a few accounts while they review it.</li>
+    <li>Routes only work in the 6 areas above (we're adding more).</li>
+    <li>If the app can't load the new map, it switches to a backup map automatically: tell us if it looks different.</li>
+  </ul>
+  </section>
+
+  <p class="pie" lang="es">PacePath · hecho en Santiago de Chile · <a href="/privacidad">Privacidad</a> · ¡Gracias por correr con nosotros!</p>
+  <p class="pie" lang="en">PacePath · made in Santiago, Chile · <a href="/privacy">Privacy</a> · Thanks for running with us!</p>
 </main>
+<script>
+  // Idioma: ?lang=, o el que eligió en la app, o el del navegador.
+  const q = new URLSearchParams(location.search).get("lang");
+  let app = null; try { app = JSON.parse(localStorage.getItem("pp_lang")); } catch {}
+  const en = (q || app || navigator.language || "es").toLowerCase().startsWith("en");
+  document.body.classList.toggle("en", en);
+  document.documentElement.lang = en ? "en" : "es";
+  document.title = en ? "Beta guide · PacePath" : "Guía beta · PacePath";
+  document.getElementById(en ? "en" : "es").setAttribute("aria-current", "true");
+</script>
 </body>
 </html>

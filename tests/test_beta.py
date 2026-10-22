@@ -125,3 +125,8 @@ def test_boton_de_aporte_solo_con_link(monkeypatch):
     assert "window.PP_APORTE =" not in c.get("/").text
     monkeypatch.setenv("PACEPATH_APORTE_URL", "https://ko-fi.com/pacepath")
     assert 'window.PP_APORTE = "https://ko-fi.com/pacepath";' in c.get("/").text
+
+
+def test_guia_beta_en_ingles():
+    t = TestClient(app).get("/beta").text
+    assert 'lang="en"' in t and "Send feedback" in t and "Add to Home Screen" in t and "long run 12k flat" in t
