@@ -540,6 +540,14 @@ _MENSAJES = {
     "bloqueada": ("Esta cuenta está desactivada.", "This account is disabled."),
     "sin_correo": ("Tu cuenta no compartió un correo: prueba otro método.", "Your account didn't share an email: try another method."),
     "no_existe": ("Esa cuenta no existe.", "That account doesn't exist."),
+    "usa_google": ("Esta cuenta se creó con Google: entra con «Continuar con Google» (tu clave de Gmail se escribe "
+                   "en Google, nunca aquí). Si también quieres una clave para PacePath, usa «¿Olvidaste tu clave?».",
+                   "This account was created with Google: use “Continue with Google” (your Gmail password is typed "
+                   "on Google, never here). If you also want a PacePath password, use “Forgot your password?”."),
+    "usa_microsoft": ("Esta cuenta se creó con Microsoft: entra con «Continuar con Microsoft» (tu clave de Outlook se "
+                      "escribe en Microsoft, nunca aquí). Si también quieres una clave para PacePath, usa «¿Olvidaste tu clave?».",
+                      "This account was created with Microsoft: use “Continue with Microsoft” (your Outlook password "
+                      "is typed on Microsoft, never here). If you also want a PacePath password, use “Forgot your password?”."),
     "codigo_invalido": ("El enlace venció o ya se usó: pide uno nuevo.", "The link expired or was already used: ask for a new one."),
     "correo_apagado": ("La recuperación por correo todavía no está disponible: escríbenos y te ayudamos.",
                        "Email recovery isn't available yet: write to us and we'll help."),
@@ -695,10 +703,11 @@ COOKIE_IDIOMA_OAUTH = "pp_idioma_oauth"
 
 
 @app.get("/api/auth/{proveedor}", include_in_schema=False)
-def auth_ir(proveedor: Literal["google", "microsoft"], request: Request) -> Response:
+def auth_ir(proveedor: Literal["google", "microsoft"], request: Request, correo: str = "") -> Response:
     if not oauth.configurados()[proveedor]:
         raise HTTPException(503, tr("Ese inicio de sesión no está configurado.", "That sign-in isn't configured."))
-    url, estado = oauth.iniciar(proveedor, f"{_base(request)}/api/auth/{proveedor}/vuelta")
+    pista = correo.strip()[:200] if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", correo.strip()) else None
+    url, estado = oauth.iniciar(proveedor, f"{_base(request)}/api/auth/{proveedor}/vuelta", pista)
     resp = RedirectResponse(url)
     _poner_cookie(resp, request, oauth.COOKIE_ESTADO, estado, 600)
     _poner_cookie(resp, request, COOKIE_IDIOMA_OAUTH, idioma.actual(), 600)   # para la vuelta (?lang= del botón)

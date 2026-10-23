@@ -361,8 +361,31 @@ def test_correos_en_el_idioma_de_la_cuenta(con_correo, monkeypatch):
     assert con_correo[-1][1] == "Ya puedes entrar a PacePath"
     # Google desde la página en inglés: la vuelta trae el idioma por cookie.
     _vuelta(monkeypatch, {"sub": "g-7", "correo": "mary@gmail.com", "nombre": "Mary", "correo_confiable": True})
-    monkeypatch.setattr(oauth, "iniciar", lambda p, v: ("https://accounts.google.com/x", "estado"))
+    monkeypatch.setattr(oauth, "iniciar", lambda p, v, c=None: ("https://accounts.google.com/x", "estado"))
     g = TestClient(app)
     g.get("/api/auth/google?lang=en", follow_redirects=False)
     g.get("/api/auth/google/vuelta?code=x&state=y", follow_redirects=False)
     assert [a for p, a, _ in con_correo if p == "mary@gmail.com"] == ["Welcome to PacePath!"]
+
+
+def test_cuenta_de_google_con_clave_dice_que_entre_con_google(base, monkeypatch):
+    """La clave de Gmail nunca llega a PacePath: quien escribe su correo de una
+    cuenta creada con Google recibe el aviso (y el botón lleva su correo)."""
+    cli = TestClient(app)
+    _vuelta(monkeypatch, {"sub": "g-55", "correo": "luz@gmail.com", "nombre": "Luz", "correo_confiable": True})
+    cli.get("/api/auth/google/vuelta?code=x&state=y", follow_redirects=False)
+    otro = TestClient(app)
+    r = otro.post("/api/auth/entrar", json={"correo": "Luz@gmail.com", "clave": "mi-clave-de-gmail"})
+    assert r.status_code == 401 and r.json()["detail"]["codigo"] == "usa_google"
+    assert "Continuar con Google" in r.json()["detail"]["mensaje"]
+    assert not cuentas._intentos.get("luz@gmail.com")                 # no cuenta como intento fallido
+    # El botón de Google llega con el correo escrito (login_hint).
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "id-de-prueba")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "secreto")
+    ir = otro.get("/api/auth/google?lang=es&correo=luz@gmail.com", follow_redirects=False)
+    assert ir.status_code == 307 and "login_hint=luz%40gmail.com" in ir.headers["location"]
+    assert "login_hint" not in otro.get("/api/auth/google?correo=no-es-correo", follow_redirects=False).headers["location"]
+    # Si se crea una clave propia (desde el panel o «¿Olvidaste tu clave?»), entra con las dos.
+    uid = cuentas.por_correo("luz@gmail.com")["id"]
+    cuentas.actualizar(uid, clave="clave-de-pacepath")
+    assert otro.post("/api/auth/entrar", json={"correo": "luz@gmail.com", "clave": "clave-de-pacepath"}).status_code == 200

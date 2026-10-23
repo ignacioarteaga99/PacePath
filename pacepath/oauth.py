@@ -52,14 +52,17 @@ def configurados() -> dict[str, bool]:
     return {p: all(_credenciales(p)) for p in PROVEEDORES}
 
 
-def iniciar(proveedor: str, vuelta: str) -> tuple[str, str]:
-    """(URL a la que mandar al usuario, valor de la cookie de estado)."""
+def iniciar(proveedor: str, vuelta: str, correo: str | None = None) -> tuple[str, str]:
+    """(URL a la que mandar al usuario, valor de la cookie de estado). Con
+    `correo`, Google o Microsoft lo traen ya escrito (login_hint)."""
     cid, _ = _credenciales(proveedor)
     estado, verificador = secrets.token_urlsafe(24), secrets.token_urlsafe(48)
     reto = base64.urlsafe_b64encode(hashlib.sha256(verificador.encode()).digest()).rstrip(b"=").decode()
     p = PROVEEDORES[proveedor]
     q = {"client_id": cid, "redirect_uri": vuelta, "response_type": "code", "scope": p["scope"],
          "state": estado, "code_challenge": reto, "code_challenge_method": "S256", **p["extra"]}
+    if correo:
+        q["login_hint"] = correo
     return f"{p['autorizar']}?{urllib.parse.urlencode(q)}", f"{proveedor}.{estado}.{verificador}"
 
 

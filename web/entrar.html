@@ -36,6 +36,14 @@
     box-shadow: 0 14px 34px rgba(20, 20, 30, .07); display: grid; gap: 12px; }
   label { display: grid; gap: 5px; font-size: 13px; font-weight: 700; color: var(--suave); }
   input { font: inherit; font-size: 16px; color: var(--tinta); border: 1px solid #dcdce2; border-radius: 12px; padding: 12px 13px; background: #fff; width: 100%; }
+  .clave-caja { position: relative; }
+  .clave-caja input { padding-right: 48px; }
+  .ojo { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; padding: 8px;
+    border: 0; background: none; color: var(--suave); cursor: pointer; border-radius: 10px; }
+  .ojo svg { width: 22px; height: 22px; display: block; }
+  .ojo .cerrado, .ojo[aria-pressed="true"] .abierto { display: none; }
+  .ojo[aria-pressed="true"] .cerrado { display: inline; }
+  .mal .prov { margin-top: 10px; }
   input:focus { outline: 2px solid color-mix(in srgb, var(--a) 35%, transparent); border-color: var(--a); }
   button.entrar { font: inherit; font-size: 16px; font-weight: 800; color: #fff; border: 0; border-radius: 12px; padding: 13px;
     background: linear-gradient(90deg, var(--a), var(--a2)); cursor: pointer; }
@@ -91,7 +99,7 @@
     <form id="form">
       <label id="campoNombre" hidden><span data-t="nombre"></span><input id="nombre" name="name" autocomplete="name" maxlength="80"></label>
       <label><span data-t="correo"></span><input id="correo" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" required></label>
-      <label><span data-t="clave"></span><input id="clave" name="password" type="password" autocomplete="current-password" required minlength="8"></label>
+      <label><span data-t="clave"></span><div class="clave-caja"><input id="clave" name="password" type="password" autocomplete="current-password" required minlength="8"><button type="button" class="ojo" aria-pressed="false" data-t-aria="verClave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="abierto" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle class="abierto" cx="12" cy="12" r="3"/><path class="cerrado" d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.3 4.2M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div></label>
       <button class="entrar" type="submit" id="boton" data-t="entrar"></button>
       <div class="mal" id="mal" role="alert"></div>
       <button class="enlace" type="button" id="olvide" data-t="olvide" hidden></button>
@@ -107,7 +115,7 @@
   </form>
   <form class="tarjeta" id="nuevaClave" hidden>
     <b data-t="nuevaTitulo"></b>
-    <label><span data-t="clave"></span><input id="nueva" type="password" autocomplete="new-password" minlength="8" required></label>
+    <label><span data-t="clave"></span><div class="clave-caja"><input id="nueva" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="ojo" aria-pressed="false" data-t-aria="verClave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="abierto" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle class="abierto" cx="12" cy="12" r="3"/><path class="cerrado" d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.3 4.2M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div></label>
     <button class="entrar" type="submit" data-t="nuevaBoton"></button>
     <div class="mal" id="nuevaMsg" role="alert"></div>
   </form>
@@ -142,7 +150,7 @@ const T = {
     volver: "Volver", nuevaTitulo: "Elige tu clave nueva", nuevaBoton: "Guardar y entrar",
     verificado: "¡Listo! Tu correo quedó confirmado.", codigo_invalido: "El enlace venció o ya se usó: pide uno nuevo.",
     toca: "Toca para saltar", google: "Continuar con Google", microsoft: "Continuar con Microsoft", o: "o con tu correo",
-    entrar: "Entrar", crear: "Crear cuenta", nombre: "Nombre", correo: "Correo", clave: "Clave (mínimo 8 caracteres)",
+    entrar: "Entrar", crear: "Crear cuenta", nombre: "Nombre", correo: "Correo", clave: "Clave (mínimo 8 caracteres)", verClave: "Mostrar clave", ocultarClave: "Ocultar clave",
     entrando: "Un momento…", red: "No pude conectar. Prueba de nuevo en unos segundos.",
     hola: "Hola, {n}",
     salir: "Cerrar sesión", cancelada: "Cancelaste el inicio de sesión.", fallo: "No se pudo iniciar sesión. Prueba de nuevo.",
@@ -162,7 +170,7 @@ const T = {
     volver: "Back", nuevaTitulo: "Choose your new password", nuevaBoton: "Save and sign in",
     verificado: "Done! Your email is confirmed.", codigo_invalido: "The link expired or was already used: ask for a new one.",
     toca: "Tap to jump", google: "Continue with Google", microsoft: "Continue with Microsoft", o: "or with your email",
-    entrar: "Sign in", crear: "Create account", nombre: "Name", correo: "Email", clave: "Password (at least 8 characters)",
+    entrar: "Sign in", crear: "Create account", nombre: "Name", correo: "Email", clave: "Password (at least 8 characters)", verClave: "Show password", ocultarClave: "Hide password",
     entrando: "One moment…", red: "Couldn't connect. Try again in a few seconds.",
     hola: "Hi, {n}",
     salir: "Sign out", cancelada: "You cancelled the sign-in.", fallo: "Couldn't sign in. Try again.",
@@ -178,6 +186,7 @@ function textos() {
   const t = T[idioma];
   document.documentElement.lang = idioma;
   document.querySelectorAll("[data-t]").forEach((e) => { e.innerHTML = t[e.dataset.t]; });
+  document.querySelectorAll("[data-t-aria]").forEach((e) => { e.setAttribute("aria-label", t[e.dataset.tAria]); });
   $("datos").innerHTML = t.datos.map((d) => `<span>${d}</span>`).join("");
   $("idioma").textContent = t.otro;
   $("conGoogle").href = `/api/auth/google?lang=${idioma}`;           // los correos, en este idioma
@@ -203,6 +212,17 @@ function pestana(crear) {
   $("boton").textContent = T[idioma][crear ? "crear" : "entrar"];
   $("mal").textContent = "";
 }
+// Ver u ocultar la clave mientras se escribe.
+for (const b of document.querySelectorAll(".ojo")) {
+  b.onclick = () => {
+    const input = b.previousElementSibling, ver = input.type === "password";
+    input.type = ver ? "text" : "password";
+    b.setAttribute("aria-pressed", String(ver));
+    b.dataset.tAria = ver ? "ocultarClave" : "verClave";
+    b.setAttribute("aria-label", T[idioma][b.dataset.tAria]);
+    input.focus();
+  };
+}
 $("tabEntrar").onclick = () => pestana(false);
 $("tabCrear").onclick = () => pestana(true);
 $("form").onsubmit = async (e) => {
@@ -217,6 +237,14 @@ $("form").onsubmit = async (e) => {
     if (r.ok) { location.replace("/"); return; }
     const j = await r.json().catch(() => ({}));
     $("mal").textContent = j.detail?.mensaje || (Array.isArray(j.detail) ? t.fallo : j.detail) || t.fallo;
+    // La cuenta se creó con Google o Microsoft: su botón, con el correo ya escrito.
+    const prov = { usa_google: "conGoogle", usa_microsoft: "conMicrosoft" }[j.detail?.codigo];
+    if (prov && !$(prov).hidden) {
+      const b = $(prov).cloneNode(true);
+      b.removeAttribute("id"); b.hidden = false;
+      b.href = `${$(prov).getAttribute("href")}&correo=${encodeURIComponent($("correo").value.trim())}`;
+      $("mal").append(b);
+    }
   } catch { $("mal").textContent = T[idioma].red; }
   $("boton").disabled = false; $("boton").textContent = T[idioma][creando ? "crear" : "entrar"];
 };

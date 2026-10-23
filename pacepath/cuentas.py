@@ -187,6 +187,11 @@ def entrar_con_clave(correo: str, clave: str) -> dict:
     correo = normalizar_correo(correo)
     _frenar(correo)
     u = por_correo(correo)
+    if u and not u["clave"] and (u["google"] or u["microsoft"]):
+        # Se creó con Google o Microsoft: esa clave (la de Gmail, Outlook…) nunca
+        # llega a PacePath, así que no se puede revisar aquí. Se le dice con qué
+        # entrar (o que se cree una clave propia con «¿Olvidaste tu clave?»).
+        raise ErrorCuenta("usa_google" if u["google"] else "usa_microsoft")
     if not u or not clave_ok(clave, u["clave"]):
         _fallo(correo)
         raise ErrorCuenta("clave_incorrecta")
