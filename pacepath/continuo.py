@@ -858,8 +858,10 @@ def _ventana_circuito(med: Medida, X: float, cal: float, vc: float) -> tuple[flo
 
 
 # Tempo «auto»: el circuito siempre gana (banco de rutas), así que se busca
-# entero: (intentos, ajustes finos, presupuesto de generación en ms).
-TEMPO_CIRCUITO: tuple[int, int, int] = (8, 2, 1500)
+# entero: (intentos, ajustes finos, presupuesto de generación en ms). Con
+# (8, 2, 1500) tardaba 2,24 s; con (8, 1, 900), 1,76 s y la misma calidad
+# (36 tempos: error de distancia, semáforos, cruces y subida iguales o mejores).
+TEMPO_CIRCUITO: tuple[int, int, int] = (8, 1, 900)
 
 
 def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,

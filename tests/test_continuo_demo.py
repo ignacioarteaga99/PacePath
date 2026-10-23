@@ -197,3 +197,23 @@ def test_vueltas_demasiado_cortas_avisa(ctx):
         planificar(ctx, interpretar("fondo 5k"), D.lat, D.lon, forma="vueltas", n_vueltas=10)
 
 
+
+
+def test_fondo_auto_busca_el_circuito_con_menos_esfuerzo_si_lo_barato_ya_sirve(monkeypatch):
+    """Ida y vuelta, corredores y parques van primero; si alguno mide lo pedido,
+    el circuito generado se busca con menos intentos (sólo es alternativa)."""
+    from raceengine_engine.context import get_context
+    from raceengine_geodata import REGIONS
+    from pacepath import continuo
+    from pacepath.sesion import interpretar
+    pedidos = []
+    original = continuo.generate_loops
+    monkeypatch.setattr(continuo, "generate_loops", lambda *a, **k: pedidos.append((k["k"], k["budget_ms"])) or original(*a, **k))
+    d = REGIONS["demo"]
+    ctx = get_context("demo")
+    continuo.planificar_circuito(ctx, interpretar("fondo 5k"), d.lat, d.lon)
+    assert pedidos == [continuo.CIRCUITO_LIGERO[0::2]]
+    pedidos.clear()
+    monkeypatch.setattr(continuo, "CIRCUITO_LIGERO", None)                    # sin el atajo: búsqueda completa
+    continuo.planificar_circuito(ctx, interpretar("fondo 5k"), d.lat, d.lon)
+    assert pedidos == [(4, 1500)]
