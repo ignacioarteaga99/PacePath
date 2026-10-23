@@ -101,15 +101,20 @@ def pesos_trote(ctx: GraphContext, inicio: int, radio_m: float) -> RoutingWeight
         geometry=GeometryLayer(search_radius_max_m=min(max(radio_m, 500.0), 150_000)),
     )
     w, _ = build_weights(g, modelo, ctx.esrc, inicio)
-    sendas = aristas_corribles(ctx) & np.isin(g.eclass, CLASES_SENDA)
     dx = g.x[ctx.esrc] - g.x[inicio]
     dy = g.y[ctx.esrc] - g.y[inicio]
-    sendas &= dx * dx + dy * dy <= radio_m * radio_m
-    allowed = w.allowed_edges | sendas
+    cerca = dx * dx + dy * dy <= radio_m * radio_m
+    corribles = aristas_corribles(ctx) & cerca
+    sendas = corribles & np.isin(g.eclass, CLASES_SENDA)
+    # Todo lo corrible, no sólo lo que el motor llama «running»: si no, una
+    # salida enganchada a una calle peatonal quedaba sin ningún camino.
+    extra = corribles & ~w.allowed_edges & ~sendas
+    allowed = w.allowed_edges | corribles
     if _RADIO.get() is not None:
         allowed &= dentro_radio(ctx, ctx.esrc) & dentro_radio(ctx, g.indices)
     weight = w.weight.copy()
     weight[sendas] = g.elen[sendas] * np.float32(0.9)
+    weight[extra] = g.elen[extra]
     return RoutingWeights(allowed_edges=allowed, weight=weight,
                           min_ratio=min(w.min_ratio, 0.9), max_ratio=w.max_ratio)
 

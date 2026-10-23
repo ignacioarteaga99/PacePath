@@ -38,7 +38,7 @@ import secrets
 import threading
 import time
 from contextlib import asynccontextmanager
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -53,7 +53,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import acceso, ciudades, comunas, frecuencia, idioma, lugares, nombres, registro, strava, uso
+from . import acceso, ciudades, comunas, momento, frecuencia, idioma, lugares, nombres, registro, strava, uso
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -272,6 +272,9 @@ class PedidoRuta(BaseModel):
     # Ritmo habitual del corredor (s/km, de sus carreras de Strava; lo calcula
     # el teléfono): para sesiones por tiempo, «45 min suave».
     ritmo_s_km: float | None = Field(default=None, ge=150, le=720)
+    # Cuándo sale a correr (la hora del teléfono): de noche, con calor o en hora
+    # punta cambia lo que conviene. Sin ella, ahora.
+    hora: datetime | None = None
     # Preferencias del corredor (vienen de su teléfono; no se guardan).
     frecuentes: Frecuentes | None = None
     favoritos: list[list[tuple[float, float]]] | None = Field(default=None, max_length=20)
@@ -502,9 +505,10 @@ def _plan(body: PedidoRuta) -> dict:
             ctx = comunas.contexto(comuna)
             meta = (body.meta.lat, body.meta.lon) if body.meta else None
             pref, info = _preferidas(ctx, body)
+            cuando = momento.momento_de(body.hora, body.lat, body.lon)
             plan = planificar(ctx, s, body.lat, body.lon, volver=body.volver, meta=meta,
                               preferidas=pref, radio_max_m=body.radio_max_m,
-                              forma=body.forma, n_vueltas=body.vueltas)
+                              forma=body.forma, n_vueltas=body.vueltas, momento=cuando)
             plan["preferencias"] = info
             uso.registrar("ruta", body.texto, body.forma if body.forma != "auto" else None,
                           "sin volver" if not body.volver else None, "strava" if info["frecuentes"] else None,

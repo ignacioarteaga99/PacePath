@@ -4,7 +4,8 @@ from __future__ import annotations
 from raceengine_engine.context import GraphContext
 
 from .continuo import planificar_circuito, planificar_tempo
-from .sesion import Sesion, TipoSesion
+from .momento import Momento
+from .sesion import MOMENTO, Sesion, TipoSesion
 from .idioma import tr
 from .series import SinTramo, nodo_salida, planificar_series, radio_max
 
@@ -12,8 +13,37 @@ from .series import SinTramo, nodo_salida, planificar_series, radio_max
 def planificar(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                volver: bool = True, meta: tuple[float, float] | None = None,
                preferidas=None, radio_max_m: float | None = None,
-               forma: str = "auto", n_vueltas: int | None = None) -> dict:
-    """Como `_planificar`, sin salir de `radio_max_m` alrededor de la salida."""
+               forma: str = "auto", n_vueltas: int | None = None,
+               momento: Momento | None = None) -> dict:
+    """Como `_planificar`, sin salir de `radio_max_m` alrededor de la salida y
+    según cuándo se corre (`momento`: de noche, con calor, en hora punta)."""
+    marca = MOMENTO.set(momento)
+    try:
+        plan = _con_radio(ctx, sesion, lat, lon, volver, meta, preferidas, radio_max_m, forma, n_vueltas)
+    finally:
+        MOMENTO.reset(marca)
+    if momento is not None and not momento.neutro:
+        plan["momento"] = {"oscuro": momento.oscuro, "calor": momento.calor, "punta": momento.punta}
+        plan.setdefault("avisos", []).insert(0, _aviso_momento(momento))
+    return plan
+
+
+def _aviso_momento(m: Momento) -> str:
+    partes = []
+    if m.oscuro:
+        partes.append(tr("es de noche: la ruta evita senderos de parque y caminos sin luz",
+                         "it's dark: the route avoids unlit park trails and dirt paths"))
+    elif m.calor:
+        partes.append(tr("hace calor: la ruta busca más parques (lo más parecido a sombra que hay en el mapa)",
+                         "it's hot: the route looks for more parks (the closest thing to shade on the map)"))
+    if m.punta:
+        partes.append(tr("hora punta: evita más semáforos, cruces y avenidas",
+                         "rush hour: it avoids traffic lights, crossings and avenues even more"))
+    texto = "; ".join(partes)
+    return texto[0].upper() + texto[1:] + "."
+
+
+def _con_radio(ctx, sesion, lat, lon, volver, meta, preferidas, radio_max_m, forma, n_vueltas) -> dict:
     if not radio_max_m:
         return _planificar(ctx, sesion, lat, lon, volver, meta, preferidas, forma, n_vueltas)
     with radio_max(ctx, nodo_salida(ctx, lat, lon), radio_max_m):

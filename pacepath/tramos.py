@@ -44,14 +44,45 @@ _COSTE_POR_CLASE = np.array([COSTE_CRUCE.get(c, 0.0) for c in ALL_CLASSES],
                             dtype=np.float32)
 
 
+ACCESO_PARQUE_M = 60.0
+_ACCESOS: dict[str, np.ndarray] = {}
+
+
 def aristas_corribles(ctx: GraphContext, sendas_de_parque: bool = True) -> np.ndarray:
     """bool[E] — aristas por las que puede ir una repetición o un trote."""
     g = ctx.graph
     ok = np.isin(g.eclass, CLASES_CORRER)
     if sendas_de_parque:
-        from .parques import en_parque   # evita import circular con nombres
-        ok |= np.isin(g.eclass, CLASES_SENDA) & en_parque(ctx)
+        ok |= _sendas_de_parque(ctx)
     return ok & ~g.eprivate & ~g.etunnel & (g.elen > 0)
+
+
+def _sendas_de_parque(ctx: GraphContext) -> np.ndarray:
+    """Sendas dentro de un parque y sus accesos: las que llegan al parque en los
+    últimos `ACCESO_PARQUE_M` metros. Sin los accesos, el tramo de senda entre
+    la vereda y el borde del polígono quedaba fuera y el parque era una isla
+    (al Parque Araucano no entraba ninguna ruta)."""
+    if ctx.version in _ACCESOS:
+        return _ACCESOS[ctx.version]
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import dijkstra
+    from .parques import en_parque   # evita import circular con nombres
+    g = ctx.graph
+    senda = np.isin(g.eclass, CLASES_SENDA) & ~g.eprivate & ~g.etunnel & (g.elen > 0)
+    dentro = senda & en_parque(ctx)
+    nodo = np.zeros(g.n_nodes, dtype=bool)
+    nodo[ctx.esrc[dentro]] = True
+    nodo[g.indices[dentro]] = True
+    if not nodo.any():
+        res = dentro
+    else:
+        m = csr_matrix((g.elen[senda].astype(np.float64), (ctx.esrc[senda], g.indices[senda])),
+                       shape=(g.n_nodes, g.n_nodes))
+        d = dijkstra(m, directed=False, indices=np.nonzero(nodo)[0], min_only=True, limit=ACCESO_PARQUE_M)
+        cerca = np.isfinite(d)
+        res = dentro | (senda & cerca[ctx.esrc] & cerca[g.indices])
+    _ACCESOS[ctx.version] = res
+    return res
 
 
 @dataclass

@@ -1637,6 +1637,7 @@ function mostrar(plan) {
     hoja(`<p class="pista">${t("Escribe otra calle, usa «Cerca de mí» o toca el mapa.")}</p>`); };
 }
 
+let horaPedido = null;
 async function pedido() {
   const p = { lat: salida.lat, lon: salida.lon, texto: $("texto").value };
   const series = SERIES_TXT.test(p.texto);
@@ -1648,6 +1649,9 @@ async function pedido() {
   // Sesiones por tiempo («45 min suave», «fartlek 10x1'»): con tu ritmo habitual.
   const ritmo = await ritmoHabitual();
   if (ritmo) p.ritmo_s_km = ritmo;
+  // De noche, con calor o en hora punta conviene otra ruta. La hora se fija al
+  // armarla: el GPX (que se vuelve a pedir) sale igual a lo que se ve.
+  p.hora = horaPedido || new Date().toISOString();
   // Preferencias del corredor: viajan con cada pedido; el servidor no las guarda.
   const favs = favoritos();
   if (favs.length) p.favoritos = favs.map((f) => f.puntos);
@@ -1753,6 +1757,7 @@ $("form").onsubmit = async (e) => {
   $("armar").disabled = true;
   hoja(`<div class="cargando"><div class="rueda"></div>${t("Buscando la mejor ruta para tu sesión…")}</div>`);
   try {
+    horaPedido = new Date().toISOString();
     const p = await pedido();
     const r = await fetch("/api/ruta", { method: "POST", headers: { "Content-Type": "application/json" },
                                          body: JSON.stringify(p) });

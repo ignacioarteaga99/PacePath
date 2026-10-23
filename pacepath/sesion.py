@@ -15,6 +15,7 @@ from __future__ import annotations
 import dataclasses
 import math
 import re
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -364,11 +365,42 @@ class Requisitos:
     # petición; no se guarda.
     preferidas: object = None
     peso_preferida: float = 40.0            # puntos menos por ir 100 % por ellas
+    # Según cuándo se corre (ver momento.py): senderos de parque y caminos sin
+    # luz de noche, y avenidas en hora punta.
+    mult_sin_luz: float = 1.0
+    mult_avenida: float = 1.0
     notas: tuple[str, ...] = field(default_factory=tuple)
 
 
+# Cuándo se corre (momento.Momento): lo fija planificar() para cada pedido.
+MOMENTO: ContextVar = ContextVar("momento", default=None)
+
+
 def requisitos(s: Sesion) -> Requisitos:
-    """Traduce la sesión a lo que se busca en la calle."""
+    """Traduce la sesión a lo que se busca en la calle (y a cuándo se corre)."""
+    return _por_momento(_requisitos_tope(s), MOMENTO.get())
+
+
+def _por_momento(req: Requisitos, m) -> Requisitos:
+    if m is None or m.neutro:
+        return req
+    cambios: dict = {}
+    if m.oscuro:
+        # Senderos de parque y caminos de tierra sin luz: mucho más caros. El
+        # parque deja de sumar puntos (de noche, el que no tiene luz resta).
+        cambios.update(mult_sin_luz=3.0, peso_parque=0.0, bonus_parque=0.0,
+                       mult_parque=max(req.mult_parque, 1.0))
+    elif m.calor:
+        # Sin datos de sombra: los parques son lo más parecido.
+        cambios.update(mult_parque=req.mult_parque * 0.85, peso_parque=req.peso_parque * 1.5,
+                       bonus_parque=req.bonus_parque * 1.5)
+    if m.punta:
+        cambios.update(penal_semaforo_m=req.penal_semaforo_m * 1.3, penal_cruce_m=req.penal_cruce_m * 1.5,
+                       mult_avenida=1.2, peso_detencion=req.peso_detencion * 1.2)
+    return dataclasses.replace(req, **cambios)
+
+
+def _requisitos_tope(s: Sesion) -> Requisitos:
     req = _requisitos_base(s)
     if s.max_subida_m is None or s.tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS):
         return req
@@ -425,6 +457,8 @@ def _requisitos_base(s: Sesion) -> Requisitos:
             # Para el circuito: cada detención rompe el ritmo umbral.
             penal_semaforo_m=400.0, penal_cruce_m=120.0, mult_subida=0.06,
             mult_parque=0.9, peso_detencion=60.0,
+            # Ritmo umbral: mejor pavimento parejo que tierra o maicillo.
+            mult_sin_pavimento=1.15,
             notas=("El bloque de tempo va por donde hay menos detenciones: "
                    "calienta y suelta fuera de él.",),
         )
@@ -448,7 +482,8 @@ def _requisitos_base(s: Sesion) -> Requisitos:
         distancia_m=float(s.distancia_m),
         penal_semaforo_m=100.0, penal_cruce_m=25.0, mult_parque=0.60,
         mult_subida=0.0, penal_subida_m_por_m=15.0,
-        mult_sin_pavimento=0.9, peso_parque=60.0,
+        # Superficie blanda (tierra, maicillo) cuando la hay: cuida las piernas.
+        mult_sin_pavimento=0.8, peso_parque=60.0,
         peso_detencion=15.0, peso_subida=3.0, subida_tolerada_m_km=6.0,
         notas=("Regenerativo: plano y por parques. No hay datos de sombra; los "
                "parques son la mejor aproximación.",),

@@ -220,13 +220,14 @@ def explicar_continuo(plan: dict) -> list[str]:
     r, s = plan["recorrido"], plan["sesion"]
     nombre = tr("Fondo", "Long run") if s["tipo"] == "fondo" else tr("Regenerativo", "Easy run")
     por = (tr(" por ", " along ") + lista(r["calles"][:5])) if r.get("calles") else ""
-    if r.get("forma") in ("corredor", "favoritos") and (r.get("corredor") or {}).get("calles"):
+    if r.get("forma") in ("corredor", "favoritos", "parque") and (r.get("corredor") or {}).get("calles"):
         por = f": {lista(r['corredor']['calles'][:4])}"
     formas = {
         "ida y vuelta": ("en ida y vuelta", "out and back"),
         "solo ida": ("de solo ida", "one way"),
         "hasta la meta": ("hasta tu meta", "to your finish point"),
         "corredor": ("por un corredor de parques", "along a park corridor"),
+        "parque": ("en vueltas a un parque", "as laps of a park"),
         "favoritos": ("por tus tramos favoritos y calles de siempre",
                       "along your favorite stretches and usual streets"),
     }
@@ -278,6 +279,18 @@ def explicar_continuo(plan: dict) -> list[str]:
                          f"You jog {metros(c['acercamiento_m'])} to get there{llegada}; the "
                          f"corridor is {metros(c['largo_m'])} long and {recorrido}; then you "
                          "head home."))
+    if r.get("forma") == "parque" and r.get("corredor"):
+        c = r["corredor"]
+        llegada = (tr(" por ", " along ") + lista(c["llegada"][:3])) if c.get("llegada") else ""
+        vueltas = tr(f"{c['vueltas']} vueltas", f"{c['vueltas']} laps") if c["vueltas"] > 1 else tr("una vuelta", "one lap")
+        if c["acercamiento_m"] < 100:
+            lineas.append(tr(f"Sales desde el parque y das {vueltas} a un circuito de {metros(c['largo_m'])} por dentro.",
+                             f"You start at the park and run {vueltas} of a {metros(c['largo_m'])} loop inside it."))
+        else:
+            lineas.append(tr(f"Llegas trotando {metros(c['acercamiento_m'])}{llegada}, das {vueltas} a un "
+                             f"circuito de {metros(c['largo_m'])} por dentro del parque y vuelves.",
+                             f"You jog {metros(c['acercamiento_m'])} to get there{llegada}, run {vueltas} of a "
+                             f"{metros(c['largo_m'])} loop inside the park and head back."))
     if r.get("forma") == "solo ida" and r.get("calles"):
         lineas.append(tr(f"Terminas en {r['calles'][-1]}: revisa cómo volver (metro, micro "
                          "o que te pasen a buscar).",

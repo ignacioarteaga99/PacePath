@@ -53,6 +53,10 @@ RODEO = 0.82           # largo real ≈ largo del anillo / RODEO con estos pesos
 
 # ── Pesos ───────────────────────────────────────────────────────────────────
 
+_SENDERO = np.array([c in ("path", "track", "bridleway") for c in ALL_CLASSES])
+_AVENIDA = np.array([c.split("_")[0] in ("primary", "secondary", "trunk") for c in ALL_CLASSES])
+
+
 def _coste_cruce_nodo(ctx: GraphContext) -> tuple[np.ndarray, np.ndarray]:
     """(vías de coches por nodo, coste máximo de esas vías)."""
     g = ctx.graph
@@ -83,8 +87,15 @@ def pesos_sesion(ctx: GraphContext, casa: int, radio_m: float,
     if req.penal_subida_m_por_m:
         subida = np.maximum(g.egrad, 0) * g.elen / 100.0           # metros que se suben
         extra += (req.penal_subida_m_por_m * subida).astype(np.float32)
-    mult[en_parque(ctx)] *= np.float32(req.mult_parque)
+    parque = en_parque(ctx)
+    mult[parque] *= np.float32(req.mult_parque)
     mult[~g.epaved] *= np.float32(req.mult_sin_pavimento)
+    if req.mult_sin_luz != 1.0:
+        # De noche: senderos de parque y caminos sin luz (las veredas no: ver momento.py).
+        oscuro = ~g.elit & (parque | _SENDERO[g.eclass] | ~g.epaved)
+        mult[oscuro] *= np.float32(req.mult_sin_luz)
+    if req.mult_avenida != 1.0:
+        mult[_AVENIDA[g.eclass]] *= np.float32(req.mult_avenida)
     if req.preferidas is not None:
         mult *= req.preferidas
     if req.mult_subida:
@@ -177,6 +188,7 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     if con_ida_y_vuelta:
         todos += ida_y_vuelta(ctx, casa, distancia_m, req, w)
         todos += por_corredor(ctx, casa, distancia_m, req, w)
+        todos += vueltas_parque(ctx, casa, distancia_m, req, w)
     if not todos:
         raise SinTramo(tr("No encontré ningún recorrido desde esa salida.",
                           "I couldn't find any route from that start."))
@@ -454,6 +466,114 @@ def _cand_corredor(ctx, aristas, req, distancia_m, largo, vueltas, corredor, ace
                    "acercamiento_m": round(float(ctx.graph.elen[acerc].sum())) if acerc else 0,
                    "calles": _calles_trote(ctx, corredor), "llegada": _calles_trote(ctx, acerc)}
     return (aristas, med, puntuar(med, req, distancia_m))
+
+
+# ── Vueltas a un parque cercano ─────────────────────────────────────────────
+PARQUE_LLEGADA_MAX_M = 1000.0      # trote máximo hasta el parque
+PARQUE_MIN_M = 1500.0              # sendas del parque (en total) para que valga
+VUELTA_PARQUE_M = (900.0, 3500.0)  # largo de cada vuelta
+
+
+def vueltas_parque(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
+                   w: RoutingWeights, max_parques: int = 2
+                   ) -> list[tuple[list[int], Medida, float]]:
+    """Lo que hace quien vive cerca de un parque: llegar trotando, dar vueltas
+    a un circuito por dentro y volver. Ni los circuitos grandes ni las idas y
+    vueltas lo encontraban (salían del parque enseguida). El largo de la vuelta
+    se elige para que vueltas × vuelta + llegada cuadre con lo pedido.
+
+    Las sendas de un parque quedan partidas en el grafo (cada calle interior o
+    el borde del polígono las corta), así que la vuelta no se limita al parque:
+    puede ir por cualquier lado cerca, pero el parque es mucho más barato."""
+    g = ctx.graph
+    parque = en_parque(ctx) & aristas_corribles(ctx)
+    if radio_actual() is not None:
+        parque &= dentro_radio(ctx, ctx.esrc) & dentro_radio(ctx, g.indices)
+    if not parque.any():
+        return []
+    coste, pred = _arbol(ctx, w, casa, PARQUE_LLEGADA_MAX_M * 6)
+    llegada = _metros_arbol(ctx, coste, pred, casa)
+    nodos_p = np.unique(ctx.esrc[parque])
+    cerca = nodos_p[llegada[nodos_p] <= PARQUE_LLEGADA_MAX_M]
+    if not len(cerca):
+        return []
+    corribles = w.allowed_edges
+    oscuro = np.where(g.elit, 1.0, req.mult_sin_luz)
+    usados: list[int] = []
+    out = []
+    for v in cerca[np.argsort(coste[cerca])]:
+        v = int(v)
+        # Otro parque, no otra entrada al mismo.
+        if any(np.hypot(g.x[v] - g.x[u], g.y[v] - g.y[u]) < 800 for u in usados):
+            continue
+        cerca_v = np.hypot(g.x[ctx.esrc] - g.x[v], g.y[ctx.esrc] - g.y[v]) < 600
+        if float(g.elen[parque & cerca_v].sum()) / 2 < PARQUE_MIN_M:
+            continue
+        usados.append(v)
+        acerc = _camino(ctx, w, pred, casa, v) if v != casa else []
+        a_m = float(g.elen[acerc].sum()) if acerc else 0.0
+        resto = distancia_m - 2 * a_m
+        for k in range(1, 30):
+            L = resto / k
+            if L > VUELTA_PARQUE_M[1]:
+                continue
+            if L < VUELTA_PARQUE_M[0]:
+                break
+            vuelta = _vuelta_parque(ctx, v, L, corribles, parque, oscuro)
+            if vuelta is None:
+                continue
+            aristas = acerc + vuelta * k + [int(g.reverse[e]) for e in reversed(acerc)]
+            med = medir(ctx, aristas, req.radio_agua_m)
+            med.forma = "parque"
+            med.detalle = {"largo_m": round(float(g.elen[vuelta].sum())), "vueltas": k,
+                           "acercamiento_m": round(a_m), "calles": _calles_trote(ctx, vuelta),
+                           "llegada": _calles_trote(ctx, acerc)}
+            # Repetir la vuelta es la gracia: no se castiga como calle repetida.
+            p = puntuar(med, req, distancia_m) - (8.0 if req.tipo is TipoSesion.FONDO else 25.0) * med.repetido
+            out.append((aristas, med, p))
+            break
+        if len(usados) >= max_parques:
+            break
+    return out
+
+
+def _vuelta_parque(ctx: GraphContext, v: int, L: float, corribles: np.ndarray,
+                   parque: np.ndarray, oscuro: np.ndarray) -> list[int] | None:
+    """Una vuelta de ~`L` m que sale y llega a `v` por el parque: ida hasta un
+    punto a ~45 % de L por el camino más «de parque», y vuelta por otro (lo ya
+    pisado se encarece). La que mida L (±5 %) y vaya más por parque."""
+    g = ctx.graph
+    zona = corribles & (np.hypot(g.x[ctx.esrc] - g.x[v], g.y[ctx.esrc] - g.y[v]) < L / 2 + 300)
+    # Un semáforo dentro de la vuelta se repite en cada vuelta: muy caro.
+    sem = semaforos_cercanos(ctx)[g.indices]
+    peso = (g.elen * np.where(parque, 0.35, 2.5) * oscuro + 300.0 * sem).astype(np.float32)
+    wp = RoutingWeights(allowed_edges=zona, weight=peso, min_ratio=0.35, max_ratio=float(peso.max() / max(g.elen.max(), 1)))
+    coste, pred = _arbol(ctx, wp, v, L * 3)
+    metros = _metros_arbol(ctx, coste, pred, v)
+    cand = np.nonzero((metros >= 0.35 * L) & (metros <= 0.5 * L))[0]
+    if not len(cand):
+        return None
+    rev = g.reverse
+    mejor, mejor_p = None, -np.inf
+    for P in _por_sector(ctx, v, cand, coste, 12):
+        ida = _camino(ctx, wp, pred, v, P)
+        pisado = np.array(ida + [int(rev[e]) for e in ida])
+        w2 = peso.copy()
+        w2[pisado] *= 6.0
+        wv = RoutingWeights(allowed_edges=zona, weight=w2, min_ratio=0.35, max_ratio=wp.max_ratio * 6)
+        c2, p2 = _arbol(ctx, wv, P, L * 6)
+        if not np.isfinite(c2[v]):
+            continue
+        vuelta = ida + _camino(ctx, wv, p2, P, v)
+        e = np.asarray(vuelta)
+        largo = float(g.elen[e].sum())
+        if abs(largo - L) > 0.05 * L:
+            continue
+        frac = float(g.elen[e][parque[e]].sum() / largo)
+        nota = frac - 0.15 * int(sem[e].sum())          # cada semáforo resta 15 % de parque
+        if frac >= 0.5 and nota > mejor_p:
+            mejor, mejor_p = vuelta, nota
+    return mejor
 
 
 def ida_y_vuelta(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
