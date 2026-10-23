@@ -150,14 +150,33 @@ def _semilla(casa: int, distancia: float, tipo: str) -> np.random.Generator:
     return np.random.default_rng(int.from_bytes(h[:8], "little"))
 
 
+# Con ida y vuelta, corredores y parques primero: en el banco de rutas el
+# circuito generado ganó 1 de 54 fondos y regenerativos «auto», y generarlo y
+# ajustarlo era más de la mitad del tiempo. Si lo barato ya mide lo pedido
+# (±2 %), el circuito se busca con menos esfuerzo, sólo como alternativa
+# («Otra opción»): (intentos, ajustes finos, presupuesto de generación en ms).
+CIRCUITO_LIGERO: tuple[int, int, int] | None = (2, 1, 600)
+
+
 def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
              k: int = 4, afinar: int = 2,
-             con_ida_y_vuelta: bool = True) -> tuple[list[int], Medida, list[tuple]]:
+             con_ida_y_vuelta: bool = True, budget_ms: int = 1500) -> tuple[list[int], Medida, list[tuple]]:
     """El mejor circuito desde `casa` de `distancia_m` para estos requisitos.
 
     Devuelve (aristas, medida, otros candidatos [(aristas, medida, puntos)])."""
     g = ctx.graph
     w = pesos_sesion(ctx, casa, distancia_m * 0.6 + 1500, req)
+    familias: list[tuple] = []
+    if con_ida_y_vuelta:
+        revisar()
+        familias += ida_y_vuelta(ctx, casa, distancia_m, req, w)
+        revisar()
+        familias += por_corredor(ctx, casa, distancia_m, req, w)
+        revisar()
+        familias += vueltas_parque(ctx, casa, distancia_m, req, w)
+        if CIRCUITO_LIGERO and any(abs(m.distancia_m - distancia_m) <= 0.02 * distancia_m
+                                   for _, m, _ in familias):
+            k, afinar, budget_ms = CIRCUITO_LIGERO
     modelo = ConstraintModel(
         region=ctx.region_id,
         start=GeoPoint(lat=float(g.lat[casa]), lon=float(g.lon[casa])),
@@ -173,7 +192,7 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     # circuitos por largos y agotaba los intentos (13 s en un fondo de 18 km).
     gen = modelo.model_copy(update={"distance": DistanceLayer(
         target_m=distancia_m * RODEO, tolerance_pct=2.0)})
-    loops = generate_loops(ctx, gen, w, casa, reach, rng, k=k, budget_ms=1500)
+    loops = generate_loops(ctx, gen, w, casa, reach, rng, k=k, budget_ms=budget_ms)
     revisar()
 
     def eval_(lp) -> tuple:
@@ -187,14 +206,7 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
         ajustado, _ = adjust_distance(ctx, modelo, w, lp, casa, reach, {}, rng,
                                       budget_ms=600)
         finos.append(eval_(ajustado))
-    todos = [(lp.edges, med, p) for lp, med, p in finos + crudos[afinar:]]
-    if con_ida_y_vuelta:
-        revisar()
-        todos += ida_y_vuelta(ctx, casa, distancia_m, req, w)
-        revisar()
-        todos += por_corredor(ctx, casa, distancia_m, req, w)
-        revisar()
-        todos += vueltas_parque(ctx, casa, distancia_m, req, w)
+    todos = [(lp.edges, med, p) for lp, med, p in finos + crudos[afinar:]] + familias
     if not todos:
         raise SinTramo(tr("No encontré ningún recorrido desde esa salida.",
                           "I couldn't find any route from that start."))
@@ -845,6 +857,11 @@ def _ventana_circuito(med: Medida, X: float, cal: float, vc: float) -> tuple[flo
     return mejor
 
 
+# Tempo «auto»: el circuito siempre gana (banco de rutas), así que se busca
+# entero: (intentos, ajustes finos, presupuesto de generación en ms).
+TEMPO_CIRCUITO: tuple[int, int, int] = (8, 2, 1500)
+
+
 def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                      preferidas: np.ndarray | None = None, volver: bool = True,
                      meta: tuple[float, float] | None = None,
@@ -874,8 +891,9 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     elif volver and forma in ("circuito", "vueltas"):
         aristas, med, _ = solo_circuito(ctx, casa, cal + X + vc, req)
     elif volver:
-        aristas, med, otros_c = circuito(ctx, casa, cal + X + vc, req, k=8, afinar=2,
-                                         con_ida_y_vuelta=False)
+        k, afinar, presupuesto = TEMPO_CIRCUITO
+        aristas, med, otros_c = circuito(ctx, casa, cal + X + vc, req, k=k, afinar=afinar,
+                                         con_ida_y_vuelta=False, budget_ms=presupuesto)
         circuitos = distintos(ctx, [(aristas, med, 0.0)] + list(otros_c))
     else:
         D = cal + X + vc
