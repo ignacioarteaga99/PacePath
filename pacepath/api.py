@@ -545,6 +545,8 @@ def _error_cuenta(exc: cuentas.ErrorCuenta, codigo: int = 400) -> HTTPException:
 
 
 def _con_sesion(u: dict, request: Request, resp: Response) -> Response:
+    if u.get("idioma") != idioma.actual():          # sus correos, en el idioma con que usa la app
+        cuentas.actualizar(u["id"], idioma=idioma.actual())
     _poner_cookie(resp, request, cuentas.COOKIE, cuentas.abrir_sesion(u), cuentas.DURACION)
     return resp
 
@@ -563,14 +565,14 @@ class Ingreso(BaseModel):
 @app.post("/api/auth/registro", include_in_schema=False)
 def auth_registro(body: Registro, request: Request) -> Response:
     try:
-        u = cuentas.crear(body.correo, body.nombre, body.clave)
+        u = cuentas.crear(body.correo, body.nombre, body.clave, idioma=idioma.actual())
     except cuentas.ErrorCuenta as exc:
         _anotar(exito=False, error=str(exc))
         raise _error_cuenta(exc, 409 if str(exc) == "correo_existe" else 400) from exc
     uso.registrar("cuenta_nueva", "correo")
     _mandar_verificacion(u, request)
     if correo.activo():
-        correo.en_fondo(correo.aviso_registro, u["correo"], u["nombre"], "correo y clave", _espera_beta(u))
+        correo.en_fondo(correo.aviso_registro, u["correo"], u["nombre"], "correo y clave", _espera_beta(u), lang="es")
     return _con_sesion(u, request, JSONResponse({"usuario": cuentas.publico(u)}))
 
 
@@ -610,7 +612,7 @@ def auth_verificar(codigo: str = "") -> Response:
     u = cuentas.actualizar(u["id"], verificado=True)
     uso.registrar("cuenta_verificada")
     if correo.activo():
-        correo.en_fondo(correo.bienvenida, u["correo"], u["nombre"], _espera_beta(u))
+        correo.en_fondo(correo.bienvenida, u["correo"], u["nombre"], _espera_beta(u), lang=u["idioma"])
     return RedirectResponse("/?cuenta=verificado")
 
 
@@ -682,6 +684,9 @@ def auth_proveedores() -> dict:
     return oauth.configurados()
 
 
+COOKIE_IDIOMA_OAUTH = "pp_idioma_oauth"
+
+
 @app.get("/api/auth/{proveedor}", include_in_schema=False)
 def auth_ir(proveedor: Literal["google", "microsoft"], request: Request) -> Response:
     if not oauth.configurados()[proveedor]:
@@ -689,12 +694,14 @@ def auth_ir(proveedor: Literal["google", "microsoft"], request: Request) -> Resp
     url, estado = oauth.iniciar(proveedor, f"{_base(request)}/api/auth/{proveedor}/vuelta")
     resp = RedirectResponse(url)
     _poner_cookie(resp, request, oauth.COOKIE_ESTADO, estado, 600)
+    _poner_cookie(resp, request, COOKIE_IDIOMA_OAUTH, idioma.actual(), 600)   # para la vuelta (?lang= del botón)
     return resp
 
 
 @app.get("/api/auth/{proveedor}/vuelta", include_in_schema=False)
 def auth_vuelta(proveedor: Literal["google", "microsoft"], request: Request, code: str | None = None,
                 state: str | None = None, error: str | None = None) -> Response:
+    idioma.usar(request.cookies.get(COOKIE_IDIOMA_OAUTH))
     if error or not code:
         uso.registrar("cuenta_cancelada", proveedor)
         return RedirectResponse("/?cuenta=cancelada")
@@ -712,8 +719,9 @@ def auth_vuelta(proveedor: Literal["google", "microsoft"], request: Request, cod
         return RedirectResponse("/?cuenta=error")
     uso.registrar("cuenta_entrar", proveedor)
     if u.get("nueva") and correo.activo():
-        correo.en_fondo(correo.bienvenida, u["correo"], u["nombre"], _espera_beta(u))
-        correo.en_fondo(correo.aviso_registro, u["correo"], u["nombre"], proveedor.capitalize(), _espera_beta(u))
+        correo.en_fondo(correo.bienvenida, u["correo"], u["nombre"], _espera_beta(u), lang=u["idioma"])
+        correo.en_fondo(correo.aviso_registro, u["correo"], u["nombre"], proveedor.capitalize(), _espera_beta(u),
+                        lang="es")
     resp = _con_sesion(u, request, RedirectResponse("/"))
     resp.delete_cookie(oauth.COOKIE_ESTADO)
     return resp
@@ -729,6 +737,8 @@ def pagina_entrar() -> FileResponse:
 def cuenta(request: Request) -> dict:
     """Quién soy (si hay sesión), si puedo usar la app y qué opciones hay."""
     u = _usuario(request)
+    if u and request.headers.get("x-idioma") and u.get("idioma") != idioma.actual():
+        u = cuentas.actualizar(u["id"], idioma=idioma.actual())     # cambió el idioma de la app
     return {"usuario": cuentas.publico(u) if u else None, "pendiente": _pendiente(u),
             "beta_cerrada": acceso.activo(), "proveedores": oauth.configurados(),
             "correo_activo": correo.activo()}
@@ -813,7 +823,7 @@ def admin_cambiar_usuario(uid: str, body: CambioUsuario, request: Request) -> di
     if (antes and not antes["beta"] and u["beta"] and u["activo"] and body.avisar
             and acceso.activo() and correo.activo()):
         nunca_entro = not (u.get("clave") or u.get("google") or u.get("microsoft"))
-        correo.en_fondo(correo.acceso_beta, u["correo"], u["nombre"], nunca_entro)
+        correo.en_fondo(correo.acceso_beta, u["correo"], u["nombre"], nunca_entro, lang=u["idioma"])
     return cuentas.publico(u)
 
 

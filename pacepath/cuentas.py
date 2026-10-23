@@ -26,13 +26,14 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from . import registro
+from .idioma import actual as idioma_actual
 
 COOKIE = "pp_sesion"
 DURACION = 90 * 24 * 3600
 CLAVE_MIN = 8
 _CACHE_S = 300                       # una sesión leída de la base vale 5 min en memoria
 CAMPOS = ("id", "correo", "nombre", "clave", "google", "microsoft", "verificado", "beta",
-          "activo", "creado", "ultimo")
+          "activo", "creado", "ultimo", "idioma")
 
 
 class ErrorCuenta(ValueError):
@@ -104,17 +105,18 @@ def listar() -> list[dict]:
 
 
 def crear(correo: str, nombre: str | None = None, clave: str | None = None, beta: bool = False,
-          google: str | None = None, microsoft: str | None = None, verificado: bool = False) -> dict:
+          google: str | None = None, microsoft: str | None = None, verificado: bool = False,
+          idioma: str | None = None) -> dict:
     correo = normalizar_correo(correo)
     if por_correo(correo):
         raise ErrorCuenta("correo_existe")
     if clave is not None and len(clave) < CLAVE_MIN:
         raise ErrorCuenta("clave_corta")
     uid = secrets.token_hex(8)
-    registro.sql("INSERT INTO pp_usuarios (id, correo, nombre, clave, google, microsoft, verificado, beta, activo, creado) "
-                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
+    registro.sql("INSERT INTO pp_usuarios (id, correo, nombre, clave, google, microsoft, verificado, beta, activo, creado, "
+                 "idioma) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
                  (uid, correo, (nombre or "").strip()[:80] or None, hash_clave(clave) if clave else None,
-                  google, microsoft, int(verificado), int(beta), _ahora()))
+                  google, microsoft, int(verificado), int(beta), _ahora(), idioma))
     return por_id(uid)
 
 
@@ -139,7 +141,7 @@ def actualizar(uid: str, **cambios) -> dict:
         if len(cambios["clave"]) < CLAVE_MIN:
             raise ErrorCuenta("clave_corta")
         sets.append("clave = ?"); vals.append(hash_clave(cambios["clave"]))
-    for k in ("google", "microsoft"):
+    for k in ("google", "microsoft", "idioma"):
         if k in cambios:
             sets.append(f"{k} = ?"); vals.append(cambios[k])
     if cambios.get("quitar_clave"):
@@ -212,7 +214,8 @@ def entrar_con_proveedor(proveedor: str, sub: str, correo: str | None, nombre: s
             u = actualizar(existente["id"], **cambios)
         else:
             u = crear(correo, nombre, google=sub if proveedor == "google" else None,
-                      microsoft=sub if proveedor == "microsoft" else None, verificado=correo_confiable)
+                      microsoft=sub if proveedor == "microsoft" else None, verificado=correo_confiable,
+                      idioma=idioma_actual())
             u["nueva"] = True              # para la bienvenida (no se guarda)
     if u is None:
         raise ErrorCuenta("sin_correo")

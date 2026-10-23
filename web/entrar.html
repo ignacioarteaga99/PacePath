@@ -180,6 +180,8 @@ function textos() {
   document.querySelectorAll("[data-t]").forEach((e) => { e.innerHTML = t[e.dataset.t]; });
   $("datos").innerHTML = t.datos.map((d) => `<span>${d}</span>`).join("");
   $("idioma").textContent = t.otro;
+  $("conGoogle").href = `/api/auth/google?lang=${idioma}`;           // los correos, en este idioma
+  $("conMicrosoft").href = `/api/auth/microsoft?lang=${idioma}`;
   $("pista").setAttribute("aria-label", t.alt);
   for (const a of document.querySelectorAll("footer a")) a.href = a.getAttribute("href").split("?")[0] + "?lang=" + idioma;
 }

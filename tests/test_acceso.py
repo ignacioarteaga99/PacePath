@@ -169,7 +169,15 @@ def con_correo(base, monkeypatch):
     enviados = []
     from pacepath import correo
     monkeypatch.setattr(correo, "enviar", lambda para, asunto, texto, html_=None: enviados.append((para, asunto, texto)))
-    monkeypatch.setattr(correo, "en_fondo", lambda fn, *a: fn(*a))          # sin hilos: para revisarlo al tiro
+    import contextvars
+    from pacepath import idioma
+
+    def al_tiro(fn, *a, lang=None):                                          # sin hilos: para revisarlo al tiro
+        ctx = contextvars.copy_context()
+        if lang:
+            ctx.run(idioma.usar, lang)
+        ctx.run(fn, *a)
+    monkeypatch.setattr(correo, "en_fondo", al_tiro)
     return enviados
 
 
@@ -326,3 +334,35 @@ def test_resend_por_https_y_prueba_desde_el_panel(base, monkeypatch):
     r = cli.post("/api/admin/correo/prueba", headers=ADMIN, json={"para": "mal@ejemplo.cl"})
     assert r.status_code == 502 and "not verified" in r.json()["detail"]["mensaje"]
     assert "not verified" in cli.get("/api/admin/acceso", headers=ADMIN).json()["correo_estado"]["error"]
+
+
+def test_correos_en_el_idioma_de_la_cuenta(con_correo, monkeypatch):
+    """Quien se registra en inglés recibe todo en inglés (también lo que llega
+    después: la bienvenida al tocar el enlace y el acceso que da el panel en
+    español); el aviso al equipo, en español."""
+    monkeypatch.setenv("PACEPATH_CORREO_AVISOS", "support@pacepathapp.com")
+    cli = TestClient(app)
+    cli.post("/api/auth/registro", headers={"X-Idioma": "en"},
+             json={"correo": "john@example.com", "clave": "runs-a-lot-2026", "nombre": "John"})
+    (_, a1, t1), (p2, a2, _) = con_correo
+    assert a1 == "Confirm your email on PacePath" and "waiting list" in t1
+    assert p2 == "support@pacepathapp.com" and a2.startswith("PacePath · cuenta nueva")
+    TestClient(app).get(_enlace(t1).replace("http://testserver", ""), follow_redirects=False)   # otro navegador, sin idioma
+    assert con_correo[-1][1] == "Welcome to PacePath!" and "Terms" in con_correo[-1][2]
+    uid = cli.get("/api/cuenta").json()["usuario"]["id"]
+    cli.patch(f"/api/admin/usuarios/{uid}", headers=ADMIN, json={"beta": True})
+    assert con_correo[-1][1] == "You can now use PacePath"
+    # Cambia la app a español: lo que siga, en español.
+    cli.get("/api/cuenta", headers={"X-Idioma": "es"})
+    cli.post("/api/auth/recuperar", json={"correo": "john@example.com"})          # pedido sin idioma: español
+    assert con_correo[-1][1] == "Cambia tu clave de PacePath"
+    cli.patch(f"/api/admin/usuarios/{uid}", headers=ADMIN, json={"beta": False})
+    cli.patch(f"/api/admin/usuarios/{uid}", headers=ADMIN, json={"beta": True})
+    assert con_correo[-1][1] == "Ya puedes entrar a PacePath"
+    # Google desde la página en inglés: la vuelta trae el idioma por cookie.
+    _vuelta(monkeypatch, {"sub": "g-7", "correo": "mary@gmail.com", "nombre": "Mary", "correo_confiable": True})
+    monkeypatch.setattr(oauth, "iniciar", lambda p, v: ("https://accounts.google.com/x", "estado"))
+    g = TestClient(app)
+    g.get("/api/auth/google?lang=en", follow_redirects=False)
+    g.get("/api/auth/google/vuelta?code=x&state=y", follow_redirects=False)
+    assert [a for p, a, _ in con_correo if p == "mary@gmail.com"] == ["Welcome to PacePath!"]

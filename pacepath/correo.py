@@ -35,6 +35,7 @@ import urllib.request
 from email.message import EmailMessage
 from email.utils import make_msgid
 
+from . import idioma
 from .idioma import tr
 
 
@@ -105,10 +106,13 @@ def _por_smtp(host: str, puerto: int, para: str, asunto: str, texto: str, html_:
             s.send_message(m)
 
 
-def en_fondo(fn, *args) -> None:
-    """Manda sin hacer esperar al pedido (con el idioma del pedido). Un error
-    sólo queda en el log: el correo caído no debe romper nada."""
+def en_fondo(fn, *args, lang: str | None = None) -> None:
+    """Manda sin hacer esperar al pedido. En `lang` (el idioma de la cuenta:
+    es/en) o, si no se sabe, en el del pedido. Un error sólo queda en el log:
+    el correo caído no debe romper nada."""
     ctx = contextvars.copy_context()
+    if lang:
+        ctx.run(idioma.usar, lang)
 
     def correr():
         try:

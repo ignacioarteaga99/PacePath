@@ -36,9 +36,11 @@ COLUMNAS = ("ts", "dia", "usuario", "strava", "consulta", "evento", "tipo", "com
             "cuenta", "bytes_in", "bytes_out", "externas",
             # Rendimiento del motor (panel «Motor»): JSON corto, ver rendimiento.py.
             "motor")
-# Columnas agregadas después de crear la tabla (en Neon ya hay datos).
-_MIGRACIONES = [("cuenta", "TEXT"), ("bytes_in", "INTEGER"), ("bytes_out", "INTEGER"), ("externas", "SMALLINT"),
-                ("motor", "TEXT")]
+# Columnas agregadas después de crear las tablas (en Neon ya hay datos).
+_MIGRACIONES = [("pp_eventos", "cuenta", "TEXT"), ("pp_eventos", "bytes_in", "INTEGER"),
+                ("pp_eventos", "bytes_out", "INTEGER"), ("pp_eventos", "externas", "SMALLINT"),
+                ("pp_eventos", "motor", "TEXT"),
+                ("pp_usuarios", "idioma", "TEXT")]        # en qué idioma escribirle (es/en)
 
 _DDL_PG = """CREATE TABLE IF NOT EXISTS pp_eventos (
   id BIGSERIAL PRIMARY KEY, ts TEXT NOT NULL, dia TEXT NOT NULL, usuario TEXT, strava SMALLINT,
@@ -51,7 +53,7 @@ CREATE TABLE IF NOT EXISTS pp_usuarios (
   id TEXT PRIMARY KEY, correo TEXT NOT NULL UNIQUE, nombre TEXT, clave TEXT,
   google TEXT UNIQUE, microsoft TEXT UNIQUE, verificado SMALLINT NOT NULL DEFAULT 0,
   beta SMALLINT NOT NULL DEFAULT 0, activo SMALLINT NOT NULL DEFAULT 1,
-  creado TEXT NOT NULL, ultimo TEXT);
+  creado TEXT NOT NULL, ultimo TEXT, idioma TEXT);
 CREATE TABLE IF NOT EXISTS pp_sesiones (
   token TEXT PRIMARY KEY, usuario TEXT NOT NULL, creada TEXT NOT NULL, expira TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS pp_sesiones_usuario ON pp_sesiones (usuario);
@@ -100,8 +102,8 @@ class _Base:
                 if not self._lista:
                     for parte in _DDL_PG.split(";"):
                         cur.execute(parte)
-                    for col, tipo in _MIGRACIONES:
-                        cur.execute(f"ALTER TABLE pp_eventos ADD COLUMN IF NOT EXISTS {col} {tipo}")
+                    for tabla, col, tipo in _MIGRACIONES:
+                        cur.execute(f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS {col} {tipo}")
                     self._lista = True
                 if filas is not None and not traer:
                     cur.executemany(sql, filas)
@@ -112,10 +114,9 @@ class _Base:
             con = self._con()
             if not self._lista:
                 con.executescript(_DDL_SQLITE)
-                hay = {f[1] for f in con.execute("PRAGMA table_info(pp_eventos)")}
-                for col, tipo in _MIGRACIONES:
-                    if col not in hay:
-                        con.execute(f"ALTER TABLE pp_eventos ADD COLUMN {col} {tipo}")
+                for tabla, col, tipo in _MIGRACIONES:
+                    if col not in {f[1] for f in con.execute(f"PRAGMA table_info({tabla})")}:
+                        con.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} {tipo}")
                 self._lista = True
             if filas is not None and not traer:
                 con.executemany(sql, filas)
