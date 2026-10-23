@@ -513,6 +513,9 @@ def _plan(body: PedidoRuta) -> dict:
                               forma=body.forma, n_vueltas=body.vueltas, momento=cuando,
                               opcion=body.opcion)
             plan["preferencias"] = info
+            # Versión del mapa: el teléfono guarda la ruta para el historial y
+            # la vuelve a pedir sólo si el mapa de la comuna cambió.
+            plan["mapa"] = ctx.version
             uso.registrar("ruta", body.texto, body.forma if body.forma != "auto" else None,
                           f"opción {body.opcion + 1}" if body.opcion else None,
                           "sin volver" if not body.volver else None, "strava" if info["frecuentes"] else None,

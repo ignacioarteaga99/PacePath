@@ -17,7 +17,8 @@ def disponibles() -> list[dict]:
     man = remote.manifest()
     return [
         {"id": rid, "nombre": e.get("label", rid), "lat": e["lat"], "lon": e["lon"],
-         "radio_m": e.get("radius_m", 7000), "mb": round(e.get("size_gz", 0) / 1e6, 1)}
+         "radio_m": e.get("radius_m", 7000), "mb": round(e.get("size_gz", 0) / 1e6, 1),
+         "version": e.get("version")}
         for rid, e in man.items() if "lat" in e
     ]
 

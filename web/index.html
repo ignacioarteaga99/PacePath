@@ -1019,12 +1019,19 @@ let capaActual = null, nombreCapa = pref("pp_capa2", "pacepath");
 if (!CAPAS[nombreCapa] || nombreCapa === "oscuro") nombreCapa = "pacepath";
 let noche = pref("pp_noche", window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
 
+// El mapa propio sólo trae Chile (con un margen de los países vecinos: la caja
+// de .github/workflows/mapa.yml). Fuera de ella no tiene calles ni nombres, y
+// el relieve, que es mundial, lo dejaba «cargando» sin terminar: ahí se usa el
+// mapa de Esri, sin cambiar la preferencia guardada.
+const ZONA_MAPA_PROPIO = L.latLngBounds([-56.1, -76.0], [-17.4, -66.0]);
+let fueraDelMapaPropio = false;
 function ponerCapa(nombre, guardar = true) {
   if (guardar) guardarPref("pp_capa2", nombre);
   if (nombre === "pacepath" && !hayMapaPropio()) nombre = "claro";
   nombreCapa = nombre;
+  fueraDelMapaPropio = nombre === "pacepath" && !ZONA_MAPA_PROPIO.contains(mapa.getCenter());
   if (capaActual) mapa.removeLayer(capaActual);
-  capaActual = capa(nombre === "claro" && noche ? "oscuro" : nombre);
+  capaActual = capa(fueraDelMapaPropio || (nombre === "claro" && noche) ? (noche ? "oscuro" : "claro") : nombre);
   if (capaActual.gl) capaActual.gl.options.style = estiloMapa();      // día/noche: se rehace al volver a agregarla
   capaActual.addTo(mapa);
   capaActual.bringToBack?.();
@@ -1034,6 +1041,10 @@ function ponerCapa(nombre, guardar = true) {
   });
 }
 if (hayMapaPropio()) document.querySelector('#menuCapas [data-capa="pacepath"]').hidden = false;
+mapa.on("moveend", () => {
+  const fuera = nombreCapa === "pacepath" && !ZONA_MAPA_PROPIO.contains(mapa.getCenter());
+  if (fuera !== fueraDelMapaPropio) ponerCapa(nombreCapa, false);
+});
 const SOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
 const LUNA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
 function ponerNoche(v) {
@@ -1684,8 +1695,34 @@ async function descargarGpx() {
 }
 
 // ── Recientes y sesiones guardadas (en el teléfono) ─────────────────────────
-// Se guardan los parámetros, no la geometría: el motor es determinista, así que
-// repetir el pedido da la misma ruta (salvo que cambie el mapa o tus calles).
+// La lista guarda los parámetros; la ruta completa (la última opción que
+// viste) va aparte, en IndexedDB, para mostrarla al instante al tocarla. Si el
+// mapa de la comuna cambió desde entonces, se vuelve a pedir.
+const RUTAS = (() => {
+  let db = null;
+  const abrir = () => db ? Promise.resolve(db) : new Promise((ok) => {
+    try {
+      const r = indexedDB.open("pacepath-rutas", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("planes");
+      r.onsuccess = () => { db = r.result; ok(db); };
+      r.onerror = () => ok(null);
+    } catch { ok(null); }
+  });
+  const pedir = (modo, f) => abrir().then((d) => d ? new Promise((ok) => {
+    try { const t = d.transaction("planes", modo); const r = f(t.objectStore("planes"));
+      t.oncomplete = () => ok(r && r.result); t.onerror = t.onabort = () => ok(null); } catch { ok(null); }
+  }) : null);
+  return {
+    leer: (clave) => pedir("readonly", (st) => st.get(clave)),
+    guardar: (clave, valor) => pedir("readwrite", (st) => st.put(valor, clave)),
+    // Sólo las de la lista de recientes y las guardadas.
+    podar: (vigentes) => pedir("readwrite", (st) => {
+      const r = st.getAllKeys();
+      r.onsuccess = () => r.result.filter((k) => !vigentes.has(k)).forEach((k) => st.delete(k));
+    }),
+  };
+})();
+const podarRutas = () => RUTAS.podar(new Set([...leerLista("pp_recientes"), ...leerLista("pp_guardadas")].map(claveSesion)));
 const MAX_RECIENTES = 10, MAX_GUARDADAS = 30;
 const ICONO = { series: "S", tempo: "T", fondo: "F", cuestas: "C", regenerativo: "R" };
 const leerLista = (k) => { const v = pref(k, []); return Array.isArray(v) ? v : []; };
@@ -1704,11 +1741,12 @@ function entradaDe(p, plan) {
 function guardarReciente(e) {
   const l = leerLista("pp_recientes").filter((x) => claveSesion(x) !== claveSesion(e));
   guardarPref("pp_recientes", [e, ...l].slice(0, MAX_RECIENTES));
+  podarRutas();
 }
 const estaGuardada = (e) => leerLista("pp_guardadas").some((x) => claveSesion(x) === claveSesion(e));
 function alternarGuardada(e) {
   const l = leerLista("pp_guardadas");
-  if (estaGuardada(e)) { guardarPref("pp_guardadas", l.filter((x) => claveSesion(x) !== claveSesion(e))); return false; }
+  if (estaGuardada(e)) { guardarPref("pp_guardadas", l.filter((x) => claveSesion(x) !== claveSesion(e))); podarRutas(); return false; }
   if (l.length >= MAX_GUARDADAS) { alert(t("Ya tienes {n} sesiones guardadas: quita alguna primero.", { n: MAX_GUARDADAS })); return false; }
   guardarPref("pp_guardadas", [e, ...l]);
   return true;
@@ -1738,9 +1776,9 @@ function inicioHoja(pista) {
   for (const b of document.querySelectorAll(".hist .abrir")) b.onclick = () => repetir(de(b));
   for (const b of document.querySelectorAll(".hist .estrella"))
     b.onclick = () => { alternarGuardada(de(b)); inicioHoja(pista); };
-  if ($("borrarRecientes")) $("borrarRecientes").onclick = () => { guardarPref("pp_recientes", []); inicioHoja(pista); };
+  if ($("borrarRecientes")) $("borrarRecientes").onclick = () => { guardarPref("pp_recientes", []); podarRutas(); inicioHoja(pista); };
 }
-function repetir(e) {
+async function repetir(e) {
   if (!e) return;
   if (modo !== "sesion") cambiarModo("sesion");
   $("texto").value = e.texto;
@@ -1752,7 +1790,31 @@ function repetir(e) {
   ponerForma(e.forma || "auto");
   revisarTipo();
   fijarSalida(e.salida.lat, e.salida.lon, e.salida.nombre, true);
-  $("form").requestSubmit();
+  const guardada = await RUTAS.leer(claveSesion(e));
+  if (!guardada?.plan) { $("form").requestSubmit(); return; }
+  // Al instante, la ruta que viste; el GPX se pide con la misma hora y opción.
+  horaPedido = guardada.p.hora || null;
+  opcionPedida = guardada.plan.opcion?.actual || 0;
+  const esta = ultimaEntrada = { ...e, fecha: Date.now() };
+  guardarReciente(ultimaEntrada);
+  mostrarRuta(guardada.plan);
+  // ¿Cambió el mapa de la comuna desde entonces? Entonces se vuelve a pedir.
+  listaComunas ??= await fetch("/api/comunas").then((r) => r.json()).catch(() => null);
+  const ahora = (listaComunas || []).find((c) => c.id === guardada.plan.comuna)?.version;
+  if (ahora && guardada.plan.mapa && ahora !== guardada.plan.mapa && ultimaEntrada === esta) {
+    pidiendoOtra = true;                     // mantiene la opción que tenías
+    $("form").requestSubmit();
+  }
+}
+
+// Muestra una ruta ya armada (recién pedida o del historial).
+function mostrarRuta(j) {
+  $("comuna").textContent = j.comuna.replace("_", " ");
+  $("resumenForm").innerHTML = `${esc(j.sesion.resumen)} <small>· ${t("desde {d}", { d: esc($("desde").value || t("el mapa")) })}</small>`;
+  document.body.classList.add("con-ruta");
+  mostrar(j);
+  encuadrar(j);
+  dibujarAnimado(j, () => marcas(j));
 }
 
 $("form").onsubmit = async (e) => {
@@ -1780,13 +1842,9 @@ $("form").onsubmit = async (e) => {
     opcionPedida = j.opcion?.actual || 0;
     ultimaEntrada = entradaDe(p, j);
     guardarReciente(ultimaEntrada);
+    RUTAS.guardar(claveSesion(ultimaEntrada), { p, plan: j });
     if (j.preferencias && !j.preferencias.version_ok) olvidarFrecuentes(j.comuna);
-    $("comuna").textContent = j.comuna.replace("_", " ");
-    $("resumenForm").innerHTML = `${esc(j.sesion.resumen)} <small>· ${t("desde {d}", { d: esc($("desde").value || t("el mapa")) })}</small>`;
-    document.body.classList.add("con-ruta");
-    mostrar(j);
-    encuadrar(j);
-    dibujarAnimado(j, () => marcas(j));
+    mostrarRuta(j);
   } catch (err) {
     hoja(`<p class="aviso">${esc(err.message)}</p>`);
   } finally { $("armar").disabled = false; }
@@ -2210,8 +2268,11 @@ async function pintarDondeCorri(lista) {
     const P = lugaresCorridos[+b.dataset.p], X = b.dataset.c != null ? P.ciudades[+b.dataset.c] : P;
     $("dondeCorri").querySelectorAll(".ir").forEach((x) => x.classList.toggle("on", x === b));
     if (!esEscritorio()) $("hoja").classList.add("plegada");
-    mapa.flyToBounds(X.caja, { padding: [30, 30], maxZoom: 15, duration: 1.2,
-      paddingBottomRight: [70, esEscritorio() ? 30 : 92 + 70] });
+    const encuadre = { padding: [30, 30], maxZoom: 15, paddingBottomRight: [70, esEscritorio() ? 30 : 92 + 70] };
+    // Lejos (otro país): directo. Volar cruzando continentes pide teselas de
+    // cada zoom intermedio y el mapa tarda en asentarse.
+    if (mapa.getCenter().distanceTo(X.caja.getCenter()) > 300000) mapa.fitBounds(X.caja, { ...encuadre, animate: false });
+    else mapa.flyToBounds(X.caja, { ...encuadre, duration: 1.2 });
   };
 }
 
