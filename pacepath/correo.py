@@ -57,8 +57,10 @@ def enviar(para: str, asunto: str, texto: str, html_: str | None = None) -> None
             _por_smtp(host, int(puerto or 465), para, asunto, texto, html_)
     except Exception as exc:
         estado.update(error=f"{type(exc).__name__}: {exc}"[:300], error_ts=time.time())
+        print(f"[correo] falló «{asunto}»: {estado['error']}", flush=True)
         raise
     estado.update(ok_ts=time.time(), error=None)
+    print(f"[correo] enviado «{asunto}» a …@{para.rpartition('@')[2]} (por {'Resend' if 'resend' in host else host})", flush=True)
 
 
 # Último envío (en memoria), para mostrarlo en el panel.

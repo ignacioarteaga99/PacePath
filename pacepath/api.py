@@ -791,6 +791,9 @@ def admin_cambiar_usuario(uid: str, body: CambioUsuario, request: Request) -> di
     except cuentas.ErrorCuenta as exc:
         raise _error_cuenta(exc, 404 if str(exc) == "no_existe" else 409 if str(exc) == "correo_existe" else 400) from exc
     # Recién habilitada en la beta: avisarle. Si nunca entró (la creó el panel), es una invitación.
+    if antes and not antes["beta"] and u["beta"] and not (body.avisar and acceso.activo() and correo.activo()):
+        print(f"[correo] habilitada en la beta sin aviso: avisar={body.avisar}, beta cerrada={acceso.activo()}, "
+              f"correo encendido={correo.activo()}", flush=True)
     if (antes and not antes["beta"] and u["beta"] and u["activo"] and body.avisar
             and acceso.activo() and correo.activo()):
         nunca_entro = not (u.get("clave") or u.get("google") or u.get("microsoft"))
