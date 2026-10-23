@@ -144,3 +144,25 @@ def test_sin_importar_la_hora():
     assert con["momento"]["oscuro"] and any("noche" in a for a in con["avisos"])
     sin = cli.post("/api/ruta", json=noche | {"segun_hora": False}).json()
     assert "momento" not in sin and not any("noche" in a for a in sin.get("avisos", []))
+
+
+def test_precalentar_carga_la_comuna_mas_pedida(monkeypatch):
+    from raceengine_engine import context
+    from pacepath import api, registro
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("PACEPATH_PRECALENTAR", raising=False)
+    monkeypatch.setattr(api.comunas, "disponibles", lambda: [{"id": "demo"}])
+    context._CONTEXTS.pop("demo", None)
+    for _ in range(3):
+        registro.anotar({"consulta": "ruta", "comuna": "demo", "exito": True})
+    registro.vaciar()
+    api._precalentar()
+    assert "demo" in context._CONTEXTS
+    context._CONTEXTS.pop("demo", None)
+    monkeypatch.setenv("PACEPATH_PRECALENTAR", "no")
+    api._precalentar()
+    assert "demo" not in context._CONTEXTS
+    with api._motor:                                     # motor ocupado: no se mete
+        monkeypatch.setenv("PACEPATH_PRECALENTAR", "demo")
+        api._precalentar()
+    assert "demo" not in context._CONTEXTS

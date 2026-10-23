@@ -75,8 +75,38 @@ WEB = Path(__file__).resolve().parents[1] / "web"
 
 @asynccontextmanager
 async def _vida(_app):
+    threading.Thread(target=_precalentar, name="precalentar", daemon=True).start()
     yield
     registro.vaciar(5)            # al apagarse (Render duerme): guardar lo que quede en la cola
+
+
+def _precalentar() -> None:
+    """Al despertar, deja cargado el mapa de la comuna más pedida (últimos 14
+    días; PACEPATH_PRECALENTAR la fija a mano, «no» lo apaga): así la primera
+    ruta no paga la descarga y la carga del grafo. Si ya llegó un pedido, no
+    se mete: el turno del motor está ocupado y ese pedido carga lo suyo."""
+    pedida = os.environ.get("PACEPATH_PRECALENTAR", "").strip()
+    if pedida == "no" or os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    try:
+        if not pedida:
+            desde = (date.today() - timedelta(days=14)).isoformat()
+            filas = registro.sql("SELECT comuna, COUNT(*) FROM pp_eventos WHERE consulta = 'ruta' AND dia >= ? "
+                                 "AND comuna IS NOT NULL GROUP BY comuna ORDER BY COUNT(*) DESC LIMIT 1",
+                                 (desde,), traer=True)
+            pedida = filas[0][0] if filas else ""
+        if pedida not in {c["id"] for c in comunas.disponibles()}:
+            return
+        if _motor.acquire(blocking=False):
+            try:
+                t = time.perf_counter()
+                comunas.contexto(pedida)
+                print(f"[precalentar] {pedida} listo en {time.perf_counter() - t:.1f} s", flush=True)
+            finally:
+                _motor.release()
+                rendimiento.devolver_memoria()
+    except Exception as exc:  # noqa: BLE001 — es una ayuda: si falla, el primer pedido lo carga
+        print(f"[precalentar] no pude: {type(exc).__name__}: {exc}", flush=True)
 
 
 app = FastAPI(title="PacePath", version="0.1.0", lifespan=_vida)
