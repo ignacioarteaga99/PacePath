@@ -131,6 +131,10 @@
   #login input { flex: 1; }
   #login .mal { color: var(--error); margin-top: 10px; min-height: 1em; }
   .cargando { color: var(--suave); padding: 30px 0; text-align: center; }
+  .limite { height: 6px; border-radius: 3px; background: var(--grilla); margin-top: 8px; overflow: hidden; }
+  .limite i { display: block; height: 100%; border-radius: 3px; }
+  .consumo-kpis .kpi small { display: block; }
+  .consumo-kpis .kpi .tag { display: inline-block; font-size: 11px; color: var(--suave); }
   .acceso { margin: 14px 0 0; }
   .acc-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .acc-cab .sub { margin: 0; }
@@ -270,7 +274,8 @@ const nombre = (c) => NOMBRES[c] || c;
 
 let CLAVE = null;
 try { CLAVE = sessionStorage.getItem("pp_admin"); } catch {}
-let datos = null;          // { filas: [...objetos], almacen, ... }
+let datos = null;          // { filas: [...objetos], mapas: [...], almacen, ... }
+let consumoInfo = null;    // { base: {tamaños}, cuentas: {id: correo} }
 let periodo = 30;
 let mostrar = 100;
 
@@ -316,7 +321,10 @@ async function cargar() {
   if (r.status === 404) { verLogin("Clave incorrecta."); return false; }
   if (!r.ok) { $("contenido").innerHTML = `<div class="vacio">El servidor respondió ${r.status}.</div>`; return false; }
   const j = await r.json();
-  datos = { ...j, filas: j.filas.map((f) => Object.fromEntries(j.columnas.map((c, i) => [c, f[i]]))) };
+  const todas = j.filas.map((f) => Object.fromEntries(j.columnas.map((c, i) => [c, f[i]])));
+  // Los resúmenes de teselas que manda el teléfono no son consultas: van aparte (panel «Consumo»).
+  datos = { ...j, filas: todas.filter((f) => f.consulta !== "consumo_mapa"), mapas: todas.filter((f) => f.consulta === "consumo_mapa") };
+  api("/api/admin/consumo").then((c) => { consumoInfo = c; pintarConsumo(); }).catch(() => {});
   if ($("panel").hidden) { acceso(); cargarUsuarios(); }
   $("login").hidden = true; $("panel").hidden = false;
   const a = $("almacen");
@@ -487,13 +495,97 @@ function pintar() {
       <div class="tarjeta"><h2>Errores más frecuentes</h2><p class="sub">Agrupados por consulta y mensaje · toca uno para verlos</p><div id="tErrores"></div></div>
       <div class="tarjeta"><h2>Usuarios</h2><p class="sub">Identificador anónimo por teléfono · toca uno para filtrar</p><div id="tUsuarios"></div></div>
     </div>
-    <div class="tarjeta"><h2>Registro</h2><p class="sub">Las más recientes primero</p><div id="tRegistro"></div></div>`;
+    <div class="tarjeta"><h2>Registro</h2><p class="sub">Las más recientes primero</p><div id="tRegistro"></div></div>
+    <div id="consumo"></div>`;
 
   graficoDias(F);
   graficoTipos(F);
   tablaErrores(errores);
   tablaUsuarios(F);
   tablaRegistro(F);
+  pintarConsumo();
+}
+
+// ── Consumo y escala ────────────────────────────────────────────────────────
+// Para ver cómo se reparte el gasto por usuario y cuándo hay que subir de plan.
+// Límites de referencia de los planes actuales: revísalos al cambiar de plan.
+const LIMITES = {
+  render_gb: 100,              // Render: GB de salida al mes incluidos (Render → Billing)
+  neon_mb: 512,                // Neon gratis: 0,5 GB de almacenamiento por proyecto
+  r2_lecturas: 10_000_000,     // Cloudflare R2: lecturas (clase B) gratis al mes; cada tesela del mapa propio ≈ 1
+  esri_teselas: 2_000_000,     // ArcGIS Location Platform gratis: teselas de mapa base al mes
+  strava_dia: 2_000,           // Strava: lecturas por día para toda la app (sube al aprobarla)
+};
+const MB = (b) => (b / 1e6).toLocaleString("es-CL", { maximumFractionDigits: b >= 1e8 ? 0 : 1 });
+const tam = (b) => !b ? "0 MB" : b < 1e6 ? `${Math.max(1, Math.round(b / 1e3))} KB` : `${MB(b)} MB`;
+function diasPeriodo() {
+  const d = (new Date($("hasta").value) - new Date($("desde").value)) / 864e5 + 1;
+  return Math.max(1, Math.round(d) || 1);
+}
+function barraLimite(valor, limite) {
+  const p = limite ? valor / limite : 0;
+  const color = p >= 0.8 ? "var(--error)" : p >= 0.5 ? "#e0a100" : "var(--verde)";
+  return `<div class="limite"><i style="width:${Math.min(100, 100 * p).toFixed(1)}%;background:${color}"></i></div>
+    <small>${(100 * p).toLocaleString("es-CL", { maximumFractionDigits: 1 })} % del límite al mes</small>`;
+}
+function pintarConsumo() {
+  const caja = $("consumo");
+  if (!caja || !datos) return;
+  const dias = diasPeriodo(), mes = (x) => x * 30 / dias;
+  const filas = datos.filas, mapas = datos.mapas || [];
+  const servidor = filas.reduce((a, f) => a + (f.bytes_out || 0) + (f.bytes_in || 0), 0);
+  const calculo = filas.reduce((a, f) => a + (f.ms || 0), 0);
+  const stravaPorDia = {};
+  for (const f of filas) if ((f.consulta || "").startsWith("strava") && f.externas) stravaPorDia[f.dia] = (stravaPorDia[f.dia] || 0) + f.externas;
+  const strava = Object.values(stravaPorDia).reduce((a, x) => a + x, 0), stravaMax = Math.max(0, ...Object.values(stravaPorDia));
+  const porMapa = (tipo) => mapas.filter((m) => m.tipo === tipo).reduce((a, m) => ({ t: a.t + (m.externas || 0), b: a.b + (m.bytes_out || 0), e: a.e || m.detalle === "estimado" }), { t: 0, b: 0, e: false });
+  const propio = porMapa("mapa_propio"), esri = porMapa("esri"), relieve = porMapa("relieve");
+  const base = consumoInfo?.base;
+  const est = (x) => x.e ? ' <span class="tag">estimado</span>' : "";
+
+  // Por usuario: la cuenta si entró con una; si no, el id anónimo del teléfono.
+  const quien = (f) => f.cuenta ? (consumoInfo?.cuentas?.[f.cuenta] || `cuenta ${f.cuenta.slice(0, 6)}`) : `anónimo ${String(f.usuario || "?").slice(0, 6)}`;
+  const U = new Map();
+  const de = (k) => U.get(k) || U.set(k, { q: 0, srv: 0, ms: 0, ext: 0, tes: 0, mapa: 0 }).get(k);
+  for (const f of filas) { const u = de(quien(f)); u.q++; u.srv += (f.bytes_out || 0) + (f.bytes_in || 0); u.ms += f.ms || 0; u.ext += f.externas || 0; }
+  for (const m of mapas) { const u = de(quien(m)); u.tes += m.externas || 0; u.mapa += m.bytes_out || 0; }
+  const totalDatos = [...U.values()].reduce((a, u) => a + u.srv + u.mapa, 0) || 1;
+  const usuarios = [...U.entries()].sort((a, b) => (b[1].srv + b[1].mapa) - (a[1].srv + a[1].mapa));
+
+  // Qué consultas gastan más datos del servidor.
+  const T = new Map();
+  for (const f of filas) { const t = T.get(f.consulta) || { n: 0, b: 0, ms: 0 }; t.n++; t.b += (f.bytes_out || 0) + (f.bytes_in || 0); t.ms += f.ms || 0; T.set(f.consulta, t); }
+  const tipos = [...T.entries()].sort((a, b) => b[1].b - a[1].b).slice(0, 10);
+
+  caja.innerHTML = `<div class="tarjeta"><h2>Consumo y escala</h2>
+    <p class="sub">Todo el periodo (${dias} ${dias === 1 ? "día" : "días"}, sin los filtros de arriba) · «al mes» proyecta el periodo a 30 días.
+      Las teselas del mapa no pasan por el servidor: las cuenta cada teléfono.</p>
+    <div class="kpis consumo-kpis">
+      <div class="kpi"><span>Datos del servidor</span><b>${tam(servidor)}</b><small>≈ ${tam(mes(servidor))} al mes</small>${barraLimite(mes(servidor) / 1e9, LIMITES.render_gb)}</div>
+      <div class="kpi"><span>Cálculo del servidor</span><b>${(calculo / 3.6e6).toLocaleString("es-CL", { maximumFractionDigits: 2 })} h</b><small>≈ ${(mes(calculo) / 3.6e6).toLocaleString("es-CL", { maximumFractionDigits: 1 })} h al mes</small></div>
+      <div class="kpi"><span>Strava (lecturas)</span><b>${num(strava)}</b><small>día más alto: ${num(stravaMax)}</small>${barraLimite(stravaMax * 30, LIMITES.strava_dia * 30)}</div>
+      <div class="kpi"><span>Mapa propio (R2)</span><b>${num(propio.t)}</b><small>teselas · ${tam(propio.b)}${est(propio)}</small>${barraLimite(mes(propio.t), LIMITES.r2_lecturas)}</div>
+      <div class="kpi"><span>Esri</span><b>${num(esri.t)}</b><small>teselas · ${tam(esri.b)}${est(esri)}</small>${barraLimite(mes(esri.t), LIMITES.esri_teselas)}</div>
+      <div class="kpi"><span>Relieve (AWS)</span><b>${num(relieve.t)}</b><small>teselas · ${tam(relieve.b)}${est(relieve)} · gratis</small></div>
+    </div>
+    <div class="grid">
+      <div class="tarjeta"><h2>Por usuario</h2><p class="sub">Datos = servidor + mapas · ordenado por consumo</p>
+        ${usuarios.length ? `<div class="tabla alta"><table><thead><tr><th>Usuario</th><th class="num">Consultas</th><th class="num">Servidor</th>
+          <th class="num">Cálculo</th><th class="num">Externas</th><th class="num">Teselas</th><th class="num">Mapas</th><th class="num">% datos</th></tr></thead><tbody>
+          ${usuarios.map(([k, u]) => `<tr><td>${esc(k)}</td><td class="num">${num(u.q)}</td><td class="num">${tam(u.srv)}</td>
+            <td class="num">${(u.ms / 1000).toLocaleString("es-CL", { maximumFractionDigits: 0 })} s</td><td class="num">${num(u.ext)}</td>
+            <td class="num">${num(u.tes)}</td><td class="num">${tam(u.mapa)}</td>
+            <td class="num">${(100 * (u.srv + u.mapa) / totalDatos).toLocaleString("es-CL", { maximumFractionDigits: 1 })} %</td></tr>`).join("")}
+          </tbody></table></div>` : '<div class="vacio">Sin datos de consumo en el periodo.</div>'}</div>
+      <div class="tarjeta"><h2>Base de datos</h2><p class="sub">${base ? `${base.motor === "postgres" ? "Postgres (Neon)" : "SQLite local"} · ${tam(base.total_bytes)} de ${num(LIMITES.neon_mb)} MB` : "Cargando…"}</p>
+        ${base ? barraLimite(base.total_bytes / 1e6, LIMITES.neon_mb).replace(" al mes", "") + `<div class="tabla"><table><thead><tr><th>Tabla</th><th class="num">Filas</th><th class="num">Tamaño</th></tr></thead><tbody>
+          ${base.tablas.map((t) => `<tr><td class="mono">${t.tabla}</td><td class="num">${num(t.filas)}</td><td class="num">${t.bytes != null ? tam(t.bytes) : "—"}</td></tr>`).join("")}
+          </tbody></table></div>` : ""}
+        <h2 style="margin-top:16px">Qué consultas gastan más</h2><p class="sub">Datos del servidor y cálculo por tipo</p>
+        <div class="tabla"><table><thead><tr><th>Consulta</th><th class="num">Veces</th><th class="num">Datos</th><th class="num">Cálculo</th></tr></thead><tbody>
+          ${tipos.map(([k, t]) => `<tr><td>${esc(nombre(k))}</td><td class="num">${num(t.n)}</td><td class="num">${tam(t.b)}</td><td class="num">${(t.ms / 1000).toLocaleString("es-CL", { maximumFractionDigits: 0 })} s</td></tr>`).join("")}
+          </tbody></table></div></div>
+    </div></div>`;
 }
 
 function graficoDias(F) {

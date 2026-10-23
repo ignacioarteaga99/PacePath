@@ -167,6 +167,8 @@ def _http(metodo: str, url: str, datos: dict | None = None,
     lectura = metodo == "GET" and token is not None          # cuenta en el cupo de lecturas
     if lectura:
         revisar_cupo()
+    from . import uso
+    uso.contar_externa()
     try:
         with urllib.request.urlopen(req, timeout=20) as r:  # noqa: S310
             if lectura:

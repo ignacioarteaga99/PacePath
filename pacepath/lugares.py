@@ -149,6 +149,8 @@ def _nominatim_http(params: dict) -> list[dict]:
         _nom_ultima = time.time()
     req = urllib.request.Request(NOMINATIM + "?" + urllib.parse.urlencode(params),
                                  headers={"User-Agent": "PacePath/0.1 (https://pacepath.onrender.com)"})
+    from . import uso
+    uso.contar_externa()
     with urllib.request.urlopen(req, timeout=8) as r:  # noqa: S310
         return json.loads(r.read() or b"[]")
 

@@ -25,6 +25,8 @@
     GET  /api/admin/acceso       beta cerrada: activa o no (misma cabecera)
     POST /api/admin/acceso       activarla o desactivarla
     GET/POST/PATCH/DELETE /api/admin/usuarios[/id]   cuentas (y quién es beta)
+    GET  /api/admin/consumo      tamaño de la base y correos de las cuentas (panel «Consumo»)
+    POST /api/consumo            el teléfono informa las teselas de mapa que bajó
     POST /api/auth/registro · /api/auth/entrar · /api/auth/salir   cuenta con correo
     GET  /api/auth/google · /api/auth/microsoft      entrar con Google o Microsoft
     GET  /api/cuenta             quién soy, si puedo entrar y si la beta está cerrada
@@ -204,24 +206,46 @@ async def _registrar(request: Request, call_next):
     info: dict = {"consulta": consulta, "usuario": usuario, "strava": strava.COOKIE in request.cookies,
                   "idioma": "en" if lang.lower().startswith("en") else "es",
                   "disp": _dispositivo(request.headers.get("user-agent", ""))}
+    cuenta = _usuario(request)
+    info["cuenta"] = cuenta["id"] if cuenta else None
+    largo = request.headers.get("content-length", "")
+    info["bytes_in"] = int(largo) if largo.isdigit() else 0
     marca = uso.consulta.set(info)
     t0 = time.perf_counter()
-    try:
-        resp = await call_next(request)
-        info["estado"] = resp.status_code
-        if nuevo:
-            resp.set_cookie(COOKIE_USUARIO, usuario, max_age=400 * 24 * 3600, httponly=True,
-                            samesite="lax", secure=_base(request).startswith("https"))
-        return resp
-    except Exception as exc:
-        info.update(estado=500, exito=False, error=f"{type(exc).__name__}: {exc}")
-        raise
-    finally:
-        uso.consulta.reset(marca)
-        info["ms"] = round((time.perf_counter() - t0) * 1000)
+
+    def terminar() -> None:
+        info.setdefault("ms", round((time.perf_counter() - t0) * 1000))
         info.setdefault("exito", info.get("estado", 500) < 400)
         info.setdefault("evento", consulta)
         registro.anotar(info)
+    try:
+        resp = await call_next(request)
+    except Exception as exc:
+        info.update(estado=500, exito=False, error=f"{type(exc).__name__}: {exc}")
+        uso.consulta.reset(marca)
+        terminar()
+        raise
+    uso.consulta.reset(marca)
+    info["estado"] = resp.status_code
+    info["ms"] = round((time.perf_counter() - t0) * 1000)      # cálculo, sin el envío
+    if nuevo:
+        resp.set_cookie(COOKIE_USUARIO, usuario, max_age=400 * 24 * 3600, httponly=True,
+                        samesite="lax", secure=_base(request).startswith("https"))
+    # Los bytes que salen (ya comprimidos: GZip va por dentro), contados al
+    # terminar de enviarse; recién ahí se anota la fila.
+    cuerpo = resp.body_iterator
+
+    async def contar():
+        n = 0
+        try:
+            async for trozo in cuerpo:
+                n += len(trozo)
+                yield trozo
+        finally:
+            info["bytes_out"] = n
+            terminar()
+    resp.body_iterator = contar()
+    return resp
 
 
 @app.middleware("http")
@@ -365,6 +389,47 @@ def evento(body: Evento) -> dict:
         if fallo:
             _anotar(error=body.detalle)
     return {"ok": True}
+
+
+# ── Consumo del lado del teléfono (panel «Consumo») ────────────────────────
+# Las teselas del mapa no pasan por el servidor: el navegador las baja directo
+# de Cloudflare R2 (mapa propio), AWS (relieve) y Esri. El teléfono cuenta
+# cuántas bajó de cada uno y cuánto pesaron, y lo manda en resúmenes.
+PROVEEDORES_MAPA = {"mapa_propio", "relieve", "esri", "otro"}
+
+
+class ResumenMapa(BaseModel):
+    tipo: str = Field(max_length=20)
+    teselas: int = Field(ge=0, le=100_000)
+    bytes: int = Field(ge=0, le=2_000_000_000)
+    estimado: bool = False
+
+
+class Consumo(BaseModel):
+    mapas: list[ResumenMapa] = Field(max_length=10)
+
+
+@app.post("/api/consumo", include_in_schema=False)
+def consumo(body: Consumo, request: Request) -> dict:
+    u = _usuario(request)
+    anonimo = request.cookies.get(COOKIE_USUARIO, "")
+    for m in body.mapas:
+        if m.tipo not in PROVEEDORES_MAPA or not m.teselas:
+            continue
+        registro.anotar({"consulta": "consumo_mapa", "evento": "consumo_mapa", "tipo": m.tipo,
+                         "usuario": anonimo if re.fullmatch(r"[0-9a-f]{10}", anonimo) else None,
+                         "cuenta": u["id"] if u else None, "exito": True, "estado": 200,
+                         "detalle": "estimado" if m.estimado else None,
+                         "bytes_out": m.bytes, "externas": min(m.teselas, 32_000)})
+    return {"ok": True}
+
+
+@app.get("/api/admin/consumo", include_in_schema=False)
+def admin_consumo(request: Request) -> dict:
+    """Para el panel «Consumo»: tamaño de la base (vs el límite del plan) y
+    quién es cada cuenta (el registro guarda sólo su id)."""
+    _solo_admin(request)
+    return {"base": registro.tamanos(), "cuentas": {u["id"]: u["correo"] for u in cuentas.listar()}}
 
 
 @app.get("/api/uso", include_in_schema=False)

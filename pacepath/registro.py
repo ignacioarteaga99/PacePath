@@ -30,12 +30,18 @@ MAX_PENDIENTES = 20_000            # si la base no responde por mucho rato, no c
 MAX_FILAS_CONSULTA = 100_000
 
 COLUMNAS = ("ts", "dia", "usuario", "strava", "consulta", "evento", "tipo", "comuna",
-            "detalle", "exito", "estado", "ms", "error", "idioma", "disp")
+            "detalle", "exito", "estado", "ms", "error", "idioma", "disp",
+            # Consumo (panel «Consumo»): cuenta que consultó, bytes que llegaron y
+            # que salieron (ya comprimidos) y llamadas a servicios externos.
+            "cuenta", "bytes_in", "bytes_out", "externas")
+# Columnas agregadas después de crear la tabla (en Neon ya hay datos).
+_MIGRACIONES = [("cuenta", "TEXT"), ("bytes_in", "INTEGER"), ("bytes_out", "INTEGER"), ("externas", "SMALLINT")]
 
 _DDL_PG = """CREATE TABLE IF NOT EXISTS pp_eventos (
   id BIGSERIAL PRIMARY KEY, ts TEXT NOT NULL, dia TEXT NOT NULL, usuario TEXT, strava SMALLINT,
   consulta TEXT, evento TEXT, tipo TEXT, comuna TEXT, detalle TEXT, exito SMALLINT,
-  estado SMALLINT, ms INTEGER, error TEXT, idioma TEXT, disp TEXT);
+  estado SMALLINT, ms INTEGER, error TEXT, idioma TEXT, disp TEXT,
+  cuenta TEXT, bytes_in INTEGER, bytes_out INTEGER, externas SMALLINT);
 CREATE INDEX IF NOT EXISTS pp_eventos_dia ON pp_eventos (dia);
 CREATE TABLE IF NOT EXISTS pp_ajustes (clave TEXT PRIMARY KEY, valor TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS pp_usuarios (
@@ -91,6 +97,8 @@ class _Base:
                 if not self._lista:
                     for parte in _DDL_PG.split(";"):
                         cur.execute(parte)
+                    for col, tipo in _MIGRACIONES:
+                        cur.execute(f"ALTER TABLE pp_eventos ADD COLUMN IF NOT EXISTS {col} {tipo}")
                     self._lista = True
                 if filas is not None and not traer:
                     cur.executemany(sql, filas)
@@ -101,6 +109,10 @@ class _Base:
             con = self._con()
             if not self._lista:
                 con.executescript(_DDL_SQLITE)
+                hay = {f[1] for f in con.execute("PRAGMA table_info(pp_eventos)")}
+                for col, tipo in _MIGRACIONES:
+                    if col not in hay:
+                        con.execute(f"ALTER TABLE pp_eventos ADD COLUMN {col} {tipo}")
                 self._lista = True
             if filas is not None and not traer:
                 con.executemany(sql, filas)
@@ -255,3 +267,20 @@ def sql(consulta: str, params: tuple = (), traer: bool = False):
     no en lotes."""
     base = _el_escritor().base
     return base._ejecutar(consulta, params, traer=True) if traer else base._ejecutar(consulta, [params])
+
+
+def tamanos() -> dict:
+    """Tamaño de la base y de cada tabla (bytes) y cuántas filas tiene cada una:
+    para ver cuánto falta para el límite del plan (Neon gratis: 0,5 GB)."""
+    base = _el_escritor().base
+    tablas = ("pp_eventos", "pp_usuarios", "pp_sesiones", "pp_tokens", "pp_ajustes")
+    filas = {t: base._ejecutar(f"SELECT COUNT(*) FROM {t}", (), traer=True)[0][0] for t in tablas}
+    if base.pg:
+        total = base._ejecutar("SELECT pg_database_size(current_database())", (), traer=True)[0][0]
+        por_tabla = {t: base._ejecutar("SELECT pg_total_relation_size(?)", (t,), traer=True)[0][0] for t in tablas}
+    else:
+        ruta = base.url or os.path.join(tempfile.gettempdir(), "pacepath_registro.sqlite")
+        total = os.path.getsize(ruta) if os.path.exists(ruta) else 0
+        por_tabla = {t: None for t in tablas}           # SQLite no lo da por tabla
+    return {"motor": base.nombre, "total_bytes": total,
+            "tablas": [{"tabla": t, "filas": filas[t], "bytes": por_tabla[t]} for t in tablas]}

@@ -120,7 +120,8 @@ def test_con_postgres_se_guarda_de_a_lotes_y_el_panel_fuerza_el_guardado(tmp_pat
     """Con un intervalo largo nada se escribe hasta que alguien pide los datos."""
     monkeypatch.setenv("PACEPATH_REGISTRO_SEG", "3600")
     esc = registro._Escritor(registro._Base(str(tmp_path / "r.sqlite")))
-    esc.anotar((*registro.ahora(), "0123456789", 0, "visita", "visita", None, None, None, 1, 200, 5, None, "es", "iPhone"))
+    esc.anotar((*registro.ahora(), "0123456789", 0, "visita", "visita", None, None, None, 1, 200, 5, None, "es", "iPhone",
+                None, 0, 1234, None))
     import time
     time.sleep(0.3)
     assert esc.cola.unfinished_tasks == 1                    # sigue en memoria

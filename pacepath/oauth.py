@@ -86,6 +86,8 @@ def terminar(proveedor: str, code: str, state: str, cookie: str | None, vuelta: 
     req = urllib.request.Request(PROVEEDORES[proveedor]["token"], data=datos,
                                  headers={"Content-Type": "application/x-www-form-urlencoded",
                                           "User-Agent": "PacePath/0.1"})
+    from . import uso
+    uso.contar_externa()
     try:
         with urllib.request.urlopen(req, timeout=15) as r:  # noqa: S310 — URL fija
             resp = json.load(r)

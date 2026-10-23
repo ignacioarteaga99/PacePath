@@ -205,3 +205,36 @@ def test_recuperar_clave(con_correo):
     assert otro.post("/api/auth/nueva-clave", json={"codigo": codigo, "clave": "otra-clave-2026"}).status_code == 400   # se usa una vez
     assert cli.get("/api/cuenta").json()["usuario"] is None                    # la sesión vieja se cerró
     assert TestClient(app).post("/api/auth/entrar", json={"correo": "ana@ejemplo.cl", "clave": "clave-nueva-2026"}).status_code == 200
+
+
+def test_consumo_por_cuenta(base):
+    """Cada consulta guarda su cuenta y sus bytes; el teléfono informa las teselas;
+    el panel ve el tamaño de la base y quién es cada cuenta. Al borrar la cuenta se desliga."""
+    cli = TestClient(app)
+    u = cli.post("/api/admin/usuarios", headers=ADMIN, json={"correo": "tester@ejemplo.cl", "beta": True,
+                                                              "clave": "nueva-clave-123"}).json()
+    cli.post("/api/auth/entrar", json={"correo": "tester@ejemplo.cl", "clave": "nueva-clave-123"})
+    assert cli.post("/api/sesion", json={"texto": "6x1k"}).status_code == 200
+    r = cli.post("/api/consumo", json={"mapas": [{"tipo": "mapa_propio", "teselas": 120, "bytes": 3_600_000},
+                                                 {"tipo": "esri", "teselas": 40, "bytes": 1_000_000, "estimado": True},
+                                                 {"tipo": "raro", "teselas": 5, "bytes": 10}]})
+    assert r.json() == {"ok": True}
+    assert TestClient(app).post("/api/consumo", json={"mapas": []}).status_code == 401   # sin sesión no
+    registro.vaciar()
+    j = cli.get("/api/admin/eventos", headers=ADMIN).json()
+    filas = [dict(zip(j["columnas"], f)) for f in j["filas"]]
+    sesion = next(f for f in filas if f["consulta"] == "interpretar")
+    assert sesion["cuenta"] == u["id"] and sesion["bytes_out"] > 0 and sesion["bytes_in"] > 0
+    mapas = {f["tipo"]: f for f in filas if f["consulta"] == "consumo_mapa"}
+    assert set(mapas) == {"mapa_propio", "esri"}
+    assert mapas["mapa_propio"]["externas"] == 120 and mapas["mapa_propio"]["bytes_out"] == 3_600_000
+    assert mapas["esri"]["detalle"] == "estimado" and mapas["esri"]["cuenta"] == u["id"]
+
+    assert cli.get("/api/admin/consumo").status_code == 404
+    c = cli.get("/api/admin/consumo", headers=ADMIN).json()
+    assert c["cuentas"] == {u["id"]: "tester@ejemplo.cl"}
+    assert c["base"]["motor"] == "sqlite" and c["base"]["total_bytes"] > 0
+    assert any(t["tabla"] == "pp_eventos" and t["filas"] >= 3 for t in c["base"]["tablas"])
+
+    cli.delete(f"/api/admin/usuarios/{u['id']}", headers=ADMIN)
+    assert registro.sql("SELECT COUNT(*) FROM pp_eventos WHERE cuenta = ?", (u["id"],), traer=True)[0][0] == 0

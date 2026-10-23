@@ -961,6 +961,42 @@ const CAPAS = Object.fromEntries(Object.keys(CAPAS_PUBLICAS).map((k) =>
 // librerías (~900 KB) se cargan sólo al usar esta capa. Si no hay WebGL o el
 // mapa no responde, se vuelve a Esri (y se avisa al panel).
 const MAPA_BASE = window.PP_MAPA || null;
+// ── Consumo de mapas (panel «Consumo» del admin) ────────────────────────────
+// Las teselas no pasan por el servidor: el teléfono cuenta cuántas baja de
+// cada proveedor y cuánto pesan, y lo manda en resúmenes cada 2 minutos y al
+// salir. Si el proveedor no deja ver el peso (navegación entre dominios sin
+// Timing-Allow-Origin), se suma un promedio y se marca como estimado. El
+// relieve lo baja MapLibre desde un worker (no se ve desde aquí): se cuentan
+// las teselas que el mapa avisa que cargó.
+const CONSUMO = { mapa_propio: { t: 0, b: 0, e: false }, relieve: { t: 0, b: 0, e: false }, esri: { t: 0, b: 0, e: false } };
+const PESO_PROMEDIO = { mapa_propio: 30000, relieve: 70000, esri: 25000 };     // bytes por tesela
+const hostMapa = (() => { try { return MAPA_BASE ? new URL(MAPA_BASE, location.href).host : null; } catch { return null; } })();
+function anotarConsumo(tipo, bytes) {
+  const c = CONSUMO[tipo];
+  c.t++;
+  if (bytes > 0) c.b += bytes; else { c.b += PESO_PROMEDIO[tipo]; c.e = true; }
+}
+try {
+  new PerformanceObserver((lista) => {
+    for (const e of lista.getEntries()) {
+      let host; try { host = new URL(e.name).host; } catch { continue; }
+      const tipo = host === hostMapa ? "mapa_propio" : /arcgis/.test(host) ? "esri"
+        : /elevation-tiles-prod/.test(e.name) ? "relieve" : null;
+      if (tipo) anotarConsumo(tipo, e.transferSize || e.encodedBodySize || 0);
+    }
+  }).observe({ type: "resource", buffered: true });
+} catch { /* navegador sin PerformanceObserver: sin consumo de mapas */ }
+function enviarConsumo() {
+  const mapas = Object.entries(CONSUMO).filter(([, c]) => c.t)
+    .map(([tipo, c]) => ({ tipo, teselas: c.t, bytes: Math.round(c.b), estimado: c.e }));
+  if (!mapas.length) return;
+  for (const c of Object.values(CONSUMO)) Object.assign(c, { t: 0, b: 0, e: false });
+  const cuerpo = JSON.stringify({ mapas });
+  if (!navigator.sendBeacon?.("/api/consumo", new Blob([cuerpo], { type: "application/json" })))
+    _fetch("/api/consumo", { method: "POST", headers: { "Content-Type": "application/json" }, body: cuerpo, keepalive: true }).catch(() => {});
+}
+setInterval(enviarConsumo, 120000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") enviarConsumo(); });
 let mapaPropioFallo = false;
 const hayWebGL = (() => { try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; } })();
 const hayMapaPropio = () => !!MAPA_BASE && hayWebGL && !mapaPropioFallo;
@@ -991,7 +1027,10 @@ CAPAS.pacepath = () => {
 // El mapa propio sólo da errores (p. ej. aún no se sube a R2): de vuelta a Esri.
 function vigilarMapaPropio(m) {
   let ok = 0;
-  m.on("data", (e) => { if (e.sourceId === "pp" && e.tile) ok++; });
+  m.on("data", (e) => {
+    if (e.sourceId === "pp" && e.tile) ok++;
+    if (e.sourceId === "relieve" && e.tile && e.dataType === "source") anotarConsumo("relieve", 0);
+  });
   m.on("error", (e) => {
     const msg = String(e.error?.message || e.error || "");
     if (e.sourceId !== "pp" && !/pmtiles/i.test(msg)) return;          // el relieve puede fallar sin problema

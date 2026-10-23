@@ -56,3 +56,11 @@ def resumen() -> dict:
     return {"desde": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(_DESDE)),
             "totales": dict(por_evento.most_common()),
             "detalle": [{"dia": k[0], "evento": k[1], "detalle": " · ".join(k[2:]), "veces": n} for k, n in filas]}
+
+
+def contar_externa(n: int = 1) -> None:
+    """Una llamada a un servicio externo (Strava, Nominatim, Google…) en la
+    consulta en curso: se ve en el panel «Consumo»."""
+    info = consulta.get()
+    if info is not None:
+        info["externas"] = info.get("externas", 0) + n

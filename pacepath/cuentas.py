@@ -155,6 +155,9 @@ def actualizar(uid: str, **cambios) -> dict:
 def borrar(uid: str) -> None:
     cerrar_sesiones(uid)
     registro.sql("DELETE FROM pp_usuarios WHERE id = ?", (uid,))
+    registro.sql("DELETE FROM pp_tokens WHERE usuario = ?", (uid,))
+    registro.vaciar()
+    registro.sql("UPDATE pp_eventos SET cuenta = NULL WHERE cuenta = ?", (uid,))   # el registro deja de ser suyo
     _olvidar_usuario(uid)
 
 

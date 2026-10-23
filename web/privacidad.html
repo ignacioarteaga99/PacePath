@@ -90,18 +90,21 @@
       de ellas en tu teléfono. También puedes revocar el acceso desde la configuración de Strava
       (Configuración → Mis aplicaciones). Lo demás se borra limpiando los datos del sitio en tu navegador.</p>
 
-    <h2>Métricas anónimas</h2>
+    <h2>Métricas de uso</h2>
     <p>Para mejorar la beta registramos cada consulta a la aplicación: cuándo, de qué tipo (ruta, GPX, conexión con
       Strava…), si salió bien o con error, cuánto tardó, el tipo de sesión y el texto que escribiste («6x1k»), la
       comuna, el idioma y el tipo de dispositivo (iPhone, Android…). Para contar cuántas personas usan la app, tu
-      teléfono guarda una cookie con un número al azar; no está ligado a tu nombre, a tu correo ni a tu cuenta de
-      Strava. No registramos coordenadas, direcciones, tu IP ni datos de Strava. El registro se borra al año.</p>
+      teléfono guarda una cookie con un número al azar. Para saber cuánto cuesta mantener la app y cuándo hay que
+      ampliarla, cada consulta queda además ligada a tu cuenta de PacePath junto con su consumo: cuántos datos
+      transfirió, cuánto cálculo ocupó y cuántas llamadas a otros servicios hizo; tu teléfono también informa
+      cuántas teselas de mapa descargó. No registramos coordenadas, direcciones, tu IP ni datos de Strava. El
+      registro se borra al año, y al borrar tu cuenta deja de estar ligado a ti.</p>
 
     <h2>Terceros</h2>
     <ul>
       <li><b>Strava</b>: conexión con tu cuenta (si la usas).</li>
       <li><b>Google y Microsoft</b>: inicio de sesión (si lo usas).</li>
-      <li><b>Neon</b>: base de datos donde se guardan las cuentas y el registro anónimo.</li>
+      <li><b>Neon</b>: base de datos donde se guardan las cuentas y el registro de uso.</li>
       <li><b>Mapa</b>: tu navegador descarga el mapa de PacePath (datos de OpenStreetMap, guardados en Cloudflare), el relieve
         de los Terrain Tiles de AWS Open Data y, en las otras capas, las imágenes de Esri.</li>
       <li><b>Nominatim (OpenStreetMap)</b>: búsqueda de direcciones con número.</li>
@@ -168,18 +171,21 @@
       your phone. You can also revoke access from Strava's settings (Settings → My Apps). Everything else is deleted
       by clearing this site's data in your browser.</p>
 
-    <h2>Anonymous metrics</h2>
+    <h2>Usage metrics</h2>
     <p>To improve the beta we log each request to the app: when, what kind (route, GPX, Strava connection…), whether
       it worked or failed, how long it took, the session type and the text you typed ("6x1k"), the district, the
       language and the device type (iPhone, Android…). To count how many people use the app, your phone keeps a
-      cookie with a random number; it isn't linked to your name, email or Strava account. We never log
-      coordinates, addresses, your IP or Strava data. The log is deleted after a year.</p>
+      cookie with a random number. To know what running the app costs and when it needs to grow, each request is
+      also linked to your PacePath account along with its usage: how much data it transferred, how much computing
+      it took and how many calls to other services it made; your phone also reports how many map tiles it
+      downloaded. We never log coordinates, addresses, your IP or Strava data. The log is deleted after a year,
+      and once you delete your account it is no longer linked to you.</p>
 
     <h2>Third parties</h2>
     <ul>
       <li><b>Strava</b>: connection to your account (if you use it).</li>
       <li><b>Google and Microsoft</b>: sign-in (if you use it).</li>
-      <li><b>Neon</b>: database that stores accounts and the anonymous log.</li>
+      <li><b>Neon</b>: database that stores accounts and the usage log.</li>
       <li><b>Map</b>: your browser downloads the PacePath map (OpenStreetMap data, stored on Cloudflare), the terrain from
         AWS Open Data Terrain Tiles and, for the other layers, Esri's map images.</li>
       <li><b>Nominatim (OpenStreetMap)</b>: search for addresses with a number.</li>
