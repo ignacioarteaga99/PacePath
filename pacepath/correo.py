@@ -24,10 +24,14 @@ from __future__ import annotations
 
 import contextvars
 import html
+import json
 import os
 import smtplib
 import ssl
 import threading
+import time
+import urllib.error
+import urllib.request
 from email.message import EmailMessage
 from email.utils import make_msgid
 
@@ -44,7 +48,43 @@ def enviar(para: str, asunto: str, texto: str, html_: str | None = None) -> None
     if not activo():
         raise RuntimeError("el envío de correos está apagado")
     host, _, puerto = os.environ["PACEPATH_CORREO_SMTP"].partition(":")
-    puerto = int(puerto or 465)
+    try:
+        # Render gratis no deja salir conexiones a los puertos SMTP (25/465/587):
+        # con Resend se manda por su API web (HTTPS), con la misma clave.
+        if "resend" in host:
+            _por_resend(para, asunto, texto, html_)
+        else:
+            _por_smtp(host, int(puerto or 465), para, asunto, texto, html_)
+    except Exception as exc:
+        estado.update(error=f"{type(exc).__name__}: {exc}"[:300], error_ts=time.time())
+        raise
+    estado.update(ok_ts=time.time(), error=None)
+
+
+# Último envío (en memoria), para mostrarlo en el panel.
+estado: dict = {"ok_ts": None, "error": None, "error_ts": None}
+
+
+def _por_resend(para: str, asunto: str, texto: str, html_: str | None) -> None:
+    cuerpo = {"from": os.environ["PACEPATH_CORREO_DE"], "to": [para], "subject": asunto, "text": texto}
+    if html_:
+        cuerpo["html"] = html_
+    req = urllib.request.Request("https://api.resend.com/emails", data=json.dumps(cuerpo).encode(), method="POST",
+                                 headers={"Authorization": f"Bearer {os.environ['PACEPATH_CORREO_CLAVE']}",
+                                          "Content-Type": "application/json", "User-Agent": "PacePath/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            r.read()
+    except urllib.error.HTTPError as exc:
+        detalle = exc.read().decode("utf-8", "replace")[:300]
+        try:
+            detalle = json.loads(detalle).get("message", detalle)
+        except ValueError:
+            pass
+        raise RuntimeError(f"Resend respondió {exc.code}: {detalle}") from None
+
+
+def _por_smtp(host: str, puerto: int, para: str, asunto: str, texto: str, html_: str | None) -> None:
     m = EmailMessage()
     m["From"], m["To"], m["Subject"] = os.environ["PACEPATH_CORREO_DE"], para, asunto
     m["Message-ID"] = make_msgid(domain="pacepathapp.com")
@@ -52,7 +92,7 @@ def enviar(para: str, asunto: str, texto: str, html_: str | None = None) -> None
     if html_:
         m.add_alternative(html_, subtype="html")
     contexto = ssl.create_default_context()
-    if puerto == 465:
+    if puerto in (465, 2465):
         with smtplib.SMTP_SSL(host, puerto, context=contexto, timeout=15) as s:
             s.login(os.environ["PACEPATH_CORREO_USUARIO"], os.environ["PACEPATH_CORREO_CLAVE"])
             s.send_message(m)
@@ -257,3 +297,10 @@ def aviso_registro(correo_: str, nombre: str | None, metodo: str, beta_pendiente
                        ("Abrir el panel", f"{_base()}/admin"),
                        motivo="Aviso del equipo de PacePath (PACEPATH_CORREO_AVISOS).")
     enviar(para, f"PacePath · cuenta nueva: {correo_}" + (" (beta pendiente)" if beta_pendiente else ""), texto, h)
+
+
+def prueba(para: str) -> None:
+    """Desde el panel: comprobar que el envío funciona."""
+    texto, h = _correo("Prueba de correo", ["Si lees esto, PacePath ya puede mandar correos. 🎉"],
+                       ("Abrir el panel", f"{_base()}/admin"), motivo="Prueba enviada desde el panel de PacePath.")
+    enviar(para, "PacePath · prueba de correo", texto, h)

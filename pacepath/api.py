@@ -427,6 +427,25 @@ def consumo(body: Consumo, request: Request) -> dict:
     return {"ok": True}
 
 
+class PruebaCorreo(BaseModel):
+    para: str = Field(max_length=200)
+
+
+@app.post("/api/admin/correo/prueba", include_in_schema=False)
+def admin_prueba_correo(body: PruebaCorreo, request: Request) -> dict:
+    """Manda un correo de prueba y, si falla, devuelve el error tal cual."""
+    _solo_admin(request)
+    if not correo.activo():
+        raise HTTPException(503, {"mensaje": "El envío está apagado: revisa las variables PACEPATH_CORREO_* en Render."})
+    try:
+        correo.prueba(cuentas.normalizar_correo(body.para))
+    except cuentas.ErrorCuenta as exc:
+        raise _error_cuenta(exc) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, {"mensaje": f"No se pudo mandar: {type(exc).__name__}: {exc}"}) from exc
+    return {"ok": True}
+
+
 @app.get("/api/admin/consumo", include_in_schema=False)
 def admin_consumo(request: Request) -> dict:
     """Para el panel «Consumo»: tamaño de la base (vs el límite del plan) y
@@ -712,7 +731,7 @@ def _solo_admin(request: Request) -> None:
 @app.get("/api/admin/acceso", include_in_schema=False)
 def admin_acceso(request: Request) -> dict:
     _solo_admin(request)
-    return acceso.estado() | {"correo_activo": correo.activo()}
+    return acceso.estado() | {"correo_activo": correo.activo(), "correo_estado": correo.estado}
 
 
 @app.post("/api/admin/acceso", include_in_schema=False)
@@ -721,7 +740,7 @@ def admin_cambiar_acceso(body: AjustesAcceso, request: Request) -> dict:
     que Render duerma)."""
     _solo_admin(request)
     try:
-        return acceso.configurar(body.activo) | {"correo_activo": correo.activo()}
+        return acceso.configurar(body.activo) | {"correo_activo": correo.activo(), "correo_estado": correo.estado}
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(503, f"No pude guardar en la base de datos: {type(exc).__name__}") from exc
 

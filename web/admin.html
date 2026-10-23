@@ -154,6 +154,8 @@
   .avance.indef i { width: 30% !important; animation: indef 1.4s ease-in-out infinite; }
   @keyframes indef { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
   #vivo td small { color: var(--suave); }
+  .acc-prueba { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .acc-prueba input { flex: 1; min-width: 180px; }
   .histo { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; font-size: 13px; }
   .histo i { display: block; height: 14px; border-radius: 0 4px 4px 0; background: var(--ok); min-width: 2px; }
   .histo span { color: var(--suave); font-variant-numeric: tabular-nums; }
@@ -240,6 +242,8 @@
       <label class="interruptor" title="Activar o desactivar"><input type="checkbox" id="accActivo" role="switch" aria-label="Beta cerrada"><span></span></label>
     </div>
     <p class="acc-aviso" id="accCorreo"></p>
+    <form class="acc-prueba" id="accPrueba" hidden><input type="email" id="pruebaPara" required placeholder="tu@correo.cl" aria-label="Correo para la prueba">
+      <button type="submit">Mandar correo de prueba</button></form>
     <p class="acc-aviso" id="accAviso"></p>
   </section>
 
@@ -392,7 +396,22 @@ function pintarAcceso(a) {
   $("accCorreo").innerHTML = a.correo_activo
     ? 'Correos de verificación y recuperación: <b class="on">encendidos</b>'
     : "Correos de verificación y recuperación: <b>apagados</b> (falta configurar el remitente; mientras, si alguien olvida su clave, pónle una nueva con «Editar»)";
+  const ce = a.correo_estado || {};
+  if (a.correo_activo && ce.error) $("accCorreo").innerHTML += `<br><span class="mal">Último envío falló (${new Date(ce.error_ts * 1000).toLocaleString("es-CL")}): ${esc(ce.error)}</span>`;
+  else if (a.correo_activo && ce.ok_ts) $("accCorreo").innerHTML += ` · último envío bien ${new Date(ce.ok_ts * 1000).toLocaleString("es-CL")}`;
+  $("accPrueba").hidden = !a.correo_activo;
 }
+$("accPrueba").onsubmit = async (e) => {
+  e.preventDefault();
+  const b = $("accPrueba").querySelector("button");
+  b.disabled = true; avisoAcceso("Mandando…");
+  let msg, mal = false;
+  try { await api("/api/admin/correo/prueba", "POST", { para: $("pruebaPara").value.trim() }); msg = `Listo: revisa ${$("pruebaPara").value.trim()} (y Spam).`; }
+  catch (err) { msg = err.message; mal = true; }
+  await acceso();               // refresca «último envío» (y borra el aviso): el resultado va después
+  avisoAcceso(msg, mal);
+  b.disabled = false;
+};
 function avisoAcceso(texto, mal) { $("accAviso").textContent = texto; $("accAviso").className = "acc-aviso" + (mal ? " mal" : ""); }
 async function api(ruta, metodo = "GET", cuerpo) {
   const r = await fetch(ruta, { method: metodo, headers: { "X-Admin-Clave": CLAVE, ...(cuerpo ? { "Content-Type": "application/json" } : {}) },

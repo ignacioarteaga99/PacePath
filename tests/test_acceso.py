@@ -293,3 +293,36 @@ def test_plantilla_de_correo(monkeypatch):
     assert "Apoya PacePath: https://buymeacoffee.com/pacepath" in texto
     monkeypatch.delenv("PACEPATH_APORTE_URL")
     assert "Apoya" not in correo._correo("x", ["y"])[1]
+
+
+def test_resend_por_https_y_prueba_desde_el_panel(base, monkeypatch):
+    """Con Resend se manda por su API (Render gratis bloquea SMTP); si falla,
+    el panel muestra el error."""
+    import io, json as _json, urllib.error
+    from pacepath import correo
+    for k, v in {"PACEPATH_CORREO_ACTIVO": "1", "PACEPATH_CORREO_SMTP": "smtp.resend.com:465", "PACEPATH_CORREO_USUARIO": "resend",
+                 "PACEPATH_CORREO_CLAVE": "re_x", "PACEPATH_CORREO_DE": "PacePath <support@pacepathapp.com>"}.items():
+        monkeypatch.setenv(k, v)
+    pedidos = []
+
+    class R(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+
+    def urlopen(req, timeout):
+        pedidos.append(req)
+        if _json.loads(req.data)["to"] == ["mal@ejemplo.cl"]:
+            raise urllib.error.HTTPError(req.full_url, 403, "x", {}, io.BytesIO(b'{"message":"The pacepathapp.com domain is not verified"}'))
+        return R(b'{"id":"1"}')
+    monkeypatch.setattr(correo.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(correo.smtplib, "SMTP_SSL", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no SMTP")))
+    cli = TestClient(app)
+    assert cli.post("/api/admin/correo/prueba", json={"para": "yo@ejemplo.cl"}).status_code == 404
+    assert cli.post("/api/admin/correo/prueba", headers=ADMIN, json={"para": "yo@ejemplo.cl"}).json() == {"ok": True}
+    req = pedidos[-1]
+    cuerpo = _json.loads(req.data)
+    assert req.full_url == "https://api.resend.com/emails" and req.headers["Authorization"] == "Bearer re_x"
+    assert cuerpo["from"] == "PacePath <support@pacepathapp.com>" and "<html" in cuerpo["html"] and cuerpo["text"]
+    r = cli.post("/api/admin/correo/prueba", headers=ADMIN, json={"para": "mal@ejemplo.cl"})
+    assert r.status_code == 502 and "not verified" in r.json()["detail"]["mensaje"]
+    assert "not verified" in cli.get("/api/admin/acceso", headers=ADMIN).json()["correo_estado"]["error"]
