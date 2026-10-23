@@ -35,7 +35,7 @@ from .explicacion import explicar_continuo, explicar_tempo
 from .metricas import Medida, desnivel, medir
 from .sesion import COSTE_CRUCE, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
 from .series import (
-    SinTramo, aviso_srtm, _calles_trote, _tramo_info, _tramo_trote, base_plan,
+    SinTramo, alcanzables, aviso_srtm, _calles_trote, _tramo_info, _tramo_trote, base_plan,
     buscar_tramos, dentro_radio, nodo_salida, pesos_trote, radio_actual, tramo_final,
 )
 from .parques import en_parque
@@ -164,7 +164,7 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
         geometry=GeometryLayer(smoothness=0.6,
                                search_radius_max_m=_radio_busqueda(distancia_m)),
     )
-    reach = ctx.provider.reachable(casa, w, distancia_m * 0.6)
+    reach = alcanzables(ctx, casa, w, distancia_m * 0.6)
     rng = _semilla(casa, distancia_m, req.tipo.value)
     # Con detenciones caras los tramos dan rodeos y el circuito sale más largo
     # que el anillo de anclas: se genera para un objetivo menor y el ajuste de
@@ -259,16 +259,30 @@ def _arista(ctx: GraphContext, w: RoutingWeights, u: int, v: int) -> int:
 def _metros_arbol(ctx: GraphContext, coste: np.ndarray, pred: np.ndarray,
                   origen: int) -> np.ndarray:
     """Metros reales desde `origen` siguiendo el árbol de coste mínimo (que no
-    es el del camino más corto: el árbol esquiva semáforos)."""
+    es el del camino más corto: el árbol esquiva semáforos).
+
+    Vectorizado con «pointer jumping»: cada nodo suma el tramo hasta su
+    antecesor y salta al antecesor de su antecesor, ~log2(profundidad) pasadas
+    en vez de un bucle de Python por nodo (era ~40 ms por llamada)."""
     g = ctx.graph
-    orden = np.argsort(coste)
-    orden = orden[np.isfinite(coste[orden])]
+    alcanzado = np.isfinite(coste)
     metros = np.full(g.n_nodes, np.inf)
+    sube = np.where(alcanzado & (pred >= 0), pred, -1)
+    v = np.nonzero(sube >= 0)[0]
+    # Cada pasada lee los valores de la anterior (numpy evalúa antes de asignar).
+    acc = np.zeros(g.n_nodes)
+    acc[v] = np.hypot(g.x[v] - g.x[sube[v]], g.y[v] - g.y[sube[v]])
+    anc = sube.copy()
+    activos = v
+    while len(activos):
+        a = anc[activos]
+        acc_nuevo = acc[activos] + acc[a]
+        anc_nuevo = anc[a]
+        acc[activos] = acc_nuevo
+        anc[activos] = anc_nuevo
+        activos = activos[anc_nuevo >= 0]
+    metros[alcanzado] = acc[alcanzado]
     metros[origen] = 0.0
-    for v in orden[1:]:
-        u = pred[v]
-        if u >= 0 and np.isfinite(metros[u]):
-            metros[v] = metros[u] + float(np.hypot(g.x[v] - g.x[u], g.y[v] - g.y[u]))
     return metros
 
 
@@ -328,7 +342,7 @@ def hasta_meta(ctx: GraphContext, casa: int, meta: int, distancia_m: float,
         distance=DistanceLayer(target_m=distancia_m, tolerance_pct=2.0),
         geometry=GeometryLayer(smoothness=0.6, search_radius_max_m=_radio_busqueda(distancia_m)),
     )
-    reach = ctx.provider.reachable(casa, w, distancia_m * 0.7)
+    reach = alcanzables(ctx, casa, w, distancia_m * 0.7)
     rng = _semilla(casa * 7919 + meta, distancia_m, req.tipo.value)
     out = []
     if directo.distance_m >= distancia_m * 0.95:

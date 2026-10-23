@@ -33,22 +33,27 @@ def _nodos_en(lat: np.ndarray, lon: np.ndarray, poli: np.ndarray) -> np.ndarray:
     return dentro
 
 
+def _calcular(ctx: GraphContext) -> np.ndarray:
+    g = ctx.graph
+    nodo = np.zeros(g.n_nodes, dtype=bool)
+    tabla = _nombres.tabla(ctx)
+    for poli in (tabla.parques if tabla else []):
+        p = np.asarray(poli, dtype=np.float64)
+        caja = ((g.lat >= p[:, 0].min()) & (g.lat <= p[:, 0].max())
+                & (g.lon >= p[:, 1].min()) & (g.lon <= p[:, 1].max()))
+        idx = np.nonzero(caja)[0]
+        if len(idx):
+            nodo[idx[_nodos_en(g.lat[idx], g.lon[idx], p)]] = True
+    return g.epark | (nodo[ctx.esrc] & nodo[g.indices])
+
+
 def en_parque(ctx: GraphContext) -> np.ndarray:
     """bool[E] — la arista está en un parque (ambos extremos dentro)."""
     with _lock:
         if ctx.version in _CACHE:
             return _CACHE[ctx.version]
-        g = ctx.graph
-        nodo = np.zeros(g.n_nodes, dtype=bool)
-        tabla = _nombres.tabla(ctx)
-        for poli in (tabla.parques if tabla else []):
-            p = np.asarray(poli, dtype=np.float64)
-            caja = ((g.lat >= p[:, 0].min()) & (g.lat <= p[:, 0].max())
-                    & (g.lon >= p[:, 1].min()) & (g.lon <= p[:, 1].max()))
-            idx = np.nonzero(caja)[0]
-            if len(idx):
-                nodo[idx[_nodos_en(g.lat[idx], g.lon[idx], p)]] = True
-        mascara = g.epark | (nodo[ctx.esrc] & nodo[g.indices])
+        from .disco import en_disco
+        mascara = en_disco("parques", ctx, lambda: _calcular(ctx))
         _CACHE.clear()
         _CACHE[ctx.version] = mascara
         return mascara

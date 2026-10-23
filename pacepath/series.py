@@ -87,6 +87,19 @@ def dentro_radio(ctx: GraphContext, nodos) -> np.ndarray | bool:
     return (g.x[nodos] - cx) ** 2 + (g.y[nodos] - cy) ** 2 <= rad * rad
 
 
+def alcanzables(ctx: GraphContext, src: int, w: RoutingWeights, tope_m: float) -> np.ndarray:
+    """float32[N] — metros por calle desde `src` (sólo aristas permitidas),
+    inf más allá de `tope_m`. Lo mismo que `provider.reachable` de RaceEngine,
+    pero con el Dijkstra de scipy (en C): ~10× más rápido."""
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import dijkstra
+    g = ctx.graph
+    ok = w.allowed_edges & (g.elen > 0)
+    m = csr_matrix((g.elen[ok].astype(np.float64), (ctx.esrc[ok], g.indices[ok])),
+                   shape=(g.n_nodes, g.n_nodes))
+    return dijkstra(m, indices=src, limit=tope_m).astype(np.float32)
+
+
 def pesos_trote(ctx: GraphContext, inicio: int, radio_m: float) -> RoutingWeights:
     """Pesos del motor de RaceEngine para el trote de ida y vuelta: llano, con
     pocos semáforos. Se le añaden las sendas de parque, que la disciplina
@@ -321,7 +334,7 @@ def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: fl
     if radio_actual() is not None:
         radio = min(radio, radio_actual())
     w = pesos_trote(ctx, inicio, radio + req.largo_tramo_m)
-    dist_casa = ctx.provider.reachable(inicio, w, radio)
+    dist_casa = alcanzables(ctx, inicio, w, radio)
     g = ctx.graph
     sx, sy = float(g.x[inicio]), float(g.y[inicio])
     cerca = []

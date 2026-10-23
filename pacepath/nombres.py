@@ -131,8 +131,11 @@ def tabla(ctx: GraphContext) -> TablaNombres | None:
         f = _descargar(ctx.region_id)
         t = None
         if f is not None:
-            with gzip.open(f, "rt", encoding="utf-8") as fh:
-                t = _construir(ctx, json.load(fh))
+            def leer():
+                with gzip.open(f, "rt", encoding="utf-8") as fh:
+                    return _construir(ctx, json.load(fh))
+            from .disco import en_disco
+            t = en_disco("nombres", ctx, leer)
         _CACHE.clear()          # una comuna en memoria, como el grafo
         _CACHE[clave] = t
         return t

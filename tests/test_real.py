@@ -72,3 +72,26 @@ def test_otra_opcion_es_otra_ruta():
         # Pasada la última, vuelve a la primera.
         c = planificar(ctx, interpretar(texto), *SALIDA, opcion=a["opcion"]["total"])
         assert c["opcion"]["actual"] == 0
+
+
+def test_metros_arbol_vectorizado_igual_al_bucle():
+    import numpy as np
+    from pacepath import continuo as C
+    from pacepath.series import nodo_salida
+    from pacepath.sesion import requisitos
+    ctx = contexto("providencia")
+    casa = nodo_salida(ctx, *SALIDA)
+    w = C.pesos_sesion(ctx, casa, 8000, requisitos(interpretar("fondo 12k")))
+    coste, pred = C._arbol(ctx, w, casa, 20000)
+    nuevo = C._metros_arbol(ctx, coste, pred, casa)
+    g = ctx.graph
+    orden = np.argsort(coste)
+    orden = orden[np.isfinite(coste[orden])]
+    viejo = np.full(g.n_nodes, np.inf)
+    viejo[casa] = 0.0
+    for v in orden[1:]:
+        u = pred[v]
+        if u >= 0 and np.isfinite(viejo[u]):
+            viejo[v] = viejo[u] + float(np.hypot(g.x[v] - g.x[u], g.y[v] - g.y[u]))
+    ok = np.isfinite(viejo)
+    assert np.array_equal(ok, np.isfinite(nuevo)) and np.allclose(viejo[ok], nuevo[ok])

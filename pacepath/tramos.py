@@ -159,12 +159,19 @@ def semaforos_cercanos(ctx: GraphContext) -> np.ndarray:
 
 
 def _semaforos_cercanos(ctx: GraphContext) -> np.ndarray:
+    """Con un árbol KD (una consulta en C para todos los semáforos): el bucle
+    por semáforo sobre la grilla tardaba ~2,5 s en el primer pedido de cada
+    comuna."""
+    from scipy.spatial import cKDTree
     g = ctx.graph
     sem = g.is_signal.copy()
-    cruce = g.degree >= 3
-    for s in np.nonzero(g.is_signal)[0]:
-        cerca = g.grid.within(float(g.x[s]), float(g.y[s]), RADIO_SEMAFORO_M)
-        sem[cerca[cruce[cerca]]] = True
+    cruces = np.nonzero(g.degree >= 3)[0]
+    senales = np.nonzero(g.is_signal)[0]
+    if len(cruces) and len(senales):
+        arbol = cKDTree(np.column_stack([g.x[cruces], g.y[cruces]]))
+        vecinos = arbol.query_ball_point(np.column_stack([g.x[senales], g.y[senales]]), RADIO_SEMAFORO_M)
+        idx = [i for lista in vecinos for i in lista]
+        sem[cruces[np.asarray(idx, dtype=np.int64)]] = True
     return sem
 
 
@@ -262,5 +269,7 @@ def trazos(ctx: GraphContext, sendas_de_parque: bool = True) -> list[Trazo]:
     if clave not in _CACHE:
         # Sólo una comuna en memoria a la vez (Render gratis): lo mismo aquí.
         _CACHE.clear()
-        _CACHE[clave] = construir_trazos(ctx, sendas_de_parque)
+        from .disco import en_disco
+        _CACHE[clave] = en_disco(f"trazos{'-sendas' if sendas_de_parque else ''}", ctx,
+                                 lambda: construir_trazos(ctx, sendas_de_parque))
     return _CACHE[clave]
