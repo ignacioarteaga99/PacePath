@@ -314,7 +314,7 @@ def index(request: Request, origen: str | None = None) -> Response:
     return HTMLResponse(html, headers=cabeceras)
 
 
-EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar", "sync", "sync_error", "mapa_error", "aporte"}
+EVENTOS_CLIENTE = {"error_js", "comentario", "compartir_pasaporte", "instalar", "sync", "sync_error", "mapa_error", "aporte", "gpx"}
 
 
 class Evento(BaseModel):

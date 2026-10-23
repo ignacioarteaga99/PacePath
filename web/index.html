@@ -654,7 +654,8 @@ const EN = {
   "Semáforos": "Lights", "Cruces": "Crossings", "Subida": "Climb", "Desnivel": "Elev.",
   "Repetición": "Rep", "Tramo": "Stretch", "Bloque": "Block", "Pendiente": "Grade",
   "Nombre del tramo favorito (por ejemplo, «Ribera Balmaceda–Forestal»):": "Name of your favorite stretch (e.g. «Riverside park»):",
-  "★ Guardado": "★ Saved", "☆ Guardar como favorito": "☆ Save as favorite", "Descargar GPX": "Download GPX",
+  "★ Guardado": "★ Saved", "☆ Guardar como favorito": "☆ Save as favorite", "Descargar GPX": "Download GPX", "Enviar al reloj": "Send to watch",
+  "Serie {n} · inicio": "Rep {n} · start", "Serie {n} · fin": "Rep {n} · end", "ruta trazada": "drawn route",
   "Toca el mapa para seguir marcando.": "Tap the map to keep adding points.",
   "Toca el mapa para marcar la salida.": "Tap the map to set the start.",
   "Inicio de la repetición": "Rep start", "Fin de la repetición": "Rep end", "Llegada": "Finish",
@@ -1357,7 +1358,7 @@ function mostrarTrazado(j) {
       [r.cruces_menores + r.cruces_mayores, t("Cruces")], [num(r.subida_m) + " m", t("Subida")]].map(([v, e]) =>
       `<div class="cifra"><span>${e}</span><b class="${v === 0 ? "cero" : ""}">${v}</b></div>`).join("")}</div>
     ${perfilSvg(j)}
-    <div class="fila"><button id="gpx" type="button">Descargar GPX</button>
+    <div class="fila"><button id="gpx" type="button">${textoBotonGpx()}</button>
       <button class="sec" id="favorito" type="button">${t("☆ Guardar como favorito")}</button></div>`);
   $("favorito").onclick = () => {
     const nombre = prompt(t("Nombre del tramo favorito (por ejemplo, «Ribera Balmaceda–Forestal»):"));
@@ -1368,12 +1369,7 @@ function mostrarTrazado(j) {
       km: j.recorrido.distancia_m / 1000, puntos: todos.filter((_, i) => i % paso === 0) }]);
     $("favorito").textContent = t("★ Guardado"); $("favorito").disabled = true;
   };
-  $("gpx").onclick = async () => {
-    const r2 = await fetch("/api/trazar.gpx", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ puntos: puntos.map(([lat, lon]) => ({ lat, lon })), volver: $("volver").checked }) });
-    if (!r2.ok) return;
-    Object.assign(document.createElement("a"), { href: URL.createObjectURL(await r2.blob()), download: "pacepath-trazado.gpx" }).click();
-  };
+  $("gpx").onclick = () => enviarGpx(j, "pacepath-trazado.gpx");
 }
 
 $("volver").onchange = () => recalcular(Math.max(0, puntos.length - 2));
@@ -1633,10 +1629,10 @@ function mostrar(plan) {
     <div class="texto">${plan.explicacion.map((l) => `<p>${esc(l)}</p>`).join("")}
     ${plan.avisos.slice(0, -1).map((a) => `<p class="aviso">${esc(a)}</p>`).join("")}</div>
     ${plan.opcion?.total > 1 ? `<button class="sec otra-opcion" id="otraOpcion" type="button">↻ ${t("Otra opción")} · ${plan.opcion.actual + 1}/${plan.opcion.total}</button>` : ""}
-    <div class="fila"><button id="gpx" type="button">${t("Descargar GPX")}</button>
+    <div class="fila"><button id="gpx" type="button">${textoBotonGpx()}</button>
       <button class="sec" id="otra" type="button">${t("Cambiar salida")}</button>
       ${ultimaEntrada ? `<button class="sec" id="guardarSesion" type="button" style="flex:none;width:52px;font-size:20px"></button>` : ""}</div>`);
-  $("gpx").onclick = descargarGpx;
+  $("gpx").onclick = () => enviarGpx(plan, "pacepath.gpx");
   if ($("otraOpcion")) $("otraOpcion").onclick = () => {
     // La siguiente ruta distinta para la misma sesión y salida.
     opcionPedida = (plan.opcion.actual + 1) % plan.opcion.total;
@@ -1685,13 +1681,52 @@ async function pedido() {
   return p;
 }
 
-async function descargarGpx() {
-  const r = await fetch("/api/ruta.gpx", { method: "POST", headers: { "Content-Type": "application/json" },
-                                           body: JSON.stringify(await pedido()) });
-  if (!r.ok) return;
-  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await r.blob()),
-                                                         download: "pacepath.gpx" });
-  a.click();
+// ── GPX: se arma aquí, con la ruta en pantalla ─────────────────────────────
+// Igual que /api/ruta.gpx (gpx.py), pero sin volver a calcular la ruta: sale
+// al instante e idéntico a lo que se ve. Donde el teléfono deja compartir
+// archivos (iPhone), se abre el menú «Compartir» para mandarlo a la app del
+// reloj (COROS, Suunto, Garmin…); Safari sólo lo permite justo después del
+// toque, por eso no puede haber una espera antes. Si no (Chrome en Android no
+// acepta .gpx al compartir, o en el computador), se descarga como antes.
+const escXml = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function gpxDe(plan) {
+  const nombre = "PacePath · " + (plan.sesion ? plan.sesion.resumen : t("ruta trazada"));
+  const wpts = [], segs = [];
+  for (const parte of plan.partes) {
+    const c = parte.coordenadas || [];
+    if (!c.length) continue;
+    if (parte.tipo === "serie") {
+      const [a, b] = [c[0], c[c.length - 1]];
+      wpts.push(`<wpt lat="${a[0]}" lon="${a[1]}"><name>${escXml(t("Serie {n} · inicio", { n: parte.numero }))}</name></wpt>`);
+      wpts.push(`<wpt lat="${b[0]}" lon="${b[1]}"><name>${escXml(t("Serie {n} · fin", { n: parte.numero }))}</name></wpt>`);
+    }
+    segs.push("<trkseg>" + c.map((x) => `<trkpt lat="${x[0]}" lon="${x[1]}">${x[2] != null ? `<ele>${x[2]}</ele>` : ""}</trkpt>`).join("") + "</trkseg>");
+  }
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="PacePath" xmlns="http://www.topografix.com/GPX/1/1">'
+    + `<metadata><name>${escXml(nombre)}</name></metadata>` + wpts.join("")
+    + `<trk><name>${escXml(nombre)}</name>${segs.join("")}</trk></gpx>\n`;
+}
+const archivoGpx = (texto, nombre) => new File([texto], nombre, { type: "application/gpx+xml" });
+const PUEDE_ENVIAR = (() => { try { return !!navigator.canShare?.({ files: [archivoGpx("", "x.gpx")] }); } catch { return false; } })();
+const textoBotonGpx = () => t(PUEDE_ENVIAR ? "Enviar al reloj" : "Descargar GPX");
+async function enviarGpx(plan, nombre) {
+  const archivo = archivoGpx(gpxDe(plan), nombre);
+  let como = "descarga";
+  if (PUEDE_ENVIAR) {
+    try {
+      await navigator.share({ files: [archivo], title: "PacePath" });
+      como = "compartir";
+    } catch (e) {
+      if (e?.name === "AbortError") return;           // cerró el menú: nada que hacer
+    }                                                 // otro error: se descarga
+  }
+  if (como === "descarga") {
+    const url = URL.createObjectURL(archivo);
+    Object.assign(document.createElement("a"), { href: url, download: nombre }).click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+  _fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tipo: "gpx", detalle: `${como} · ${plan.sesion?.tipo || "trazado"}` }) }).catch(() => {});
 }
 
 // ── Recientes y sesiones guardadas (en el teléfono) ─────────────────────────
