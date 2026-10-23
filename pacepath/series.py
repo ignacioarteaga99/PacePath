@@ -526,7 +526,7 @@ def aviso_srtm() -> str:
 
 
 def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
-                      alternativas: int = 3) -> dict:
+                      alternativas: int = 3, opcion: int = 0) -> dict:
     """Series y cuestas: un tramo que se repite.
 
     Series: ida y vuelta (la 1.ª de ida, la 2.ª de vuelta…).
@@ -542,7 +542,8 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
 
     tramos, aviso = buscar_tramos(ctx, casa, req, holgura_m=sesion.calentamiento_m,
                                   n=alternativas)
-    m = tramos[0]
+    elegido = opcion % len(tramos)                  # «otra opción»: el siguiente tramo
+    m = tramos[elegido]
     w = pesos_trote(ctx, casa, sesion.calentamiento_m + LEJANIA_EXTRA_MAX_M
                     + 2 * m.largo_m)
     a, b = m.nodo_inicio(), m.nodo_fin()
@@ -610,7 +611,8 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
 
     plan = base_plan(ctx, sesion, req, casa) | {
         "tramo": info,
-        "alternativas": [_tramo_info(ctx, t) for t in tramos[1:]],
+        "alternativas": [_tramo_info(ctx, t) for i, t in enumerate(tramos) if i != elegido],
+        "opcion": {"actual": elegido, "total": len(tramos)},
         "partes": partes,
         "totales": {
             "distancia_m": round(total),

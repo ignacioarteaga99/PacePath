@@ -275,6 +275,8 @@ class PedidoRuta(BaseModel):
     # Cuándo sale a correr (la hora del teléfono): de noche, con calor o en hora
     # punta cambia lo que conviene. Sin ella, ahora.
     hora: datetime | None = None
+    # «Otra opción»: la n-ésima ruta distinta (0 = la mejor).
+    opcion: int = Field(default=0, ge=0, le=9)
     # Preferencias del corredor (vienen de su teléfono; no se guardan).
     frecuentes: Frecuentes | None = None
     favoritos: list[list[tuple[float, float]]] | None = Field(default=None, max_length=20)
@@ -508,9 +510,11 @@ def _plan(body: PedidoRuta) -> dict:
             cuando = momento.momento_de(body.hora, body.lat, body.lon)
             plan = planificar(ctx, s, body.lat, body.lon, volver=body.volver, meta=meta,
                               preferidas=pref, radio_max_m=body.radio_max_m,
-                              forma=body.forma, n_vueltas=body.vueltas, momento=cuando)
+                              forma=body.forma, n_vueltas=body.vueltas, momento=cuando,
+                              opcion=body.opcion)
             plan["preferencias"] = info
             uso.registrar("ruta", body.texto, body.forma if body.forma != "auto" else None,
+                          f"opción {body.opcion + 1}" if body.opcion else None,
                           "sin volver" if not body.volver else None, "strava" if info["frecuentes"] else None,
                           tipo=s.tipo.value, comuna=comuna)
             return plan

@@ -541,7 +541,7 @@ def _vuelta_parque(ctx: GraphContext, v: int, L: float, corribles: np.ndarray,
                    parque: np.ndarray, oscuro: np.ndarray) -> list[int] | None:
     """Una vuelta de ~`L` m que sale y llega a `v` por el parque: ida hasta un
     punto a ~45 % de L por el camino más «de parque», y vuelta por otro (lo ya
-    pisado se encarece). La que mida L (±5 %) y vaya más por parque."""
+    pisado se encarece). La que mida L (±2,5 %) y vaya más por parque."""
     g = ctx.graph
     zona = corribles & (np.hypot(g.x[ctx.esrc] - g.x[v], g.y[ctx.esrc] - g.y[v]) < L / 2 + 300)
     # Un semáforo dentro de la vuelta se repite en cada vuelta: muy caro.
@@ -567,7 +567,7 @@ def _vuelta_parque(ctx: GraphContext, v: int, L: float, corribles: np.ndarray,
         vuelta = ida + _camino(ctx, wv, p2, P, v)
         e = np.asarray(vuelta)
         largo = float(g.elen[e].sum())
-        if abs(largo - L) > 0.05 * L:
+        if abs(largo - L) > 0.025 * L:              # k vueltas multiplican el error
             continue
         frac = float(g.elen[e][parque[e]].sum() / largo)
         nota = frac - 0.15 * int(sem[e].sum())          # cada semáforo resta 15 % de parque
@@ -679,11 +679,33 @@ def _marcas(ctx: GraphContext, aristas: list[int], med: Medida,
 
 # ── Fondo y regenerativo ────────────────────────────────────────────────────
 
+def distintos(ctx: GraphContext, cands: list[tuple], max_n: int = 3,
+              solape: float = 0.6) -> list[tuple]:
+    """Los candidatos (aristas, medida, puntos), en el orden dado, sin los que
+    comparten más de `solape` de sus calles con uno ya elegido: «otra opción»
+    tiene que ser otra ruta, no la misma con una cuadra distinta."""
+    rev = ctx.graph.reverse
+    elegidos, conjuntos = [], []
+    for c in cands:
+        e = np.asarray(c[0], dtype=np.int64)
+        if not len(e):
+            continue
+        calles = set(np.minimum(e, rev[e]).tolist())
+        if any(len(calles & t) / min(len(calles), len(t)) > solape for t in conjuntos):
+            continue
+        elegidos.append(c)
+        conjuntos.append(calles)
+        if len(elegidos) >= max_n:
+            break
+    return elegidos
+
+
 def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                         volver: bool = True,
                         meta: tuple[float, float] | None = None,
                         preferidas: np.ndarray | None = None,
-                        forma: str = "auto", n_vueltas: int | None = None) -> dict:
+                        forma: str = "auto", n_vueltas: int | None = None,
+                        opcion: int = 0) -> dict:
     """Fondo o regenerativo.
 
     · `volver` (lo habitual): circuito o ida y vuelta desde la salida.
@@ -706,8 +728,7 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
         forma = "circuito"
     elif volver:
         aristas, med, otros = circuito(ctx, casa, D, req)
-        forma = getattr(med, "forma", None) or (
-            "ida y vuelta" if med.repetido > 0.9 else "circuito")
+        forma = None
     else:
         w = pesos_sesion(ctx, casa, D + 1500, req)
         if meta is not None:
@@ -724,6 +745,12 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
                               "area's map: try returning to the start."))
         cands.sort(key=lambda c: c[2])
         (aristas, med, _), otros = cands[0], cands[1:]
+    # «Otra opción»: la siguiente ruta distinta (en el orden del puntaje).
+    opciones = distintos(ctx, [(aristas, med, 0.0)] + list(otros))
+    aristas, med, _ = opciones[opcion % len(opciones)]
+    otros = [o for o in opciones if o[0] is not aristas]
+    if forma is None:
+        forma = getattr(med, "forma", None) or ("ida y vuelta" if med.repetido > 0.9 else "circuito")
     tipo = sesion.tipo.value
     if forma == "corredor" and fraccion_preferida(med, req) >= 0.5:
         forma = "favoritos"
@@ -752,7 +779,8 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
         "partes": [{"tipo": tipo, "distancia_m": round(med.distancia_m),
                     "coordenadas": _coords(ctx, aristas)}],
         "marcas": _marcas(ctx, aristas, med),
-        "alternativas": [_resumen_medida(m) | {"puntos": round(p, 1)} for _, m, p in otros[:2]],
+        "alternativas": [_resumen_medida(m) for _, m, _ in otros[:2]],
+        "opcion": {"actual": opcion % len(opciones), "total": len(opciones)},
         "totales": {"distancia_m": round(med.distancia_m), "subida_m": round(med.subida_m),
                     "max_subida_m": req.max_subida_m},
         "avisos": avisos,
@@ -797,7 +825,8 @@ def _ventana_circuito(med: Medida, X: float, cal: float, vc: float) -> tuple[flo
 def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                      preferidas: np.ndarray | None = None, volver: bool = True,
                      meta: tuple[float, float] | None = None,
-                     forma: str = "auto", n_vueltas: int | None = None) -> dict:
+                     forma: str = "auto", n_vueltas: int | None = None,
+                     opcion: int = 0) -> dict:
     """Tempo: circuito (o, sin volver, recorrido hasta la meta o de solo ida)
     partido en calentamiento, bloque y vuelta a la calma; o corredor limpio en
     ida y vuelta, si tiene menos detenciones."""
@@ -808,6 +837,7 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     fin_nodo = None if volver or meta is None else nodo_salida(ctx, *meta)
 
     # Opción circuito (o, sin volver, de la salida a la meta / de solo ida)
+    circuitos = None
     vueltas_bloque = n_vueltas if volver and forma == "vueltas" and (n_vueltas or 0) >= 2 else 0
     largo_vuelta = 0.0
     if vueltas_bloque:
@@ -821,8 +851,9 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     elif volver and forma in ("circuito", "vueltas"):
         aristas, med, _ = solo_circuito(ctx, casa, cal + X + vc, req)
     elif volver:
-        aristas, med, _ = circuito(ctx, casa, cal + X + vc, req, k=8, afinar=2,
-                                   con_ida_y_vuelta=False)
+        aristas, med, otros_c = circuito(ctx, casa, cal + X + vc, req, k=8, afinar=2,
+                                         con_ida_y_vuelta=False)
+        circuitos = distintos(ctx, [(aristas, med, 0.0)] + list(otros_c))
     else:
         D = cal + X + vc
         w0 = pesos_sesion(ctx, casa, D + 1500, req)
@@ -860,6 +891,16 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
         estimada = 2 * (ida0["subida_m"] if ida0 else 0) + vueltas * tramo.desnivel_m / 2
         if estimada > req.max_subida_m and med.subida_m <= req.max_subida_m:
             usar_corredor = False
+
+    # «Otra opción»: el corredor (si es el mejor) y después los circuitos distintos.
+    circuitos = circuitos or [(aristas, med, 0.0)]
+    opciones = (["corredor"] if usar_corredor else []) + circuitos
+    elegida = opciones[opcion % len(opciones)]
+    if elegida != "corredor":
+        usar_corredor = False
+        if elegida[0] is not aristas:
+            aristas, med, _ = elegida
+            ini, det_circ = _ventana_circuito(med, X, cal, vc)
 
     avisos = []
     if usar_corredor:
@@ -944,6 +985,7 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     plan = base_plan(ctx, sesion, req, casa) | forma | {
         "partes": partes,
         "marcas": marcas,
+        "opcion": {"actual": opciones.index(elegida), "total": len(opciones)},
         "totales": {"distancia_m": round(total), "calentamiento_m": calentamiento_m,
                     "tempo_m": round(bloque), "vuelta_calma_m": vuelta_m,
                     "subida_m": round(subida), "max_subida_m": req.max_subida_m},

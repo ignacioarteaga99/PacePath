@@ -14,12 +14,12 @@ def planificar(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                volver: bool = True, meta: tuple[float, float] | None = None,
                preferidas=None, radio_max_m: float | None = None,
                forma: str = "auto", n_vueltas: int | None = None,
-               momento: Momento | None = None) -> dict:
+               momento: Momento | None = None, opcion: int = 0) -> dict:
     """Como `_planificar`, sin salir de `radio_max_m` alrededor de la salida y
     según cuándo se corre (`momento`: de noche, con calor, en hora punta)."""
     marca = MOMENTO.set(momento)
     try:
-        plan = _con_radio(ctx, sesion, lat, lon, volver, meta, preferidas, radio_max_m, forma, n_vueltas)
+        plan = _con_radio(ctx, sesion, lat, lon, volver, meta, preferidas, radio_max_m, forma, n_vueltas, opcion)
     finally:
         MOMENTO.reset(marca)
     if momento is not None and not momento.neutro:
@@ -43,12 +43,12 @@ def _aviso_momento(m: Momento) -> str:
     return texto[0].upper() + texto[1:] + "."
 
 
-def _con_radio(ctx, sesion, lat, lon, volver, meta, preferidas, radio_max_m, forma, n_vueltas) -> dict:
+def _con_radio(ctx, sesion, lat, lon, volver, meta, preferidas, radio_max_m, forma, n_vueltas, opcion) -> dict:
     if not radio_max_m:
-        return _planificar(ctx, sesion, lat, lon, volver, meta, preferidas, forma, n_vueltas)
+        return _planificar(ctx, sesion, lat, lon, volver, meta, preferidas, forma, n_vueltas, opcion)
     with radio_max(ctx, nodo_salida(ctx, lat, lon), radio_max_m):
         try:
-            plan = _planificar(ctx, sesion, lat, lon, volver, meta, preferidas, forma, n_vueltas)
+            plan = _planificar(ctx, sesion, lat, lon, volver, meta, preferidas, forma, n_vueltas, opcion)
         except SinTramo as exc:
             km = radio_max_m / 1000
             raise SinTramo(f"{exc} " + tr(f"(Buscando a menos de {km:g} km de la salida: "
@@ -61,7 +61,8 @@ def _con_radio(ctx, sesion, lat, lon, volver, meta, preferidas, radio_max_m, for
 
 def _planificar(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                 volver: bool = True, meta: tuple[float, float] | None = None,
-                preferidas=None, forma: str = "auto", n_vueltas: int | None = None) -> dict:
+                preferidas=None, forma: str = "auto", n_vueltas: int | None = None,
+                opcion: int = 0) -> dict:
     """`preferidas`: float32[E] con calles de siempre y tramos favoritos (o None).
     Por ahora pesan en tempo, fondo y regenerativo.
 
@@ -69,9 +70,9 @@ def _planificar(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     (en series, cuestas y tempo, al final de la vuelta a la calma)."""
     if sesion.tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS):
         # Series y cuestas: la sesión son las repeticiones; no hay vuelta que armar.
-        return planificar_series(ctx, sesion, lat, lon)
+        return planificar_series(ctx, sesion, lat, lon, opcion=opcion)
     if sesion.tipo is TipoSesion.TEMPO:
         return planificar_tempo(ctx, sesion, lat, lon, preferidas=preferidas,
-                                volver=volver, meta=meta, forma=forma, n_vueltas=n_vueltas)
+                                volver=volver, meta=meta, forma=forma, n_vueltas=n_vueltas, opcion=opcion)
     return planificar_circuito(ctx, sesion, lat, lon, volver=volver, meta=meta,
-                               preferidas=preferidas, forma=forma, n_vueltas=n_vueltas)
+                               preferidas=preferidas, forma=forma, n_vueltas=n_vueltas, opcion=opcion)

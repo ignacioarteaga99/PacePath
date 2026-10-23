@@ -58,3 +58,17 @@ def test_de_noche_se_avisa():
     from pacepath.planificador import planificar
     p = planificar(contexto("providencia"), interpretar("fondo 10k"), *SALIDA, momento=Momento(oscuro=True))
     assert p["avisos"][0].startswith("Es de noche") and p["momento"]["oscuro"]
+
+
+def test_otra_opcion_es_otra_ruta():
+    from pacepath.planificador import planificar
+    ctx = contexto("providencia")
+    for texto in ("6x1k", "fondo 12k"):
+        a = planificar(ctx, interpretar(texto), *SALIDA, opcion=0)
+        b = planificar(ctx, interpretar(texto), *SALIDA, opcion=1)
+        assert a["opcion"] == {"actual": 0, "total": a["opcion"]["total"]} and a["opcion"]["total"] >= 2
+        assert b["opcion"]["actual"] == 1
+        assert a["partes"][-1]["coordenadas"] != b["partes"][-1]["coordenadas"]
+        # Pasada la última, vuelve a la primera.
+        c = planificar(ctx, interpretar(texto), *SALIDA, opcion=a["opcion"]["total"])
+        assert c["opcion"]["actual"] == 0
