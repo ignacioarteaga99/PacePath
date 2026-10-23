@@ -19,6 +19,7 @@ según lo que tardaron los últimos pedidos parecidos.
 """
 from __future__ import annotations
 
+import ctypes
 import itertools
 import json
 import os
@@ -34,6 +35,20 @@ from raceengine_engine import context as _contextos
 from . import comunas, uso
 
 INICIO = time.time()
+
+# glibc no devuelve al sistema la memoria que Python suelta (queda «reservada»
+# y la RSS no baja): después de cada ruta se le pide que la devuelva. Cuesta
+# 1-2 ms y baja ~40 MB con Las Condes. Junto con MALLOC_ARENA_MAX=2 (Dockerfile)
+# la memoria tras cambiar de comunas quedó en ~195 MB en vez de ~360 MB.
+try:
+    _malloc_trim = ctypes.CDLL("libc.so.6").malloc_trim
+except (OSError, AttributeError):          # sin glibc (macOS, Alpine): no hace falta
+    _malloc_trim = None
+
+
+def devolver_memoria() -> None:
+    if _malloc_trim is not None:
+        _malloc_trim(0)
 _lock = threading.Lock()
 _esperando = 0
 
@@ -131,6 +146,7 @@ def en_motor(lock: threading.Lock, comuna: str | None, que: str | None = None, c
     finally:
         m.marca("calculo")           # también si no encontró ruta: ese tiempo igual se gastó
         lock.release()
+        devolver_memoria()
         m.cerrar()
 
 

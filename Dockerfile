@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -e .
 # Grafos y nombres se descargan aquí al usarse (el disco de Render gratis se
 # borra al dormir; da igual, se vuelven a bajar en segundos).
 ENV RACEENGINE_DATA=/app/data
+# Menos «arenas» de memoria por hilo: con el threadpool de FastAPI y los
+# cambios de comuna, la memoria quedaba fragmentada (360 MB → 270 MB).
+ENV MALLOC_ARENA_MAX=2
 ENV PORT=8000
 EXPOSE 8000
 
