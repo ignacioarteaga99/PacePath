@@ -195,7 +195,7 @@ def _dispositivo(ua: str) -> str:
 @app.middleware("http")
 async def _registrar(request: Request, call_next):
     consulta = CONSULTAS.get(request.url.path)
-    if consulta is None:
+    if consulta is None or request.scope.get("pp_head"):
         return await call_next(request)
     usuario = request.cookies.get(COOKIE_USUARIO, "")
     nuevo = not re.fullmatch(r"[0-9a-f]{10}", usuario)
@@ -263,6 +263,22 @@ async def _dominio_propio(request: Request, call_next):
         q = f"?{request.url.query}" if request.url.query else ""
         return RedirectResponse(destino + request.url.path + q, status_code=301)
     return await call_next(request)
+
+
+@app.middleware("http")
+async def _head(request: Request, call_next):
+    """HEAD responde como GET, sin cuerpo. Los filtros de correo (Outlook,
+    Gmail, el de la UC…) revisan los enlaces con HEAD y un 405 les parece
+    sospechoso. No se registra como visita: es un robot."""
+    if request.method != "HEAD":
+        return await call_next(request)
+    request.scope["method"] = "GET"
+    request.scope["pp_head"] = True
+    resp = await call_next(request)
+    async for _ in resp.body_iterator:     # se descarta (y así terminan los middlewares de adentro)
+        pass
+    headers = {k: v for k, v in resp.headers.items() if k.lower() != "content-length"}
+    return Response(status_code=resp.status_code, headers=headers)
 
 
 def _anotar(**campos) -> None:

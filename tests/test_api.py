@@ -126,3 +126,11 @@ def test_idioma_ingles():
     assert "I don't understand" in r.json()["detail"]
     # El idioma de una petición no se filtra a la siguiente.
     assert cli.post("/api/ruta", json=body).json()["explicacion"][0].startswith("Las series")
+
+
+def test_head_como_get_sin_cuerpo():
+    """Los filtros de correo revisan los enlaces con HEAD: no puede dar 405."""
+    for ruta in ("/privacidad", "/privacy", "/terminos", "/beta", "/"):
+        r = cli.head(ruta)
+        assert r.status_code == 200 and r.content == b"", ruta
+    assert cli.head("/no-existe").status_code == 404
