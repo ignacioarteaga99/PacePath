@@ -264,6 +264,7 @@
       <label>Nombre<input id="uNombre" maxlength="80" autocomplete="off"></label>
       <label><span id="uClaveEt">Clave (opcional)</span><input id="uClave" type="password" minlength="8" maxlength="200" autocomplete="new-password" placeholder="Vacía = entra con Google o Microsoft"></label>
       <label class="fila-chk"><input type="checkbox" id="uBeta"> Habilitado para la beta</label>
+      <label class="fila-chk" id="uAvisarFila"><input type="checkbox" id="uAvisar" checked> Avisarle por correo al habilitarlo</label>
       <p class="acc-aviso mal" id="uError"></p>
       <div class="dlg-acciones"><button type="button" id="uCancelar">Cancelar</button><button class="prim" type="submit">Guardar</button></div>
     </form>
@@ -316,6 +317,7 @@ let CLAVE = null;
 try { CLAVE = sessionStorage.getItem("pp_admin"); } catch {}
 let datos = null;          // { filas: [...objetos], mapas: [...], almacen, ... }
 let consumoInfo = null;    // { base: {tamaños}, cuentas: {id: correo} }
+let correoActivo = false;  // si el servidor puede mandar correos (tarjeta Acceso)
 let motorAhora = null;     // { memoria_mb, maximo_mb, grafos, esperando, encendido_s }
 let periodo = 30;
 let mostrar = 100;
@@ -386,6 +388,7 @@ function pintarAcceso(a) {
   $("accEstado").innerHTML = a.activo
     ? '<b class="on">Activado</b> · sólo entran las cuentas con beta (abajo)'
     : "<b>Desactivado</b> · cualquiera puede crear su cuenta y entrar";
+  correoActivo = !!a.correo_activo;
   $("accCorreo").innerHTML = a.correo_activo
     ? 'Correos de verificación y recuperación: <b class="on">encendidos</b>'
     : "Correos de verificación y recuperación: <b>apagados</b> (falta configurar el remitente; mientras, si alguien olvida su clave, pónle una nueva con «Editar»)";
@@ -454,13 +457,14 @@ function abrirUsuario(u) {
   $("uCorreo").value = u?.correo || ""; $("uNombre").value = u?.nombre || ""; $("uClave").value = "";
   $("uClaveEt").textContent = u ? "Clave nueva (vacía = no cambia)" : "Clave (opcional)";
   $("uBeta").checked = u ? u.beta : true; $("uError").textContent = "";
+  $("uAvisar").checked = true; $("uAvisarFila").hidden = !correoActivo;
   $("usrDialogo").showModal();
 }
 $("usrNuevo").onclick = () => abrirUsuario(null);
 $("uCancelar").onclick = () => $("usrDialogo").close();
 $("usrForm").onsubmit = async (e) => {
   e.preventDefault();
-  const cuerpo = { correo: $("uCorreo").value.trim(), nombre: $("uNombre").value.trim(), beta: $("uBeta").checked };
+  const cuerpo = { correo: $("uCorreo").value.trim(), nombre: $("uNombre").value.trim(), beta: $("uBeta").checked, avisar: $("uAvisar").checked };
   if ($("uClave").value) cuerpo.clave = $("uClave").value;
   try {
     const u = editando ? await api(`/api/admin/usuarios/${editando.id}`, "PATCH", cuerpo) : await api("/api/admin/usuarios", "POST", cuerpo);

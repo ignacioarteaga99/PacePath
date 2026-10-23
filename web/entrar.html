@@ -134,6 +134,7 @@ const T = {
     subAbierta: "Entra o crea tu cuenta para armar la ruta de tu entrenamiento.",
     espera: "Tu cuenta ya está creada, pero todavía no está habilitada para la beta. Avísale a PacePath con el correo de tu cuenta y te habilitamos.",
     esperaCorreo: "Te mandamos un correo para confirmar tu cuenta: abre el enlace y vuelve aquí.",
+    esperaCorreoBeta: "Te mandamos un correo para confirmar tu cuenta. PacePath está en beta privada: después de confirmarla quedas en la lista de espera, y te avisamos por correo apenas te habilitemos.",
     reenviar: "Mandar el correo de nuevo", reenviado: "Listo: revisa tu correo (y la carpeta de spam).",
     olvide: "¿Olvidaste tu clave?", recTitulo: "Recuperar tu clave",
     recTexto: "Escribe el correo de tu cuenta y te mandamos un enlace para elegir una clave nueva.",
@@ -153,6 +154,7 @@ const T = {
     subAbierta: "Sign in or create your account to build the route for your workout.",
     espera: "Your account is created, but it isn't enabled for the beta yet. Tell PacePath your account's email and we'll enable it.",
     esperaCorreo: "We sent you an email to confirm your account: open the link and come back here.",
+    esperaCorreoBeta: "We sent you an email to confirm your account. PacePath is in private beta: after confirming you'll be on the waiting list, and we'll email you as soon as you're in.",
     reenviar: "Send the email again", reenviado: "Done: check your inbox (and spam folder).",
     olvide: "Forgot your password?", recTitulo: "Reset your password",
     recTexto: "Enter your account's email and we'll send you a link to choose a new password.",
@@ -275,7 +277,8 @@ $("reenviar").onclick = async () => {
     if (c.usuario) {
       ver("esperando");
       $("hola").textContent = T[idioma].hola.replace("{n}", c.usuario.nombre || c.usuario.correo);
-      $("esperaTexto").textContent = T[idioma][c.pendiente === "verificar" ? "esperaCorreo" : "espera"];
+      const enEspera = c.beta_cerrada && !c.usuario.beta;
+      $("esperaTexto").textContent = T[idioma][c.pendiente === "verificar" ? (enEspera ? "esperaCorreoBeta" : "esperaCorreo") : "espera"];
       $("reenviar").hidden = c.pendiente !== "verificar";
     }
   } catch {}

@@ -213,12 +213,13 @@ def entrar_con_proveedor(proveedor: str, sub: str, correo: str | None, nombre: s
         else:
             u = crear(correo, nombre, google=sub if proveedor == "google" else None,
                       microsoft=sub if proveedor == "microsoft" else None, verificado=correo_confiable)
+            u["nueva"] = True              # para la bienvenida (no se guarda)
     if u is None:
         raise ErrorCuenta("sin_correo")
     if not u["activo"]:
         raise ErrorCuenta("bloqueada")
     if nombre and not u["nombre"]:
-        u = actualizar(u["id"], nombre=nombre)
+        u = actualizar(u["id"], nombre=nombre) | {"nueva": u.get("nueva", False)}
     return u
 
 

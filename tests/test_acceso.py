@@ -168,7 +168,8 @@ def con_correo(base, monkeypatch):
         monkeypatch.setenv(k, v)
     enviados = []
     from pacepath import correo
-    monkeypatch.setattr(correo, "enviar", lambda para, asunto, texto: enviados.append((para, asunto, texto)))
+    monkeypatch.setattr(correo, "enviar", lambda para, asunto, texto, html_=None: enviados.append((para, asunto, texto)))
+    monkeypatch.setattr(correo, "en_fondo", lambda fn, *a: fn(*a))          # sin hilos: para revisarlo al tiro
     return enviados
 
 
@@ -238,3 +239,57 @@ def test_consumo_por_cuenta(base):
 
     cli.delete(f"/api/admin/usuarios/{u['id']}", headers=ADMIN)
     assert registro.sql("SELECT COUNT(*) FROM pp_eventos WHERE cuenta = ?", (u["id"],), traer=True)[0][0] == 0
+
+
+def test_con_beta_cerrada_el_registro_avisa_de_la_lista_de_espera(con_correo, monkeypatch):
+    """Registro con correo y la beta cerrada: el correo de confirmar y la pantalla
+    dicen que queda en lista de espera; al equipo le llega el aviso; al confirmar,
+    la bienvenida (en espera); al habilitarla, «ya tienes acceso»."""
+    monkeypatch.setenv("PACEPATH_CORREO_AVISOS", "support@pacepathapp.com")
+    cli = TestClient(app)
+    registrar(cli)
+    c = cli.get("/api/cuenta").json()
+    assert c["pendiente"] == "verificar" and c["beta_cerrada"] and not c["usuario"]["beta"]
+    (p1, a1, t1), (p2, a2, t2) = con_correo
+    assert p1 == "ana@ejemplo.cl" and "Confirma" in a1 and "lista de espera" in t1
+    assert p2 == "support@pacepathapp.com" and "ana@ejemplo.cl" in a2 and "beta pendiente" in a2
+    cli.get(_enlace(t1).replace("http://testserver", ""), follow_redirects=False)
+    para, asunto, texto = con_correo[-1]
+    assert para == "ana@ejemplo.cl" and "Bienvenido" in asunto and "lista de espera" in texto
+    assert cli.get("/api/cuenta").json()["pendiente"] == "beta"
+    uid = c["usuario"]["id"]
+    n = len(con_correo)
+    cli.patch(f"/api/admin/usuarios/{uid}", headers=ADMIN, json={"beta": True})
+    assert len(con_correo) == n + 1 and "Ya puedes entrar" in con_correo[-1][1]
+    cli.patch(f"/api/admin/usuarios/{uid}", headers=ADMIN, json={"nombre": "Ana B."})   # ya estaba: no repite
+    cli.patch(f"/api/admin/usuarios/{uid}", headers=ADMIN, json={"beta": False})
+    cli.patch(f"/api/admin/usuarios/{uid}", headers=ADMIN, json={"beta": True, "avisar": False})
+    assert len(con_correo) == n + 1
+
+
+def test_invitacion_y_bienvenida_con_google(con_correo, monkeypatch):
+    cli = TestClient(app)
+    cli.post("/api/admin/usuarios", headers=ADMIN, json={"correo": "invitada@ejemplo.cl", "beta": True})
+    assert con_correo[-1][0] == "invitada@ejemplo.cl" and "invitamos" in con_correo[-1][1]
+    n = len(con_correo)
+    cli.post("/api/admin/usuarios", headers=ADMIN, json={"correo": "otra@ejemplo.cl", "beta": True, "avisar": False})
+    assert len(con_correo) == n
+    # Cuenta nueva con Google (verificada): bienvenida al tiro.
+    _vuelta(monkeypatch, {"sub": "g-9", "correo": "pedro@gmail.com", "nombre": "Pedro", "correo_confiable": True})
+    cli.get("/api/auth/google/vuelta?code=x&state=y", follow_redirects=False)
+    assert con_correo[-1][0] == "pedro@gmail.com" and "Bienvenido" in con_correo[-1][1]
+    n = len(con_correo)
+    TestClient(app).get("/api/auth/google/vuelta?code=x&state=y", follow_redirects=False)   # vuelve: ya no es nueva
+    assert len(con_correo) == n
+
+
+def test_plantilla_de_correo(monkeypatch):
+    from pacepath import correo
+    monkeypatch.setenv("PACEPATH_APORTE_URL", "https://buymeacoffee.com/pacepath")
+    texto, html = correo._correo("¡Registro exitoso!", ["Hola, <Ana>:"], ("Abrir PacePath", "https://pacepathapp.com"))
+    assert "&lt;Ana&gt;" in html and "<Ana>" not in html                     # escapa lo del usuario
+    for enlace in ("/terminos", "/privacidad", "/beta", "buymeacoffee.com/pacepath", "mailto:support@pacepathapp.com"):
+        assert enlace in html
+    assert "Apoya PacePath: https://buymeacoffee.com/pacepath" in texto
+    monkeypatch.delenv("PACEPATH_APORTE_URL")
+    assert "Apoya" not in correo._correo("x", ["y"])[1]

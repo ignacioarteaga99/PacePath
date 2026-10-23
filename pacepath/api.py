@@ -534,7 +534,14 @@ def auth_registro(body: Registro, request: Request) -> Response:
         raise _error_cuenta(exc, 409 if str(exc) == "correo_existe" else 400) from exc
     uso.registrar("cuenta_nueva", "correo")
     _mandar_verificacion(u, request)
+    if correo.activo():
+        correo.en_fondo(correo.aviso_registro, u["correo"], u["nombre"], "correo y clave", _espera_beta(u))
     return _con_sesion(u, request, JSONResponse({"usuario": cuentas.publico(u)}))
+
+
+def _espera_beta(u: dict) -> bool:
+    """Con la beta cerrada y sin estar habilitada: queda en la lista de espera."""
+    return acceso.activo() and not u["beta"]
 
 
 def _mandar_verificacion(u: dict, request: Request) -> None:
@@ -542,7 +549,7 @@ def _mandar_verificacion(u: dict, request: Request) -> None:
         return
     try:
         enlace = f"{_base(request)}/api/auth/verificar?codigo={cuentas.nuevo_codigo(u['id'], 'verificar')}"
-        correo.verificar(u["correo"], u["nombre"], enlace)
+        correo.verificar(u["correo"], u["nombre"], enlace, _espera_beta(u))
     except Exception as exc:  # noqa: BLE001 — el correo caído no impide crear la cuenta
         _anotar(error=f"no pude mandar el correo de verificación: {type(exc).__name__}: {exc}")
 
@@ -565,8 +572,10 @@ def auth_verificar(codigo: str = "") -> Response:
         u = cuentas.usar_codigo(codigo, "verificar")
     except cuentas.ErrorCuenta:
         return RedirectResponse("/?cuenta=codigo_invalido")
-    cuentas.actualizar(u["id"], verificado=True)
+    u = cuentas.actualizar(u["id"], verificado=True)
     uso.registrar("cuenta_verificada")
+    if correo.activo():
+        correo.en_fondo(correo.bienvenida, u["correo"], u["nombre"], _espera_beta(u))
     return RedirectResponse("/?cuenta=verificado")
 
 
@@ -667,6 +676,9 @@ def auth_vuelta(proveedor: Literal["google", "microsoft"], request: Request, cod
         _anotar(error=str(exc))
         return RedirectResponse("/?cuenta=error")
     uso.registrar("cuenta_entrar", proveedor)
+    if u.get("nueva") and correo.activo():
+        correo.en_fondo(correo.bienvenida, u["correo"], u["nombre"], _espera_beta(u))
+        correo.en_fondo(correo.aviso_registro, u["correo"], u["nombre"], proveedor.capitalize(), _espera_beta(u))
     resp = _con_sesion(u, request, RedirectResponse("/"))
     resp.delete_cookie(oauth.COOKIE_ESTADO)
     return resp
@@ -719,6 +731,7 @@ class NuevoUsuario(BaseModel):
     nombre: str | None = Field(default=None, max_length=80)
     clave: str | None = Field(default=None, max_length=200)
     beta: bool = False
+    avisar: bool = True          # con beta: mandarle la invitación por correo
 
 
 class CambioUsuario(BaseModel):
@@ -727,6 +740,7 @@ class CambioUsuario(BaseModel):
     clave: str | None = Field(default=None, max_length=200)
     beta: bool | None = None
     activo: bool | None = None
+    avisar: bool = True          # al habilitarla en la beta: avisarle por correo
 
 
 @app.get("/api/admin/usuarios", include_in_schema=False)
@@ -741,18 +755,28 @@ def admin_crear_usuario(body: NuevoUsuario, request: Request) -> dict:
     al entrar con Google o con ese correo, queda vinculada)."""
     _solo_admin(request)
     try:
-        return cuentas.publico(cuentas.crear(body.correo, body.nombre, body.clave or None, beta=body.beta))
+        u = cuentas.crear(body.correo, body.nombre, body.clave or None, beta=body.beta)
     except cuentas.ErrorCuenta as exc:
         raise _error_cuenta(exc, 409 if str(exc) == "correo_existe" else 400) from exc
+    if body.beta and body.avisar and acceso.activo() and correo.activo():
+        correo.en_fondo(correo.acceso_beta, u["correo"], u["nombre"], True)
+    return cuentas.publico(u)
 
 
 @app.patch("/api/admin/usuarios/{uid}", include_in_schema=False)
 def admin_cambiar_usuario(uid: str, body: CambioUsuario, request: Request) -> dict:
     _solo_admin(request)
+    antes = cuentas.por_id(uid)
     try:
-        return cuentas.publico(cuentas.actualizar(uid, **body.model_dump(exclude_none=True)))
+        u = cuentas.actualizar(uid, **body.model_dump(exclude_none=True, exclude={"avisar"}))
     except cuentas.ErrorCuenta as exc:
         raise _error_cuenta(exc, 404 if str(exc) == "no_existe" else 409 if str(exc) == "correo_existe" else 400) from exc
+    # Recién habilitada en la beta: avisarle. Si nunca entró (la creó el panel), es una invitación.
+    if (antes and not antes["beta"] and u["beta"] and u["activo"] and body.avisar
+            and acceso.activo() and correo.activo()):
+        nunca_entro = not (u.get("clave") or u.get("google") or u.get("microsoft"))
+        correo.en_fondo(correo.acceso_beta, u["correo"], u["nombre"], nunca_entro)
+    return cuentas.publico(u)
 
 
 @app.delete("/api/admin/usuarios/{uid}", include_in_schema=False)

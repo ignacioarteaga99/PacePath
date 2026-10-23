@@ -68,6 +68,9 @@ services:
         sync: false
       - key: PACEPATH_CORREO_DE
         value: "PacePath <support@pacepathapp.com>"
+      # A quién avisar de cada cuenta nueva (para habilitarla en la beta).
+      - key: PACEPATH_CORREO_AVISOS
+        value: "support@pacepathapp.com"
       # «1» cuando Strava apruebe la app (quita el aviso de beta junto al botón).
       - key: PACEPATH_STRAVA_ABIERTO
         value: "0"
