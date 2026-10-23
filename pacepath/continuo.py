@@ -282,14 +282,20 @@ def _metros_arbol(ctx: GraphContext, coste: np.ndarray, pred: np.ndarray,
     Vectorizado con «pointer jumping»: cada nodo suma el tramo hasta su
     antecesor y salta al antecesor de su antecesor, ~log2(profundidad) pasadas
     en vez de un bucle de Python por nodo (era ~40 ms por llamada)."""
-    g = ctx.graph
+    return _metros(coste, pred, origen, ctx.graph.x, ctx.graph.y)
+
+
+def _metros(coste: np.ndarray, pred: np.ndarray, origen: int, x: np.ndarray,
+            y: np.ndarray) -> np.ndarray:
+    """`_metros_arbol` para cualquier grafo (también un subgrafo) con coordenadas x, y."""
+    n = len(coste)
     alcanzado = np.isfinite(coste)
-    metros = np.full(g.n_nodes, np.inf)
+    metros = np.full(n, np.inf)
     sube = np.where(alcanzado & (pred >= 0), pred, -1)
     v = np.nonzero(sube >= 0)[0]
     # Cada pasada lee los valores de la anterior (numpy evalúa antes de asignar).
-    acc = np.zeros(g.n_nodes)
-    acc[v] = np.hypot(g.x[v] - g.x[sube[v]], g.y[v] - g.y[sube[v]])
+    acc = np.zeros(n)
+    acc[v] = np.hypot(x[v] - x[sube[v]], y[v] - y[sube[v]])
     anc = sube.copy()
     activos = v
     while len(activos):
@@ -576,38 +582,70 @@ def _vuelta_parque(ctx: GraphContext, v: int, L: float, corribles: np.ndarray,
                    parque: np.ndarray, oscuro: np.ndarray) -> list[int] | None:
     """Una vuelta de ~`L` m que sale y llega a `v` por el parque: ida hasta un
     punto a ~45 % de L por el camino más «de parque», y vuelta por otro (lo ya
-    pisado se encarece). La que mida L (±2,5 %) y vaya más por parque."""
+    pisado se encarece). La que mida L (±2,5 %) y vaya más por parque.
+
+    Todo en el subgrafo de la zona (radio L/2 + 300 m): fuera de ella las
+    aristas no se pueden usar, así que da lo mismo que en el grafo entero, pero
+    con ~5 % de las aristas. Cada vuelta hace 13 búsquedas: en el grafo entero
+    de Las Condes eran ~100 ms por vuelta y ~0,5 s por fondo cerca de parques."""
     g = ctx.graph
-    zona = corribles & (np.hypot(g.x[ctx.esrc] - g.x[v], g.y[ctx.esrc] - g.y[v]) < L / 2 + 300)
+    zona = corribles & (g.elen > 0) & (np.hypot(g.x[ctx.esrc] - g.x[v], g.y[ctx.esrc] - g.y[v]) < L / 2 + 300)
+    E = np.nonzero(zona)[0]                              # ordenadas por nodo de origen (CSR)
+    if not len(E):
+        return None
+    nodos = np.unique(np.concatenate([ctx.esrc[E], g.indices[E], [v]]))
+    n = len(nodos)
+    src, dst = np.searchsorted(nodos, ctx.esrc[E]), np.searchsorted(nodos, g.indices[E])
+    indptr = np.concatenate([[0], np.cumsum(np.bincount(src, minlength=n))])
+    x, y = g.x[nodos], g.y[nodos]
+    o = int(np.searchsorted(nodos, v))
     # Un semáforo dentro de la vuelta se repite en cada vuelta: muy caro.
-    sem = semaforos_cercanos(ctx)[g.indices]
-    peso = (g.elen * np.where(parque, 0.35, 2.5) * oscuro + 300.0 * sem).astype(np.float32)
-    wp = RoutingWeights(allowed_edges=zona, weight=peso, min_ratio=0.35, max_ratio=float(peso.max() / max(g.elen.max(), 1)))
-    coste, pred = _arbol(ctx, wp, v, L * 3)
-    metros = _metros_arbol(ctx, coste, pred, v)
+    sem = semaforos_cercanos(ctx)[g.indices[E]]
+    peso = (g.elen[E] * np.where(parque[E], 0.35, 2.5) * oscuro[E] + 300.0 * sem).astype(np.float32)
+
+    def arbol(w: np.ndarray, origen: int, limite: float):
+        m = csr_matrix((w.astype(np.float64), dst, indptr), shape=(n, n))
+        return dijkstra(m, indices=origen, return_predecessors=True, limit=limite)
+
+    def camino(w: np.ndarray, pred: np.ndarray, desde: int, hasta: int) -> list[int]:
+        """Aristas (índices locales) del camino del árbol, la más barata en cada paso."""
+        ns = [hasta]
+        while ns[-1] != desde:
+            ns.append(int(pred[ns[-1]]))
+        ns.reverse()
+        out = []
+        for a, b in zip(ns, ns[1:]):
+            es = np.arange(indptr[a], indptr[a + 1])
+            es = es[dst[es] == b]
+            out.append(int(es[np.argmin(w[es])]))
+        return out
+
+    coste, pred = arbol(peso, o, L * 3)
+    metros = _metros(coste, pred, o, x, y)
     cand = np.nonzero((metros >= 0.35 * L) & (metros <= 0.5 * L))[0]
     if not len(cand):
         return None
     rev = g.reverse
     mejor, mejor_p = None, -np.inf
-    for P in _por_sector(ctx, v, cand, coste, 12):
-        ida = _camino(ctx, wp, pred, v, P)
-        pisado = np.array(ida + [int(rev[e]) for e in ida])
+    ang = np.arctan2(y[cand] - y[o], x[cand] - x[o])
+    sector = ((ang + np.pi) / (2 * np.pi) * 12).astype(int) % 12
+    for P in [int(cand[sector == k][np.argmin(coste[cand[sector == k]])]) for k in range(12) if (sector == k).any()]:
+        ida = camino(peso, pred, o, P)
+        pisado = np.concatenate([E[ida], rev[E[ida]]])
+        pos = np.minimum(np.searchsorted(E, pisado), len(E) - 1)
         w2 = peso.copy()
-        w2[pisado] *= 6.0
-        wv = RoutingWeights(allowed_edges=zona, weight=w2, min_ratio=0.35, max_ratio=wp.max_ratio * 6)
-        c2, p2 = _arbol(ctx, wv, P, L * 6)
-        if not np.isfinite(c2[v]):
+        w2[pos[E[pos] == pisado]] *= 6.0
+        c2, p2 = arbol(w2, P, L * 6)
+        if not np.isfinite(c2[o]):
             continue
-        vuelta = ida + _camino(ctx, wv, p2, P, v)
-        e = np.asarray(vuelta)
+        e = E[ida + camino(w2, p2, P, o)]
         largo = float(g.elen[e].sum())
         if abs(largo - L) > 0.025 * L:              # k vueltas multiplican el error
             continue
         frac = float(g.elen[e][parque[e]].sum() / largo)
-        nota = frac - 0.15 * int(sem[e].sum())          # cada semáforo resta 15 % de parque
+        nota = frac - 0.15 * int(semaforos_cercanos(ctx)[g.indices[e]].sum())   # cada semáforo resta 15 % de parque
         if frac >= 0.5 and nota > mejor_p:
-            mejor, mejor_p = vuelta, nota
+            mejor, mejor_p = [int(a) for a in e], nota
     return mejor
 
 
@@ -858,10 +896,11 @@ def _ventana_circuito(med: Medida, X: float, cal: float, vc: float) -> tuple[flo
 
 
 # Tempo «auto»: el circuito siempre gana (banco de rutas), así que se busca
-# entero: (intentos, ajustes finos, presupuesto de generación en ms). Con
-# (8, 2, 1500) tardaba 2,24 s; con (8, 1, 900), 1,76 s y la misma calidad
-# (36 tempos: error de distancia, semáforos, cruces y subida iguales o mejores).
-TEMPO_CIRCUITO: tuple[int, int, int] = (8, 1, 900)
+# entero: (intentos, ajustes finos, presupuesto de generación en ms). Con el
+# camino mínimo en C (RaceEngine con scipy) los 8 intentos terminan antes del
+# presupuesto: (8, 2, 1500) tarda 1,19 s y (8, 1, 900) 1,05 s, pero el primero
+# deja menos semáforos y menos subida (36 tempos del banco).
+TEMPO_CIRCUITO: tuple[int, int, int] = (8, 2, 1500)
 
 
 def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
