@@ -148,3 +148,40 @@ def test_rendimiento_del_motor(admin):
     assert cli.get("/api/admin/motor").status_code == 404
     e = cli.get("/api/admin/motor", headers={"X-Admin-Clave": "clave-larga-de-prueba"}).json()
     assert "demo" in e["grafos"] and e["memoria_mb"] > 0 and e["maximo_mb"] >= e["memoria_mb"] - 1
+
+
+def test_en_vivo(admin, monkeypatch):
+    """Mientras una ruta se calcula, el panel la ve en curso con su etapa; al
+    terminar pasa a recientes. Las muestras del proceso llegan cada segundo."""
+    import threading
+    import time as _t
+    from raceengine_geodata import REGIONS
+    from pacepath import rendimiento
+    d = REGIONS["demo"]
+    adentro, soltar = threading.Event(), threading.Event()
+    original = api.planificar
+
+    def lento(*a, **k):
+        adentro.set()
+        soltar.wait(5)
+        return original(*a, **k)
+    monkeypatch.setattr(api, "planificar", lento)
+    cli, hdr = TestClient(app), {"X-Admin-Clave": "clave-larga-de-prueba"}
+    assert cli.get("/api/admin/vivo").status_code == 404
+    h = threading.Thread(target=lambda: cli.post("/api/ruta", json={"lat": d.lat, "lon": d.lon,
+                                                                     "texto": "fondo 5k", "comuna": "demo"}))
+    h.start()
+    assert adentro.wait(5)
+    v = cli.get("/api/admin/vivo", headers=hdr).json()
+    p = next(x for x in v["en_curso"] if x["consulta"] == "ruta")
+    assert p["etapa"] == "calculando" and p["que"] == "fondo 5k" and p["comuna"] == "demo" and p["lleva_ms"] >= 0
+    soltar.set()
+    h.join(10)
+    _t.sleep(1.2)
+    v = cli.get("/api/admin/vivo", headers=hdr).json()
+    assert not [x for x in v["en_curso"] if x["consulta"] == "ruta"]
+    r = next(x for x in v["recientes"] if x["consulta"] == "ruta")
+    assert r["exito"] and r["motor"]["calculo"] >= 0
+    assert v["serie"] and len(v["serie"][-1]) == 6 and v["serie"][-1][1] > 0
+    assert cli.get(f"/api/admin/vivo?desde={v['t']}", headers=hdr).json()["serie"] == []
+    assert rendimiento._mediana("calculo:fondo") is not None          # para estimar el avance la próxima vez

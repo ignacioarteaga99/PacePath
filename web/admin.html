@@ -134,6 +134,26 @@
   .limite { height: 6px; border-radius: 3px; background: var(--grilla); margin-top: 8px; overflow: hidden; }
   .limite i { display: block; height: 100%; border-radius: 3px; }
   .consumo-kpis .kpi small { display: block; }
+  .vivo-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .vivo-cab h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
+  .vivo-cab .sub { margin: 0; flex: 1; }
+  .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--verde); display: inline-block; animation: latido 2s infinite; }
+  .punto.parado { background: var(--tenue); animation: none; }
+  @keyframes latido { 50% { opacity: .35; } }
+  .vivo-graficos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 900px) { .vivo-graficos { grid-template-columns: 1fr; } }
+  .vg { border: 1px solid var(--linea); border-radius: 12px; padding: 10px 12px 6px; min-width: 0; }
+  .vg header { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--suave); }
+  .vg header b { color: var(--texto, inherit); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .vg svg { display: block; width: 100%; height: 90px; touch-action: none; }
+  .vg .eje { font-size: 10px; color: var(--tenue); display: flex; justify-content: space-between; }
+  .etapa { display: inline-block; font-size: 12px; border-radius: 999px; padding: 1px 8px; background: var(--ok-suave); color: var(--ok); white-space: nowrap; }
+  .etapa.espera { background: var(--error-suave); color: var(--error); }
+  .avance { height: 5px; border-radius: 3px; background: var(--grilla); margin-top: 6px; overflow: hidden; min-width: 80px; }
+  .avance i { display: block; height: 100%; background: var(--ok); border-radius: 3px; transition: width .8s linear; }
+  .avance.indef i { width: 30% !important; animation: indef 1.4s ease-in-out infinite; }
+  @keyframes indef { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  #vivo td small { color: var(--suave); }
   .histo { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; font-size: 13px; }
   .histo i { display: block; height: 14px; border-radius: 0 4px 4px 0; background: var(--ok); min-width: 2px; }
   .histo span { color: var(--suave); font-variant-numeric: tabular-nums; }
@@ -198,6 +218,21 @@
       <button id="salir" type="button">Salir</button>
     </div>
   </header>
+
+  <section class="tarjeta" id="vivo">
+    <div class="vivo-cab"><h2><i class="punto"></i>En vivo</h2>
+      <span class="sub" id="vivoEstado">Conectando…</span>
+      <button type="button" id="vivoPausa">Pausar</button></div>
+    <div class="kpis consumo-kpis" id="vivoKpis"></div>
+    <div class="vivo-graficos">
+      <div class="vg" id="gMem"></div><div class="vg" id="gCpu"></div><div class="vg" id="gPed"></div>
+    </div>
+    <div class="grid">
+      <div><h2>En curso</h2><p class="sub">Cada pedido que el servidor está atendiendo ahora, con su etapa.
+        El avance se estima con lo que tardaron los últimos pedidos parecidos.</p><div id="vivoCurso"></div></div>
+      <div><h2>Recién terminados</h2><p class="sub">Los últimos 8 (se pierden si el servidor se reinicia).</p><div id="vivoRecientes"></div></div>
+    </div>
+  </section>
 
   <section class="tarjeta acceso" id="acceso">
     <div class="acc-cab">
@@ -332,7 +367,7 @@ async function cargar() {
   datos = { ...j, filas: todas.filter((f) => f.consulta !== "consumo_mapa"), mapas: todas.filter((f) => f.consulta === "consumo_mapa") };
   api("/api/admin/consumo").then((c) => { consumoInfo = c; pintarConsumo(); }).catch(() => {});
   api("/api/admin/motor").then((m) => { motorAhora = m; pintarMotor(); }).catch(() => {});
-  if ($("panel").hidden) { acceso(); cargarUsuarios(); }
+  if ($("panel").hidden) { acceso(); cargarUsuarios(); iniciarVivo(); }
   $("login").hidden = true; $("panel").hidden = false;
   const a = $("almacen");
   a.className = "almacen" + (j.almacen !== "postgres" || j.error_almacen ? " mal" : "");
@@ -515,6 +550,102 @@ function pintar() {
   pintarConsumo();
 }
 
+// ── En vivo ─────────────────────────────────────────────────────────────────
+// Cada 2 s (sólo con la pestaña visible) pide las muestras nuevas del proceso y
+// los pedidos en curso. Guarda 10 min de historia (lo mismo que el servidor).
+let vivoSerie = [], vivoT = 0, vivoPausado = false, vivoTimer = null, vivoFallos = 0;
+const ETAPAS = { "esperando turno": "Esperando turno", "cargando mapa": "Cargando mapa", preparando: "Preparando",
+  calculando: "Calculando ruta", terminando: "Terminando", enviando: "Enviando respuesta", procesando: "Procesando" };
+function iniciarVivo() {
+  if (vivoTimer) return;
+  const tic = async () => {
+    vivoTimer = setTimeout(tic, 2000);
+    if (vivoPausado || document.hidden || $("panel").hidden || !CLAVE) return;
+    try {
+      const v = await api(`/api/admin/vivo?desde=${vivoT}`);
+      vivoFallos = 0;
+      // Si el servidor se reinició (Render durmió), su historia empieza de nuevo.
+      if (v.serie.length && vivoSerie.length && v.serie[0][0] < vivoSerie[vivoSerie.length - 1][0]) vivoSerie = [];
+      vivoSerie = vivoSerie.concat(v.serie).filter((m) => m[0] > v.t - 600);
+      vivoT = v.t;
+      pintarVivo(v);
+    } catch (e) {
+      vivoFallos++;
+      $("vivoEstado").textContent = vivoFallos > 1 ? "Sin conexión con el servidor (¿Render está despertando?)" : "Reintentando…";
+      $("vivo").querySelector(".punto").classList.add("parado");
+    }
+  };
+  tic();
+}
+$("vivoPausa").onclick = () => {
+  vivoPausado = !vivoPausado;
+  $("vivoPausa").textContent = vivoPausado ? "Reanudar" : "Pausar";
+  $("vivo").querySelector(".punto").classList.toggle("parado", vivoPausado);
+  $("vivoEstado").textContent = vivoPausado ? "En pausa" : "Reanudando…";
+};
+const hace = (s) => s < 60 ? `${Math.max(0, Math.round(s))} s` : duracion(s);
+const quienVivo = (x) => x.cuenta ? (consumoInfo?.cuentas?.[x.cuenta] || `cuenta ${x.cuenta.slice(0, 6)}`) : `anónimo ${String(x.usuario || "?").slice(0, 6)}`;
+const tasa = (bps) => bps < 1000 ? `${Math.round(bps)} B/s` : bps < 1e6 ? `${(bps / 1e3).toLocaleString("es-CL", { maximumFractionDigits: 1 })} KB/s` : `${(bps / 1e6).toLocaleString("es-CL", { maximumFractionDigits: 1 })} MB/s`;
+
+// Gráfico de línea de los últimos 10 min, con línea de límite opcional y lectura al pasar el dedo/mouse.
+function grafico(caja, titulo, col, { max, limite, fmt, color = "var(--ok)" }) {
+  const S = vivoSerie, W = 300, H = 90;
+  if (!S.length) { caja.innerHTML = `<header><span>${titulo}</span><b>—</b></header>`; return; }
+  const t1 = S[S.length - 1][0], t0 = t1 - 600;
+  const top = Math.max(max || 0, limite || 0, ...S.map((m) => m[col])) * 1.08 || 1;
+  const x = (t) => (t - t0) / 600 * W, y = (v) => H - 2 - v / top * (H - 4);
+  const d = S.map((m, i) => `${i ? "L" : "M"}${x(m[0]).toFixed(1)},${y(m[col]).toFixed(1)}`).join("");
+  const area = `${d}L${x(S[S.length - 1][0]).toFixed(1)},${H}L${x(S[0][0]).toFixed(1)},${H}Z`;
+  const ult = S[S.length - 1][col];
+  caja.innerHTML = `<header><span>${titulo}</span><b data-valor>${fmt(ult)}</b></header>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="${titulo}, últimos 10 minutos">
+      <path d="${area}" fill="${color}" opacity=".12"/>
+      ${limite ? `<line x1="0" x2="${W}" y1="${y(limite)}" y2="${y(limite)}" stroke="var(--error)" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" stroke-width="1"/>` : ""}
+      <path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+      <line data-cruz x1="0" x2="0" y1="0" y2="${H}" stroke="var(--suave)" stroke-width="1" vector-effect="non-scaling-stroke" visibility="hidden"/>
+    </svg>
+    <div class="eje"><span>hace 10 min</span>${limite ? `<span style="color:var(--error)">límite ${fmt(limite)}</span>` : ""}<span>ahora</span></div>`;
+  const svg = caja.querySelector("svg"), cruz = caja.querySelector("[data-cruz]"), valor = caja.querySelector("[data-valor]");
+  const mover = (ev) => {
+    const r = svg.getBoundingClientRect(), t = t0 + (ev.clientX - r.left) / r.width * 600;
+    const m = S.reduce((a, b) => Math.abs(b[0] - t) < Math.abs(a[0] - t) ? b : a);
+    cruz.setAttribute("x1", x(m[0])); cruz.setAttribute("x2", x(m[0])); cruz.setAttribute("visibility", "visible");
+    const hace = Math.round(t1 - m[0]);
+    valor.textContent = `${fmt(m[col])} · ${hace ? `hace ${hace >= 60 ? Math.floor(hace / 60) + " min " : ""}${hace % 60} s` : "ahora"}`;
+  };
+  svg.onpointermove = mover; svg.onpointerdown = mover;
+  svg.onpointerleave = () => { cruz.setAttribute("visibility", "hidden"); valor.textContent = fmt(ult); };
+}
+
+function pintarVivo(v) {
+  const a = v.ahora, ult = vivoSerie[vivoSerie.length - 1] || [0, a.memoria_mb, 0, 0, 0, 0];
+  $("vivo").querySelector(".punto").classList.remove("parado");
+  $("vivoEstado").textContent = `Actualizado ${new Date(v.t * 1000).toLocaleTimeString("es-CL")} · encendido hace ${duracion(a.encendido_s)} · mapas en memoria: ${a.grafos.length ? a.grafos.join(", ") : "ninguno"}`;
+  const ult60 = vivoSerie.filter((m) => m[0] > v.t - 60);
+  const datosMin = ult60.reduce((s, m) => s + m[5], 0);
+  $("vivoKpis").innerHTML = `
+    <div class="kpi"><span>Memoria</span><b>${num(a.memoria_mb)} MB</b><small>máximo ${num(a.maximo_mb)} de ${RENDER_MB} MB</small>${barraLimite(a.memoria_mb, RENDER_MB).replace(" al mes", "")}</div>
+    <div class="kpi"><span>CPU</span><b>${num(ult[2])} %</b><small>de un núcleo · promedio último min ${num(Math.round(ult60.reduce((s, m) => s + m[2], 0) / (ult60.length || 1)))} %</small></div>
+    <div class="kpi"><span>Pedidos en curso</span><b>${num(v.en_curso.length)}</b><small>${num(a.esperando)} esperando turno del motor</small></div>
+    <div class="kpi"><span>Datos (último min)</span><b>${tam(datosMin)}</b><small>ahora ${tasa(ult[5])}</small></div>`;
+  grafico($("gMem"), "Memoria", 1, { limite: RENDER_MB, fmt: (x) => `${num(x)} MB`, color: "var(--ok)" });
+  grafico($("gCpu"), "CPU (% de un núcleo)", 2, { max: 100, fmt: (x) => `${num(x)} %`, color: "#e0a100" });
+  grafico($("gPed"), "Pedidos en curso", 3, { max: 3, fmt: (x) => num(x), color: "var(--verde)" });
+
+  $("vivoCurso").innerHTML = v.en_curso.length ? `<div class="tabla"><table><thead><tr><th>Pedido</th><th>Etapa</th><th class="num">Lleva</th></tr></thead><tbody>
+    ${v.en_curso.map((p) => `<tr><td>${esc(p.que || nombre(p.consulta))}<br><small>${esc(nombre(p.consulta))}${p.comuna ? " · " + esc(p.comuna) : ""} · ${esc(quienVivo(p))} · ${esc(p.disp || "")}</small></td>
+      <td><span class="etapa${p.etapa === "esperando turno" ? " espera" : ""}">${esc(ETAPAS[p.etapa] || p.etapa)}${p.etapa === "esperando turno" && p.cola ? ` (${p.cola} antes)` : ""}</span>
+        <div class="avance${p.avance == null ? " indef" : ""}"><i style="width:${p.avance == null ? 30 : (100 * p.avance).toFixed(0)}%"></i></div>
+        <small>${p.tipico_ms ? `${seg(p.en_etapa_ms)} de ~${seg(p.tipico_ms)} típicos` : `${seg(p.en_etapa_ms)} en esta etapa`}</small></td>
+      <td class="num">${seg(p.lleva_ms)}</td></tr>`).join("")}</tbody></table></div>`
+    : '<div class="vacio">Nada en curso ahora.</div>';
+  $("vivoRecientes").innerHTML = v.recientes.length ? `<div class="tabla"><table><thead><tr><th>Pedido</th><th class="num">Tardó</th></tr></thead><tbody>
+    ${v.recientes.slice(0, 8).map((r) => `<tr><td>${r.exito ? "" : '<span class="etapa espera">error ' + (r.estado || "") + "</span> "}${esc(r.que || nombre(r.consulta))}<br>
+      <small>${esc(nombre(r.consulta))}${r.comuna ? " · " + esc(r.comuna) : ""} · ${esc(quienVivo(r))} · hace ${hace(v.t - r.fin)}
+      ${r.motor ? `<br>${etapas(r.motor)} · memoria ${num(r.motor.mem || 0)} MB` : ""}</small></td><td class="num">${seg(r.ms)}</td></tr>`).join("")}</tbody></table></div>`
+    : '<div class="vacio">Aún nada desde que partió el servidor.</div>';
+}
+
 // ── Motor de rutas ──────────────────────────────────────────────────────────
 // Cuánto tarda en entregar una ruta y qué consume: viene en la columna «motor»
 // del registro (ver pacepath/rendimiento.py) + el estado del proceso ahora.
@@ -531,6 +662,8 @@ function duracion(s) {
   const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
   return h >= 24 ? `${Math.floor(h / 24)} d ${h % 24} h` : h ? `${h} h ${m} min` : `${m} min`;
 }
+const etapas = (m) => [["espera", "espera"], ["mapa", m.frio ? "carga del mapa" : "mapa"], ["calculo", "cálculo"]]
+  .filter(([k]) => m[k]).map(([k, t]) => `${t} ${seg(m[k])}`).join(" · ");
 function pintarMotor() {
   const caja = $("motor");
   if (!caja || !datos) return;
@@ -555,8 +688,6 @@ function pintarMotor() {
   const cuenta = tramos.map(([a, b]) => ms.filter((x) => x >= a && x < b).length);
   const tope = Math.max(1, ...cuenta);
   const peores = [...P].sort((a, b) => (b.ms || 0) - (a.ms || 0)).slice(0, 8);
-  const etapas = (m) => [["espera", "espera"], ["mapa", m.frio ? "carga del mapa" : "mapa"], ["calculo", "cálculo"]]
-    .filter(([k]) => m[k]).map(([k, t]) => `${t} ${seg(m[k])}`).join(" · ");
   const pct = (a, b) => b ? `${(100 * a / b).toLocaleString("es-CL", { maximumFractionDigits: 1 })} %` : "—";
 
   caja.innerHTML = `<div class="tarjeta"><h2>Motor de rutas</h2>

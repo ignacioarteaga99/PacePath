@@ -210,6 +210,7 @@ async def _registrar(request: Request, call_next):
     info["cuenta"] = cuenta["id"] if cuenta else None
     largo = request.headers.get("content-length", "")
     info["bytes_in"] = int(largo) if largo.isdigit() else 0
+    vivo = rendimiento.empezar(info)
     marca = uso.consulta.set(info)
     t0 = time.perf_counter()
 
@@ -217,6 +218,7 @@ async def _registrar(request: Request, call_next):
         info.setdefault("ms", round((time.perf_counter() - t0) * 1000))
         info.setdefault("exito", info.get("estado", 500) < 400)
         info.setdefault("evento", consulta)
+        rendimiento.terminar(vivo, info)
         registro.anotar(info)
     try:
         resp = await call_next(request)
@@ -228,6 +230,7 @@ async def _registrar(request: Request, call_next):
     uso.consulta.reset(marca)
     info["estado"] = resp.status_code
     info["ms"] = round((time.perf_counter() - t0) * 1000)      # cálculo, sin el envío
+    rendimiento.etapa(vivo, "enviando")
     if nuevo:
         resp.set_cookie(COOKIE_USUARIO, usuario, max_age=400 * 24 * 3600, httponly=True,
                         samesite="lax", secure=_base(request).startswith("https"))
@@ -438,6 +441,13 @@ def admin_motor(request: Request) -> dict:
     Lo de cada pedido viene en la columna `motor` del registro."""
     _solo_admin(request)
     return rendimiento.estado()
+
+
+@app.get("/api/admin/vivo", include_in_schema=False)
+def admin_vivo(request: Request, desde: float = 0) -> dict:
+    """Tarjeta «En vivo»: muestras del proceso desde `desde` y pedidos en curso."""
+    _solo_admin(request)
+    return rendimiento.vivo(desde)
 
 
 @app.get("/api/uso", include_in_schema=False)
@@ -842,7 +852,7 @@ def _plan(body: PedidoRuta) -> dict:
     if comuna is None:
         _fuera_de_mapa(body.lat, body.lon)
     try:
-        with rendimiento.en_motor(_motor, comuna) as med:
+        with rendimiento.en_motor(_motor, comuna, body.texto or s.resumen, s.tipo.value) as med:
             ctx = med.contexto()
             meta = (body.meta.lat, body.meta.lon) if body.meta else None
             pref, info = _preferidas(ctx, body)
@@ -904,7 +914,7 @@ def strava_frecuencia(body: PedidoFrecuencia) -> dict:
     comuna = comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
         _fuera_de_mapa(body.lat, body.lon)
-    with rendimiento.en_motor(_motor, comuna) as med:
+    with rendimiento.en_motor(_motor, comuna, f"{len(body.polilineas)} carreras") as med:
         ctx = med.contexto()
         trazados = [frecuencia.decodificar(p) for p in body.polilineas if p]
         a, v = frecuencia.frecuencia(ctx, trazados)
@@ -936,7 +946,7 @@ def _trazado(body: PedidoTrazado) -> dict:
     if comuna is None:
         _fuera_de_mapa(p0.lat, p0.lon)
     try:
-        with rendimiento.en_motor(_motor, comuna) as med:
+        with rendimiento.en_motor(_motor, comuna, f"{len(body.puntos)} puntos") as med:
             plan = trazar(med.contexto(), [(p.lat, p.lon) for p in body.puntos], body.volver)
             med.calidad(plan)
             return plan
