@@ -77,5 +77,5 @@ def trazar(ctx: GraphContext, puntos: list[tuple[float, float]], volver: bool) -
         "partes": tramos,
         "marcas": _marcas(ctx, aristas, med),
         "totales": {"distancia_m": round(med.distancia_m)},
-        "avisos": [aviso_srtm()],
+        "avisos": [aviso_srtm(ctx)],
     }

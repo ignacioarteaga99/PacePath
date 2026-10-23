@@ -533,7 +533,12 @@ def base_plan(ctx: GraphContext, sesion: Sesion, req: Requisitos, casa: int) -> 
     }
 
 
-def aviso_srtm() -> str:
+def aviso_srtm(ctx: GraphContext | None = None) -> str:
+    """De dónde sale la elevación del grafo (lo dice su cobertura)."""
+    fuente = ((ctx.graph.coverage or {}).get("elevation") or {}).get("source", "") if ctx else ""
+    if "Copernicus" in fuente:
+        return tr("Elevación del modelo Copernicus GLO-30 (±1–2 m): el desnivel es orientativo.",
+                  "Elevation from the Copernicus GLO-30 model (±1–2 m): climb figures are approximate.")
     return tr("Elevación del modelo SRTM (±2–3 m): el desnivel es orientativo.",
               "Elevation from the SRTM model (±2–3 m): climb figures are approximate.")
 
@@ -620,7 +625,7 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                          f"con {calentamiento_extra} m suaves por el mismo tramo.",
                          f"The stretch is {ida['distancia_m']} m away: finish your warm-up "
                          f"with {calentamiento_extra} m easy on the same stretch."))
-    avisos.append(aviso_srtm())
+    avisos.append(aviso_srtm(ctx))
 
     plan = base_plan(ctx, sesion, req, casa) | {
         "tramo": info,

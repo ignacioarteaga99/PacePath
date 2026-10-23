@@ -787,7 +787,7 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
                          "recorrido: lleva agua.",
                          "There are no water fountains in OpenStreetMap along this route: "
                          "bring water."))
-    avisos.append(aviso_srtm())
+    avisos.append(aviso_srtm(ctx))
     plan = base_plan(ctx, sesion, req, casa) | {
         "recorrido": info,
         "partes": [{"tipo": tipo, "distancia_m": round(med.distancia_m),
@@ -995,7 +995,7 @@ def planificar_tempo(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                          f"The block is {bloque / 1000:.1f} km instead of {X / 1000:.1f} km."))
     subida = subida_partes(partes)
     avisos += aviso_tope(req, subida)
-    avisos.append(aviso_srtm())
+    avisos.append(aviso_srtm(ctx))
     plan = base_plan(ctx, sesion, req, casa) | forma | {
         "partes": partes,
         "marcas": marcas,
