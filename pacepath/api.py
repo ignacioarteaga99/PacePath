@@ -357,6 +357,8 @@ class PedidoRuta(BaseModel):
     # Cuándo sale a correr (la hora del teléfono): de noche, con calor o en hora
     # punta cambia lo que conviene. Sin ella, ahora.
     hora: datetime | None = None
+    # False: que la hora no importe (sin ajustes de noche, calor ni hora punta).
+    segun_hora: bool = True
     # «Otra opción»: la n-ésima ruta distinta (0 = la mejor).
     opcion: int = Field(default=0, ge=0, le=9)
     # Preferencias del corredor (vienen de su teléfono; no se guardan).
@@ -928,7 +930,7 @@ def _plan(body: PedidoRuta) -> dict:
     comuna = body.comuna or comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
         _fuera_de_mapa(body.lat, body.lon)
-    cuando = momento.momento_de(body.hora, body.lat, body.lon)
+    cuando = momento.momento_de(body.hora, body.lat, body.lon) if body.segun_hora else None
     detalle = (body.texto, body.forma if body.forma != "auto" else None,
                f"opción {body.opcion + 1}" if body.opcion else None, "sin volver" if not body.volver else None)
     # ¿Se calculó hace poco? Se responde sin hacer fila ni cargar el mapa.

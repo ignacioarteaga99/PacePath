@@ -134,3 +134,13 @@ def test_head_como_get_sin_cuerpo():
         r = cli.head(ruta)
         assert r.status_code == 200 and r.content == b"", ruta
     assert cli.head("/no-existe").status_code == 404
+
+
+def test_sin_importar_la_hora():
+    """De noche la ruta se adapta (evita lo oscuro) salvo que no importe la hora."""
+    d = REGIONS["demo"]
+    noche = {"lat": d.lat, "lon": d.lon, "texto": "fondo 5k", "comuna": "demo", "hora": "2026-07-01T04:00:00Z"}
+    con = cli.post("/api/ruta", json=noche).json()
+    assert con["momento"]["oscuro"] and any("noche" in a for a in con["avisos"])
+    sin = cli.post("/api/ruta", json=noche | {"segun_hora": False}).json()
+    assert "momento" not in sin and not any("noche" in a for a in sin.get("avisos", []))

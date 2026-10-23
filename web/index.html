@@ -545,6 +545,7 @@
     <summary><span data-i18n>Opciones</span> <small id="resumenOpciones"></small></summary>
     <div class="continuo">
       <label class="interruptor"><input type="checkbox" id="volverSesion" checked> <span data-i18n>Volver a la salida</span></label>
+      <label class="interruptor" data-i18n-aria="De noche evita lo oscuro, con calor busca parques y en hora punta evita avenidas"><input type="checkbox" id="segunHora" checked> <span data-i18n>Según la hora</span></label>
       <div class="forma" role="group" aria-label="Forma de la ruta" data-i18n-aria="Forma de la ruta">
         <button type="button" data-forma="auto" class="on" data-i18n>Auto</button>
         <button type="button" data-forma="circuito" data-i18n>Circuito</button>
@@ -678,6 +679,8 @@ const EN = {
   "Guardar sesión": "Save session", "Quitar de guardadas": "Remove from saved", "desde {d}": "from {d}",
   "Opciones": "Options", "Vuelve a la salida": "Back to start", "Hasta la meta": "To the finish",
   "Sin volver": "One way",
+  "Según la hora": "By time of day", "A cualquier hora": "Any time of day",
+  "De noche evita lo oscuro, con calor busca parques y en hora punta evita avenidas": "At night it avoids dark paths, in the heat it looks for parks and at rush hour it avoids avenues",
   "Dónde has corrido": "Where you've run", "{n} carrera": "{n} run", "{n} carreras": "{n} runs",
   "Otros lugares": "Other places", "cerca de {c}": "near {c}", "Sin ciudad cerca": "No city nearby",
   "Ciudades: GeoNames (CC BY 4.0)": "Cities: GeoNames (CC BY 4.0)", "Guía beta": "Beta guide", "Términos": "Terms", "Apoya PacePath": "Support PacePath", "Banderas: Twemoji (CC BY 4.0)": "Flags: Twemoji (CC BY 4.0)",
@@ -1309,6 +1312,7 @@ function resumirOpciones() {
     else if (PLANO.test($("texto").value)) partes.push(t("Plano"));
   }
   if (radioKm()) partes.push(`≤ ${num(radioKm(), radioKm() % 1 ? 1 : 0)} km`);
+  if (!$("segunHora").checked) partes.push(t("A cualquier hora"));
   $("resumenOpciones").textContent = partes.join(" · ");
 }
 function revisarTipo() {
@@ -1329,6 +1333,12 @@ $("plano").onclick = () => {
   revisarTipo();
 };
 $("volverSesion").onchange = () => { revisarTipo(); if ($("volverSesion").checked) fijarMeta(null); };
+// «Según la hora» (de noche, con calor, en hora punta): se recuerda en este teléfono.
+try { $("segunHora").checked = localStorage.getItem("pp_segun_hora") !== "0"; } catch {}
+$("segunHora").onchange = () => {
+  try { localStorage.setItem("pp_segun_hora", $("segunHora").checked ? "1" : "0"); } catch {}
+  resumirOpciones();
+};
 function fijarMeta(p, nombre) {
   meta = p; eligiendoMeta = false;
   resumirOpciones();
@@ -1717,9 +1727,11 @@ async function pedido() {
   // Sesiones por tiempo («45 min suave», «fartlek 10x1'»): con tu ritmo habitual.
   const ritmo = await ritmoHabitual();
   if (ritmo) p.ritmo_s_km = ritmo;
-  // De noche, con calor o en hora punta conviene otra ruta. La hora se fija al
-  // armarla: el GPX (que se vuelve a pedir) sale igual a lo que se ve.
-  p.hora = horaPedido || new Date().toISOString();
+  // De noche, con calor o en hora punta conviene otra ruta (salvo que no
+  // importe la hora). La hora se fija al armarla: el GPX (que se vuelve a
+  // pedir) sale igual a lo que se ve.
+  if ($("segunHora").checked) p.hora = horaPedido || new Date().toISOString();
+  else p.segun_hora = false;
   if (opcionPedida) p.opcion = opcionPedida;
   // Preferencias del corredor: viajan con cada pedido; el servidor no las guarda.
   const favs = favoritos();
@@ -1814,13 +1826,13 @@ const leerLista = (k) => { const v = pref(k, []); return Array.isArray(v) ? v : 
 let ultimaEntrada = null;
 const claveSesion = (e) => [e.texto.trim().toLowerCase(), e.salida.lat.toFixed(4), e.salida.lon.toFixed(4),
   e.volver, e.meta ? e.meta.lat.toFixed(4) + "," + e.meta.lon.toFixed(4) : "", e.tope ?? "", e.radio ?? "",
-  e.forma || "auto", e.vueltas || ""].join("|");
+  e.forma || "auto", e.vueltas || ""].join("|") + (e.segunHora === false ? "|sin-hora" : "");
 function entradaDe(p, plan) {
   const r = plan.tramo || plan.bloque || plan.recorrido || {};
   return { fecha: Date.now(), texto: p.texto, salida: { lat: p.lat, lon: p.lon, nombre: $("desde").value },
     volver: p.volver !== false, meta: p.meta || null, metaNombre: p.meta ? $("meta").value : "",
     tope: p.max_subida_m ?? null, radio: p.radio_max_m ?? null, tipo: plan.sesion.tipo,
-    forma: p.forma || "auto", vueltas: p.vueltas || null,
+    forma: p.forma || "auto", vueltas: p.vueltas || null, segunHora: p.segun_hora !== false,
     resumen: plan.sesion.resumen, distancia: plan.totales.distancia_m, calle: (r.calles || [])[0] || "" };
 }
 function guardarReciente(e) {
@@ -1868,6 +1880,7 @@ async function repetir(e) {
   if (modo !== "sesion") cambiarModo("sesion");
   $("texto").value = e.texto;
   $("volverSesion").checked = e.volver;
+  if (e.segunHora !== undefined) $("segunHora").checked = e.segunHora;
   fijarMeta(e.volver ? null : e.meta, e.metaNombre);
   $("tope").value = e.tope ?? "";
   $("radioMax").value = e.radio ? e.radio / 1000 : "";
