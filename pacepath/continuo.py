@@ -30,6 +30,7 @@ from raceengine_routing import RoutingWeights
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components, dijkstra
 
+from .cancelar import revisar
 from .idioma import tr
 from .explicacion import explicar_continuo, explicar_tempo
 from .metricas import Medida, desnivel, medir
@@ -173,6 +174,7 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     gen = modelo.model_copy(update={"distance": DistanceLayer(
         target_m=distancia_m * RODEO, tolerance_pct=2.0)})
     loops = generate_loops(ctx, gen, w, casa, reach, rng, k=k, budget_ms=1500)
+    revisar()
 
     def eval_(lp) -> tuple:
         med = medir(ctx, lp.edges, req.radio_agua_m)
@@ -181,13 +183,17 @@ def circuito(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
     crudos = sorted((eval_(lp) for lp in loops), key=lambda x: x[2])
     finos = []
     for lp, _, _ in crudos[:afinar]:
+        revisar()
         ajustado, _ = adjust_distance(ctx, modelo, w, lp, casa, reach, {}, rng,
                                       budget_ms=600)
         finos.append(eval_(ajustado))
     todos = [(lp.edges, med, p) for lp, med, p in finos + crudos[afinar:]]
     if con_ida_y_vuelta:
+        revisar()
         todos += ida_y_vuelta(ctx, casa, distancia_m, req, w)
+        revisar()
         todos += por_corredor(ctx, casa, distancia_m, req, w)
+        revisar()
         todos += vueltas_parque(ctx, casa, distancia_m, req, w)
     if not todos:
         raise SinTramo(tr("No encontré ningún recorrido desde esa salida.",
@@ -351,6 +357,7 @@ def hasta_meta(ctx: GraphContext, casa: int, meta: int, distancia_m: float,
     gen = modelo.model_copy(update={"distance": DistanceLayer(
         target_m=distancia_m * RODEO, tolerance_pct=2.0)})
     for lp in generate_open_routes(ctx, gen, w, casa, meta, reach, rng, k=4, budget_ms=1500):
+        revisar()
         ajustado, _ = adjust_distance(ctx, modelo, w, lp, casa, reach, {}, rng,
                                       budget_ms=600, end_node=meta)
         med = medir(ctx, ajustado.edges, req.radio_agua_m)
@@ -431,6 +438,7 @@ def por_corredor(ctx: GraphContext, casa: int, distancia_m: float, req: Requisit
     rev = g.reverse
     out = []
     for c in cands[:max_corredores]:
+        revisar()
         en_c = alcanzables[comp[alcanzables] == c]
         E = int(en_c[np.argmin(coste[en_c])])                 # entrada más barata
         acerc = _camino(ctx, w, pred, casa, E)
@@ -524,6 +532,7 @@ def vueltas_parque(ctx: GraphContext, casa: int, distancia_m: float, req: Requis
         if float(g.elen[parque & cerca_v].sum()) / 2 < PARQUE_MIN_M:
             continue
         usados.append(v)
+        revisar()
         acerc = _camino(ctx, w, pred, casa, v) if v != casa else []
         a_m = float(g.elen[acerc].sum()) if acerc else 0.0
         resto = distancia_m - 2 * a_m

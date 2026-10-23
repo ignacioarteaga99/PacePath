@@ -32,7 +32,7 @@ from contextlib import contextmanager
 
 from raceengine_engine import context as _contextos
 
-from . import comunas, uso
+from . import cancelar, comunas, uso
 
 INICIO = time.time()
 
@@ -91,6 +91,7 @@ class Medicion:
               if self.datos["frio"] else None)
         ctx = comunas.contexto(self.comuna)
         self.marca("mapa")
+        cancelar.revisar()
         etapa(self.vivo, "calculando", f"calculo:{self.clave}")
         return ctx
 
@@ -142,6 +143,7 @@ def en_motor(lock: threading.Lock, comuna: str | None, que: str | None = None, c
             _esperando -= 1
     m.marca("espera")
     try:
+        cancelar.revisar()           # canceló mientras esperaba su turno: ni empezar
         yield m
     finally:
         m.marca("calculo")           # también si no encontró ruta: ese tiempo igual se gastó

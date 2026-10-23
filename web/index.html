@@ -186,6 +186,7 @@
   button.chico { padding: 5px 10px; font-size: 13px; }
   button.enlace { background: none; border: 0; padding: 6px 0; color: var(--suave); text-decoration: underline; font: inherit; font-size: 13px; cursor: pointer; }
   .cargando { display: flex; align-items: center; gap: 10px; color: var(--suave); padding: 6px 0; }
+  .cargando .cancelar { margin-left: auto; flex: none; }
   .rueda { width: 18px; height: 18px; border-radius: 50%; border: 3px solid #f7c5b2;
     border-top-color: var(--acento); animation: g .8s linear infinite; }
   @keyframes g { to { transform: rotate(360deg); } }
@@ -666,6 +667,7 @@ const EN = {
   "Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.":
     "First choose where you start: type a street, use «Near me» or tap the map.",
   "Buscando la mejor ruta para tu sesión…": "Finding the best route for your session…",
+  "Cancelar": "Cancel", "Cancelaste la ruta. Cambia lo que quieras y vuelve a armarla.": "You cancelled the route. Change anything you like and build it again.",
   "No pude armar la ruta.": "I couldn't build the route.",
   "Preferir mis calles de siempre al crear rutas": "Prefer my usual streets when creating routes",
   "Tramos favoritos": "Favorite stretches",
@@ -1912,13 +1914,24 @@ $("form").onsubmit = async (e) => {
   }
   if (!salida) return hoja(`<p class="aviso">${t("Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.")}</p>`);
   $("armar").disabled = true;
-  hoja(`<div class="cargando"><div class="rueda"></div>${t("Buscando la mejor ruta para tu sesión…")}</div>`);
+  // «Cancelar»: corta la conexión y avisa al servidor (detrás del proxy el
+  // corte no siempre le llega), que deja de calcular y atiende al siguiente.
+  const control = new AbortController(), idPedido = Math.random().toString(36).slice(2, 12);
+  hoja(`<div class="cargando"><div class="rueda"></div><span>${t("Buscando la mejor ruta para tu sesión…")}</span>
+    <button type="button" class="sec chico cancelar" id="cancelarRuta">${t("Cancelar")}</button></div>`);
+  $("cancelarRuta").onclick = () => {
+    control.abort();
+    try { navigator.sendBeacon(`/api/cancelar?pedido=${idPedido}`); } catch {}
+    hoja(`<p class="aviso">${t("Cancelaste la ruta. Cambia lo que quieras y vuelve a armarla.")}</p>`);
+  };
   if (!pidiendoOtra) opcionPedida = 0;
   pidiendoOtra = false;
   try {
     horaPedido = new Date().toISOString();
     const p = await pedido();
-    const r = await fetch("/api/ruta", { method: "POST", headers: { "Content-Type": "application/json" },
+    if (control.signal.aborted) return;
+    const r = await fetch("/api/ruta", { method: "POST", signal: control.signal,
+                                         headers: { "Content-Type": "application/json", "X-Pedido": idPedido },
                                          body: JSON.stringify(p) });
     const j = await r.json();
     if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : t("No pude armar la ruta."));
@@ -1929,7 +1942,7 @@ $("form").onsubmit = async (e) => {
     if (j.preferencias && !j.preferencias.version_ok) olvidarFrecuentes(j.comuna);
     mostrarRuta(j);
   } catch (err) {
-    hoja(`<p class="aviso">${esc(err.message)}</p>`);
+    if (!control.signal.aborted) hoja(`<p class="aviso">${esc(err.message)}</p>`);
   } finally { $("armar").disabled = false; }
 };
 revisarTipo();

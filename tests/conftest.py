@@ -29,3 +29,11 @@ def _registro_temporal(tmp_path_factory):
     from pacepath import acceso
     acceso.olvidar()
     acceso.configurar(activo=False)
+
+
+@pytest.fixture(autouse=True)
+def _sin_rutas_recientes():
+    """Cada test calcula sus rutas: nada de la caché de otro test."""
+    from pacepath import recientes
+    recientes.olvidar()
+    yield

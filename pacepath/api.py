@@ -56,11 +56,12 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import acceso, ciudades, comunas, correo, cuentas, momento, oauth, frecuencia, idioma, lugares, nombres, registro, rendimiento, strava, uso
+from . import acceso, cancelar, ciudades, comunas, correo, cuentas, momento, oauth, frecuencia, idioma, lugares, nombres, recientes, registro, rendimiento, strava, uso
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -279,6 +280,10 @@ async def _head(request: Request, call_next):
         pass
     headers = {k: v for k, v in resp.headers.items() if k.lower() != "content-length"}
     return Response(status_code=resp.status_code, headers=headers)
+
+
+# La más externa (se agrega al final): escucha si el teléfono corta la conexión.
+app.add_middleware(cancelar.VigilarConexion, rutas={"/api/ruta"})
 
 
 def _anotar(**campos) -> None:
@@ -923,12 +928,22 @@ def _plan(body: PedidoRuta) -> dict:
     comuna = body.comuna or comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
         _fuera_de_mapa(body.lat, body.lon)
+    cuando = momento.momento_de(body.hora, body.lat, body.lon)
+    detalle = (body.texto, body.forma if body.forma != "auto" else None,
+               f"opción {body.opcion + 1}" if body.opcion else None, "sin volver" if not body.volver else None)
+    # ¿Se calculó hace poco? Se responde sin hacer fila ni cargar el mapa.
+    version = next((c.get("version") for c in comunas.disponibles() if c["id"] == comuna), None) or comuna
+    clave = recientes.clave(body.model_dump(mode="json", exclude={"sesion"}) | {"sesion": s.model_dump(mode="json")},
+                            version, (cuando.oscuro, cuando.calor, cuando.punta) if cuando else None, idioma.actual())
+    if (plan := recientes.buscar(clave)) is not None:
+        uso.registrar("ruta", *detalle, "caché", "strava" if plan["preferencias"]["frecuentes"] else None,
+                      tipo=s.tipo.value, comuna=comuna)
+        return plan
     try:
         with rendimiento.en_motor(_motor, comuna, body.texto or s.resumen, s.tipo.value) as med:
             ctx = med.contexto()
             meta = (body.meta.lat, body.meta.lon) if body.meta else None
             pref, info = _preferidas(ctx, body)
-            cuando = momento.momento_de(body.hora, body.lat, body.lon)
             plan = planificar(ctx, s, body.lat, body.lon, volver=body.volver, meta=meta,
                               preferidas=pref, radio_max_m=body.radio_max_m,
                               forma=body.forma, n_vueltas=body.vueltas, momento=cuando,
@@ -938,14 +953,15 @@ def _plan(body: PedidoRuta) -> dict:
             # Versión del mapa: el teléfono guarda la ruta para el historial y
             # la vuelve a pedir sólo si el mapa de la comuna cambió.
             plan["mapa"] = ctx.version
-            uso.registrar("ruta", body.texto, body.forma if body.forma != "auto" else None,
-                          f"opción {body.opcion + 1}" if body.opcion else None,
-                          "sin volver" if not body.volver else None, "strava" if info["frecuentes"] else None,
-                          tipo=s.tipo.value, comuna=comuna)
-            return plan
+            uso.registrar("ruta", *detalle, "strava" if info["frecuentes"] else None, tipo=s.tipo.value, comuna=comuna)
+        recientes.guardar(clave, plan)
+        return plan
     except SinTramo as exc:
         uso.registrar("ruta_sin_tramo", body.texto, tipo=s.tipo.value, comuna=comuna, exito=False)
         raise HTTPException(404, str(exc)) from exc
+    except cancelar.Cancelado as exc:
+        uso.registrar("ruta_cancelada", body.texto, tipo=s.tipo.value, comuna=comuna, exito=False)
+        raise HTTPException(499, tr("Cancelaste la ruta.", "You cancelled the route.")) from exc
 
 
 def _preferidas(ctx, body: PedidoRuta) -> tuple[np.ndarray | None, dict]:
@@ -1008,8 +1024,31 @@ def strava_frecuencia(body: PedidoFrecuencia) -> dict:
 
 
 @app.post("/api/ruta")
-def ruta(body: PedidoRuta) -> dict:
-    return _plan(body)
+async def ruta(body: PedidoRuta, request: Request) -> dict:
+    return await _cancelable(request, _plan, body)
+
+
+@app.post("/api/cancelar", include_in_schema=False)
+def cancelar_pedido(pedido: str = "") -> dict:
+    """El teléfono avisa que la persona tocó «Cancelar» (va además de cortar
+    la conexión: detrás de un proxy el corte no siempre llega al servidor)."""
+    return {"ok": bool(pedido) and cancelar.cancelar(pedido[:64])}
+
+
+async def _cancelable(request: Request, fn, *args):
+    """Corre `fn` en un hilo (como cualquier endpoint normal) atenta a que el
+    teléfono corte la conexión (cancelar.VigilarConexion) o avise por
+    /api/cancelar: el motor deja de calcular en el próximo punto de corte."""
+    pedido = request.headers.get("x-pedido", "")[:64] or None
+    ev = cancelar.nuevo(pedido, request.scope.get("pp_corte"))
+
+    def trabajo():
+        with cancelar.vigilar(ev):
+            return fn(*args)
+    try:
+        return await run_in_threadpool(trabajo)
+    finally:
+        cancelar.soltar(pedido)
 
 
 def _trazado(body: PedidoTrazado) -> dict:

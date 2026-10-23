@@ -33,6 +33,7 @@ from raceengine_engine.weights import build_weights
 from raceengine_geodata import ALL_CLASSES
 from raceengine_routing import RoutingWeights
 
+from .cancelar import revisar
 from .idioma import tr
 from . import nombres as _nombres
 from .sesion import CRUCE_MAYOR, CRUCE_MENOR, Requisitos, Sesion, TipoSesion, requisitos
@@ -352,6 +353,7 @@ def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: fl
     elif solo_limpios:
         niveles = niveles[:2]
     for nivel, max_acerc, aviso in niveles:
+        revisar()
         cand = [m for t in cerca
                 if (m := _ventanas(ctx, t, nivel, dist_casa, holgura_m, max_acerc))]
         if radio_actual() is not None:
