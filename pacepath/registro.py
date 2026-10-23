@@ -33,15 +33,18 @@ COLUMNAS = ("ts", "dia", "usuario", "strava", "consulta", "evento", "tipo", "com
             "detalle", "exito", "estado", "ms", "error", "idioma", "disp",
             # Consumo (panel «Consumo»): cuenta que consultó, bytes que llegaron y
             # que salieron (ya comprimidos) y llamadas a servicios externos.
-            "cuenta", "bytes_in", "bytes_out", "externas")
+            "cuenta", "bytes_in", "bytes_out", "externas",
+            # Rendimiento del motor (panel «Motor»): JSON corto, ver rendimiento.py.
+            "motor")
 # Columnas agregadas después de crear la tabla (en Neon ya hay datos).
-_MIGRACIONES = [("cuenta", "TEXT"), ("bytes_in", "INTEGER"), ("bytes_out", "INTEGER"), ("externas", "SMALLINT")]
+_MIGRACIONES = [("cuenta", "TEXT"), ("bytes_in", "INTEGER"), ("bytes_out", "INTEGER"), ("externas", "SMALLINT"),
+                ("motor", "TEXT")]
 
 _DDL_PG = """CREATE TABLE IF NOT EXISTS pp_eventos (
   id BIGSERIAL PRIMARY KEY, ts TEXT NOT NULL, dia TEXT NOT NULL, usuario TEXT, strava SMALLINT,
   consulta TEXT, evento TEXT, tipo TEXT, comuna TEXT, detalle TEXT, exito SMALLINT,
   estado SMALLINT, ms INTEGER, error TEXT, idioma TEXT, disp TEXT,
-  cuenta TEXT, bytes_in INTEGER, bytes_out INTEGER, externas SMALLINT);
+  cuenta TEXT, bytes_in INTEGER, bytes_out INTEGER, externas SMALLINT, motor TEXT);
 CREATE INDEX IF NOT EXISTS pp_eventos_dia ON pp_eventos (dia);
 CREATE TABLE IF NOT EXISTS pp_ajustes (clave TEXT PRIMARY KEY, valor TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS pp_usuarios (

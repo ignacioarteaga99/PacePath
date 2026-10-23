@@ -1,5 +1,6 @@
 """Panel de administración: registro de consultas y su acceso."""
 import io
+import json
 import os
 import urllib.error
 
@@ -98,7 +99,7 @@ def test_postgres_ida_y_vuelta():
     base._lista = False
     ts, dia = registro.ahora()
     base.insertar([(ts, dia, "abcdef0123", 1, "ruta", "ruta", "series", "providencia", "6x1k",
-                    1, 200, 850, None, "es", "iPhone")])
+                    1, 200, 850, None, "es", "iPhone", None, 10, 2000, 0, '{"calculo":800}')])
     base.podar()
     filas = base.consultar(dia, dia, 10)
     assert filas and filas[0][2] == "abcdef0123" and filas[0][11] == 850
@@ -121,9 +122,29 @@ def test_con_postgres_se_guarda_de_a_lotes_y_el_panel_fuerza_el_guardado(tmp_pat
     monkeypatch.setenv("PACEPATH_REGISTRO_SEG", "3600")
     esc = registro._Escritor(registro._Base(str(tmp_path / "r.sqlite")))
     esc.anotar((*registro.ahora(), "0123456789", 0, "visita", "visita", None, None, None, 1, 200, 5, None, "es", "iPhone",
-                None, 0, 1234, None))
+                None, 0, 1234, None, None))
     import time
     time.sleep(0.3)
     assert esc.cola.unfinished_tasks == 1                    # sigue en memoria
     assert esc.vaciar(3)                                     # el panel (o el apagado) lo guarda al tiro
     assert len(esc.base.consultar(registro.hoy(), registro.hoy(), 10)) == 1
+
+
+def test_rendimiento_del_motor(admin):
+    """Cada ruta deja sus etapas (espera, mapa, cálculo), CPU, memoria y calidad;
+    el panel ve además el estado del proceso."""
+    from raceengine_geodata import REGIONS
+    d = REGIONS["demo"]
+    cli = TestClient(app)
+    for texto in ("fondo 5k", "5x400"):
+        assert cli.post("/api/ruta", json={"lat": d.lat, "lon": d.lon, "texto": texto, "comuna": "demo"}).status_code == 200
+    filas = admin(usuario=cli.cookies.get("pp_u"), consulta="ruta")
+    assert len(filas) == 2
+    m = {f["detalle"].split(" · ")[0] if f["detalle"] else "": json.loads(f["motor"]) for f in filas}
+    fondo = next(v for k, v in m.items() if "fondo" in k)
+    assert {"espera", "mapa", "frio", "calculo", "cpu", "mem", "cola", "km"} <= set(fondo)
+    assert fondo["calculo"] >= 0 and fondo["mem"] > 0 and abs(fondo["error_pct"]) < 15 and "sem_km" in fondo
+    assert all(f["ms"] >= v["calculo"] for f, v in zip(filas, [json.loads(f["motor"]) for f in filas]))
+    assert cli.get("/api/admin/motor").status_code == 404
+    e = cli.get("/api/admin/motor", headers={"X-Admin-Clave": "clave-larga-de-prueba"}).json()
+    assert "demo" in e["grafos"] and e["memoria_mb"] > 0 and e["maximo_mb"] >= e["memoria_mb"] - 1

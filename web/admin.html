@@ -134,6 +134,11 @@
   .limite { height: 6px; border-radius: 3px; background: var(--grilla); margin-top: 8px; overflow: hidden; }
   .limite i { display: block; height: 100%; border-radius: 3px; }
   .consumo-kpis .kpi small { display: block; }
+  .histo { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; font-size: 13px; }
+  .histo i { display: block; height: 14px; border-radius: 0 4px 4px 0; background: var(--ok); min-width: 2px; }
+  .histo span { color: var(--suave); font-variant-numeric: tabular-nums; }
+  #motor td.num, #consumo td.num { white-space: nowrap; }
+  .histo b { font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
   .consumo-kpis .kpi .tag { display: inline-block; font-size: 11px; color: var(--suave); }
   .acceso { margin: 14px 0 0; }
   .acc-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -276,6 +281,7 @@ let CLAVE = null;
 try { CLAVE = sessionStorage.getItem("pp_admin"); } catch {}
 let datos = null;          // { filas: [...objetos], mapas: [...], almacen, ... }
 let consumoInfo = null;    // { base: {tamaños}, cuentas: {id: correo} }
+let motorAhora = null;     // { memoria_mb, maximo_mb, grafos, esperando, encendido_s }
 let periodo = 30;
 let mostrar = 100;
 
@@ -325,6 +331,7 @@ async function cargar() {
   // Los resúmenes de teselas que manda el teléfono no son consultas: van aparte (panel «Consumo»).
   datos = { ...j, filas: todas.filter((f) => f.consulta !== "consumo_mapa"), mapas: todas.filter((f) => f.consulta === "consumo_mapa") };
   api("/api/admin/consumo").then((c) => { consumoInfo = c; pintarConsumo(); }).catch(() => {});
+  api("/api/admin/motor").then((m) => { motorAhora = m; pintarMotor(); }).catch(() => {});
   if ($("panel").hidden) { acceso(); cargarUsuarios(); }
   $("login").hidden = true; $("panel").hidden = false;
   const a = $("almacen");
@@ -496,6 +503,7 @@ function pintar() {
       <div class="tarjeta"><h2>Usuarios</h2><p class="sub">Identificador anónimo por teléfono · toca uno para filtrar</p><div id="tUsuarios"></div></div>
     </div>
     <div class="tarjeta"><h2>Registro</h2><p class="sub">Las más recientes primero</p><div id="tRegistro"></div></div>
+    <div id="motor"></div>
     <div id="consumo"></div>`;
 
   graficoDias(F);
@@ -503,7 +511,96 @@ function pintar() {
   tablaErrores(errores);
   tablaUsuarios(F);
   tablaRegistro(F);
+  pintarMotor();
   pintarConsumo();
+}
+
+// ── Motor de rutas ──────────────────────────────────────────────────────────
+// Cuánto tarda en entregar una ruta y qué consume: viene en la columna «motor»
+// del registro (ver pacepath/rendimiento.py) + el estado del proceso ahora.
+const LENTO_MS = 10_000;      // más que esto se siente lento en el teléfono
+const RENDER_MB = 512;        // memoria del plan de Render: si se pasa, Render reinicia el servidor
+const seg = (ms) => ms == null || !isFinite(ms) ? "—" : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toLocaleString("es-CL", { maximumFractionDigits: ms < 10_000 ? 1 : 0 })} s`;
+function percentil(xs, p) {
+  if (!xs.length) return null;
+  const o = [...xs].sort((a, b) => a - b);
+  return o[Math.min(o.length - 1, Math.floor(p * o.length))];
+}
+const mediana = (xs) => percentil(xs, 0.5);
+function duracion(s) {
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+  return h >= 24 ? `${Math.floor(h / 24)} d ${h % 24} h` : h ? `${h} h ${m} min` : `${m} min`;
+}
+function pintarMotor() {
+  const caja = $("motor");
+  if (!caja || !datos) return;
+  const P = datos.filas.filter((f) => f.motor).map((f) => { try { return { ...f, m: JSON.parse(f.motor) }; } catch { return null; } }).filter(Boolean);
+  const ahora = motorAhora;
+  const ms = P.map((f) => f.ms || 0);
+  const frios = P.filter((f) => f.m.frio);
+  const lentos = P.filter((f) => (f.ms || 0) > LENTO_MS).length;
+  const memMax = Math.max(0, ...P.map((f) => f.m.mem || 0));
+  const espera = P.map((f) => f.m.espera || 0);
+  const errores = P.filter((f) => f.m.error_pct != null).map((f) => Math.abs(f.m.error_pct));
+
+  // Por tipo de pedido: las rutas por tipo de sesión, más el trazado y las calles de Strava.
+  const grupo = (f) => f.consulta === "ruta" ? (f.tipo || "ruta") : nombre(f.consulta);
+  const G = new Map();
+  for (const f of P) { const k = grupo(f); (G.get(k) || G.set(k, []).get(k)).push(f); }
+  const grupos = [...G.entries()].sort((a, b) => b[1].length - a[1].length);
+  const C = new Map();
+  for (const f of P) { const k = f.comuna || "—"; (C.get(k) || C.set(k, []).get(k)).push(f); }
+
+  const tramos = [[0, 1000, "< 1 s"], [1000, 2000, "1–2 s"], [2000, 5000, "2–5 s"], [5000, 10000, "5–10 s"], [10000, 20000, "10–20 s"], [20000, Infinity, "> 20 s"]];
+  const cuenta = tramos.map(([a, b]) => ms.filter((x) => x >= a && x < b).length);
+  const tope = Math.max(1, ...cuenta);
+  const peores = [...P].sort((a, b) => (b.ms || 0) - (a.ms || 0)).slice(0, 8);
+  const etapas = (m) => [["espera", "espera"], ["mapa", m.frio ? "carga del mapa" : "mapa"], ["calculo", "cálculo"]]
+    .filter(([k]) => m[k]).map(([k, t]) => `${t} ${seg(m[k])}`).join(" · ");
+  const pct = (a, b) => b ? `${(100 * a / b).toLocaleString("es-CL", { maximumFractionDigits: 1 })} %` : "—";
+
+  caja.innerHTML = `<div class="tarjeta"><h2>Motor de rutas</h2>
+    <p class="sub">Todo el periodo · cada pedido que calcula una ruta, un trazado o tus calles de Strava. El tiempo es el total en el servidor;
+      la espera es el turno (el motor calcula de a una ruta para no pasarse de memoria).</p>
+    ${P.length ? "" : '<div class="vacio">Aún no hay mediciones del motor en el periodo (se registran desde esta versión).</div>'}
+    <div class="kpis consumo-kpis">
+      <div class="kpi"><span>Pedidos al motor</span><b>${num(P.length)}</b><small>${num(P.filter((f) => !f.exito).length)} sin ruta o con error</small></div>
+      <div class="kpi"><span>Tiempo típico (mediana)</span><b>${seg(mediana(ms))}</b><small>9 de cada 10 en menos de ${seg(percentil(ms, 0.9))}</small></div>
+      <div class="kpi"><span>Los más lentos (p99)</span><b>${seg(percentil(ms, 0.99))}</b><small>${num(lentos)} sobre ${seg(LENTO_MS)} (${pct(lentos, P.length)})</small></div>
+      <div class="kpi"><span>Cargas de mapa en frío</span><b>${num(frios.length)}</b><small>tardan ${seg(mediana(frios.map((f) => f.m.mapa || 0)))} típico · ${pct(frios.length, P.length)} de los pedidos</small></div>
+      <div class="kpi"><span>CPU por pedido</span><b>${seg(mediana(P.map((f) => f.m.cpu || 0)))}</b><small>espera típica ${seg(mediana(espera))} · máx. ${seg(Math.max(0, ...espera))}</small></div>
+      <div class="kpi"><span>Memoria del servidor</span><b>${ahora ? num(ahora.memoria_mb) + " MB" : "—"}</b>
+        <small>${ahora ? `máximo ${num(Math.max(ahora.maximo_mb, memMax))} MB de ${RENDER_MB}` : "cargando…"}</small>${ahora ? barraLimite(Math.max(ahora.maximo_mb, memMax), RENDER_MB).replace(" al mes", "") : ""}</div>
+    </div>
+    ${ahora ? `<p class="sub" style="margin:-4px 0 12px">Ahora: encendido hace ${duracion(ahora.encendido_s)} · mapas en memoria: ${ahora.grafos.length ? ahora.grafos.map(esc).join(", ") : "ninguno"} · ${ahora.esperando} esperando turno.
+      Render gratis apaga el servidor tras 15 min sin uso: al despertar, el primer pedido de cada comuna carga su mapa en frío.</p>` : ""}
+    <div class="grid">
+      <div class="tarjeta"><h2>Por tipo de pedido</h2><p class="sub">Tiempo total y calidad de la ruta entregada</p>
+        ${grupos.length ? `<div class="tabla"><table><thead><tr><th>Pedido</th><th class="num">Veces</th><th class="num">Mediana</th><th class="num">p90</th>
+          <th class="num">Máx.</th><th class="num">CPU</th><th class="num">Desvío km</th><th class="num">Semáf./km</th><th class="num">Fallos</th></tr></thead><tbody>
+          ${grupos.map(([k, xs]) => { const t = xs.map((f) => f.ms || 0), e = xs.filter((f) => f.m.error_pct != null).map((f) => Math.abs(f.m.error_pct)),
+            sk = xs.filter((f) => f.m.sem_km != null).map((f) => f.m.sem_km);
+            return `<tr><td>${esc(k)}</td><td class="num">${num(xs.length)}</td><td class="num">${seg(mediana(t))}</td><td class="num">${seg(percentil(t, 0.9))}</td>
+            <td class="num">${seg(Math.max(...t))}</td><td class="num">${seg(mediana(xs.map((f) => f.m.cpu || 0)))}</td>
+            <td class="num">${e.length ? mediana(e).toLocaleString("es-CL") + " %" : "—"}</td><td class="num">${sk.length ? mediana(sk).toLocaleString("es-CL") : "—"}</td>
+            <td class="num">${pct(xs.filter((f) => !f.exito).length, xs.length)}</td></tr>`; }).join("")}
+          </tbody></table></div>
+          <p class="sub" style="margin-top:8px">Desvío km: cuánto se aleja (mediana, en %) el largo de la ruta del pedido${errores.length ? ` · en general ${mediana(errores).toLocaleString("es-CL")} %` : ""}.</p>` : '<div class="vacio">Sin datos.</div>'}
+        <h2 style="margin-top:16px">Por comuna</h2>
+        ${C.size ? `<div class="tabla"><table><thead><tr><th>Comuna</th><th class="num">Veces</th><th class="num">Mediana</th><th class="num">p90</th>
+          <th class="num">En frío</th><th class="num">Carga del mapa</th></tr></thead><tbody>
+          ${[...C.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, xs]) => { const t = xs.map((f) => f.ms || 0), fr = xs.filter((f) => f.m.frio);
+            return `<tr><td>${esc(k)}</td><td class="num">${num(xs.length)}</td><td class="num">${seg(mediana(t))}</td><td class="num">${seg(percentil(t, 0.9))}</td>
+            <td class="num">${num(fr.length)}</td><td class="num">${fr.length ? seg(mediana(fr.map((f) => f.m.mapa || 0))) : "—"}</td></tr>`; }).join("")}
+          </tbody></table></div>` : '<div class="vacio">Sin datos.</div>'}</div>
+      <div class="tarjeta"><h2>Cuánto tarda</h2><p class="sub">Pedidos por tiempo total</p>
+        <div class="histo">${tramos.map(([, , t], i) => `<span>${t}</span><i style="width:${(100 * cuenta[i] / tope).toFixed(1)}%"></i><b>${num(cuenta[i])}</b>`).join("")}</div>
+        <h2 style="margin-top:16px">Los más lentos</h2><p class="sub">Dónde se fue el tiempo</p>
+        ${peores.length ? `<div class="tabla"><table><thead><tr><th>Pedido</th><th class="num">Total</th></tr></thead><tbody>
+          ${peores.map((f) => `<tr><td>${esc(f.detalle || grupo(f))} <small style="color:var(--suave)">· ${esc(f.comuna || "")} · ${esc((f.ts || "").slice(5, 16).replace("T", " "))}</small><br>
+            <small style="color:var(--suave)">${etapas(f.m)} · CPU ${seg(f.m.cpu)} · memoria ${num(f.m.mem || 0)} MB${f.m.dmem > 5 ? ` (+${num(f.m.dmem)})` : ""}</small></td>
+            <td class="num">${seg(f.ms)}</td></tr>`).join("")}</tbody></table></div>` : '<div class="vacio">Sin datos.</div>'}</div>
+    </div></div>`;
 }
 
 // ── Consumo y escala ────────────────────────────────────────────────────────

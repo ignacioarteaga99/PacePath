@@ -60,7 +60,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import acceso, ciudades, comunas, correo, cuentas, momento, oauth, frecuencia, idioma, lugares, nombres, registro, strava, uso
+from . import acceso, ciudades, comunas, correo, cuentas, momento, oauth, frecuencia, idioma, lugares, nombres, registro, rendimiento, strava, uso
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -430,6 +430,14 @@ def admin_consumo(request: Request) -> dict:
     quién es cada cuenta (el registro guarda sólo su id)."""
     _solo_admin(request)
     return {"base": registro.tamanos(), "cuentas": {u["id"]: u["correo"] for u in cuentas.listar()}}
+
+
+@app.get("/api/admin/motor", include_in_schema=False)
+def admin_motor(request: Request) -> dict:
+    """Para el panel «Motor»: el proceso ahora (memoria, grafos cargados, cola).
+    Lo de cada pedido viene en la columna `motor` del registro."""
+    _solo_admin(request)
+    return rendimiento.estado()
 
 
 @app.get("/api/uso", include_in_schema=False)
@@ -834,8 +842,8 @@ def _plan(body: PedidoRuta) -> dict:
     if comuna is None:
         _fuera_de_mapa(body.lat, body.lon)
     try:
-        with _motor:
-            ctx = comunas.contexto(comuna)
+        with rendimiento.en_motor(_motor, comuna) as med:
+            ctx = med.contexto()
             meta = (body.meta.lat, body.meta.lon) if body.meta else None
             pref, info = _preferidas(ctx, body)
             cuando = momento.momento_de(body.hora, body.lat, body.lon)
@@ -844,6 +852,7 @@ def _plan(body: PedidoRuta) -> dict:
                               forma=body.forma, n_vueltas=body.vueltas, momento=cuando,
                               opcion=body.opcion)
             plan["preferencias"] = info
+            med.calidad(plan)
             # Versión del mapa: el teléfono guarda la ruta para el historial y
             # la vuelve a pedir sólo si el mapa de la comuna cambió.
             plan["mapa"] = ctx.version
@@ -895,8 +904,8 @@ def strava_frecuencia(body: PedidoFrecuencia) -> dict:
     comuna = comunas.comuna_para(body.lat, body.lon)
     if comuna is None:
         _fuera_de_mapa(body.lat, body.lon)
-    with _motor:
-        ctx = comunas.contexto(comuna)
+    with rendimiento.en_motor(_motor, comuna) as med:
+        ctx = med.contexto()
         trazados = [frecuencia.decodificar(p) for p in body.polilineas if p]
         a, v = frecuencia.frecuencia(ctx, trazados)
         version = ctx.version
@@ -927,9 +936,10 @@ def _trazado(body: PedidoTrazado) -> dict:
     if comuna is None:
         _fuera_de_mapa(p0.lat, p0.lon)
     try:
-        with _motor:
-            ctx = comunas.contexto(comuna)
-            return trazar(ctx, [(p.lat, p.lon) for p in body.puntos], body.volver)
+        with rendimiento.en_motor(_motor, comuna) as med:
+            plan = trazar(med.contexto(), [(p.lat, p.lon) for p in body.puntos], body.volver)
+            med.calidad(plan)
+            return plan
     except TrazadoInvalido as exc:
         raise HTTPException(422, str(exc)) from exc
 
