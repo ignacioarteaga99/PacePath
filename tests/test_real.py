@@ -33,3 +33,10 @@ def test_otros_tipos_en_providencia(texto):
     p = planificar(contexto("providencia"), interpretar(texto), *SALIDA)
     assert p["explicacion"]
     assert p["totales"]["distancia_m"] > 3000
+
+
+def test_comuna_con_mas_margen_hasta_el_borde():
+    # Parque Bicentenario (Vitacura) queda más adentro del grafo de Las Condes
+    # (radio 9 km) que del de Vitacura (7 km): más calle para todos lados.
+    assert comuna_para(-33.3990, -70.6010) == "las_condes"
+    assert comuna_para(-33.4370, -70.6345) == "santiago_centro"     # Plaza Italia

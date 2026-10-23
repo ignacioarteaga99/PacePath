@@ -93,3 +93,50 @@ def test_plano_pone_tope_de_desnivel():
     # Un número explícito manda.
     assert interpretar("fondo 18k plano +40m").max_subida_m == 40
     assert interpretar("fondo 18k").max_subida_m is None
+
+
+# ── Pirámides, fartlek y sesiones por tiempo ────────────────────────────────
+
+@pytest.mark.parametrize("texto,escalera,pausa", [
+    ("pirámide 200-400-600-400-200", [200, 400, 600, 400, 200], None),
+    ("piramide 1-2-3-2-1 km", [1000, 2000, 3000, 2000, 1000], None),
+    ("pyramid 400, 800, 1200, 800, 400 r90", [400, 800, 1200, 800, 400], 90),
+])
+def test_piramide(texto, escalera, pausa):
+    s = interpretar(texto)
+    assert s.tipo is TipoSesion.SERIES and s.escalera_m == escalera and s.pausa_s == pausa
+    assert s.repeticiones == len(escalera) and s.distancia_rep_m == max(escalera)
+    assert requisitos(s).largo_tramo_m == max(escalera)       # el tramo, del largo mayor
+
+
+@pytest.mark.parametrize("texto,reps,rep_s,pausa", [
+    ("fartlek 10x1' r1'", 10, 60, 60), ("fartlek 8x3 min / 2 min", 8, 180, 120),
+    ("6x30s", 6, 30, None), ('8x45" r30', 8, 45, 30),
+])
+def test_fartlek_por_tiempo(texto, reps, rep_s, pausa):
+    s = interpretar(texto)
+    assert (s.tipo, s.repeticiones, s.rep_s, s.pausa_s) == (TipoSesion.SERIES, reps, rep_s, pausa)
+    # 1′ a ritmo de 5 km de alguien que trota a 6:00/km: unos 200 m.
+    assert interpretar("10x1'").distancia_rep_m == pytest.approx(200, abs=10)
+    assert interpretar("10x1'", ritmo_s_km=300).distancia_rep_m > interpretar("10x1'").distancia_rep_m
+
+
+@pytest.mark.parametrize("texto,tipo,seg", [
+    ("45 min suave", TipoSesion.REGENERATIVO, 2700), ("fondo 1h30", TipoSesion.FONDO, 5400),
+    ("long run 1h 15 min", TipoSesion.FONDO, 4500), ("tempo 25 min", TipoSesion.TEMPO, 1500),
+    ("easy 40'", TipoSesion.REGENERATIVO, 2400), ("45 min", TipoSesion.REGENERATIVO, 2700),
+    ("1 hora suave", TipoSesion.REGENERATIVO, 3600),
+])
+def test_sesion_por_tiempo(texto, tipo, seg):
+    s = interpretar(texto)
+    assert s.tipo is tipo and s.duracion_s == seg and s.distancia_m % 100 == 0
+    # Con un ritmo más rápido, la misma sesión es más larga.
+    assert interpretar(texto, ritmo_s_km=300).distancia_m > s.distancia_m
+
+
+def test_por_tiempo_con_tope_y_resumen():
+    s = interpretar("fondo 1h30 plano")
+    assert s.distancia_m == 15000 and s.max_subida_m == 80
+    assert s.resumen == "fondo 1 h 30 min (≈ 15 km) (máx. +80 m)"
+    assert interpretar("fondo 18k").duracion_s is None and interpretar("fondo 18k").distancia_m == 18000
+    assert interpretar("pirámide 200-400-200").resumen == "pirámide 200-400-200 m"

@@ -28,14 +28,17 @@ def _dist_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def comuna_para(lat: float, lon: float) -> str | None:
-    """La comuna cuyo centro está más cerca del punto, si el punto cae dentro
-    de su radio. Los grafos se solapan en los bordes, así que «la más cercana»
-    deja al corredor en el centro de su grafo, con calle para todos lados."""
-    mejor, mejor_d = None, math.inf
+    """El grafo donde el punto queda más adentro: el de mayor margen hasta su
+    borde (radio − distancia al centro). Cada grafo es un círculo y se solapan;
+    con radios distintos (Las Condes y Santiago Centro miden 9 km, el resto 7)
+    «el centro más cercano» podía dejar al corredor a 2 km del borde teniendo
+    otro grafo con 5 km de calle para todos lados. Más margen = más rutas
+    posibles, sobre todo para un fondo."""
+    mejor, mejor_margen = None, 0.0
     for c in disponibles():
-        d = _dist_m(lat, lon, c["lat"], c["lon"])
-        if d <= c["radio_m"] and d < mejor_d:
-            mejor, mejor_d = c["id"], d
+        margen = c["radio_m"] - _dist_m(lat, lon, c["lat"], c["lon"])
+        if margen >= 0 and (mejor is None or margen > mejor_margen):
+            mejor, mejor_margen = c["id"], margen
     return mejor
 
 

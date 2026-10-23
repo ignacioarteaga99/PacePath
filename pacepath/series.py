@@ -485,6 +485,24 @@ def nodo_salida(ctx: GraphContext, lat: float, lon: float) -> int:
     return int(ctx.graph.nearest_node(lat, lon, mask=nodos_en_red(ctx)))
 
 
+def recortar(coords: list[list[float]], metros: float) -> list[list[float]]:
+    """Los primeros `metros` de una polilínea [[lat, lon, (elev)], …] (el último
+    punto, interpolado)."""
+    if len(coords) < 2:
+        return coords
+    out, hecho = [coords[0]], 0.0
+    for a, b in zip(coords, coords[1:]):
+        k = math.cos(math.radians((a[0] + b[0]) / 2))
+        d = math.hypot((b[1] - a[1]) * k, b[0] - a[0]) * 111_195.0
+        if hecho + d >= metros:
+            f = (metros - hecho) / d if d else 0.0
+            out.append([round(x + (y - x) * f, 6) for x, y in zip(a, b)])
+            return out
+        out.append(b)
+        hecho += d
+    return out
+
+
 def base_plan(ctx: GraphContext, sesion: Sesion, req: Requisitos, casa: int) -> dict:
     g = ctx.graph
     return {
@@ -550,9 +568,19 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
     info["coordenadas"] = coords
     info["pendiente_pct"] = round(m.pendiente_pct * (1 if ini == a else -1), 1)
 
+    # Pirámide: todas salen del inicio del tramo y corren su largo; la vuelta
+    # al inicio, trotando, es la recuperación (como en las cuestas).
+    largos = [float(x) for x in sesion.escalera_m] if sesion.escalera_m else [m.largo_m] * n
     partes = [{"tipo": "calentamiento", **ida}]
     for k in range(n):
-        if cuestas:
+        if sesion.escalera_m:
+            tramo_k = recortar(coords, largos[k])
+            partes.append({"tipo": "serie", "numero": k + 1, "distancia_m": round(largos[k]),
+                           "pausa_s": sesion.pausa_s or 0, "coordenadas": tramo_k})
+            if k < n - 1:
+                partes.append({"tipo": "recuperacion", "numero": k + 1, "distancia_m": round(largos[k]),
+                               "coordenadas": tramo_k[::-1]})
+        elif cuestas:
             partes.append({"tipo": "serie", "numero": k + 1, "distancia_m": round(m.largo_m),
                            "pausa_s": 0, "coordenadas": coords})
             partes.append({"tipo": "recuperacion", "numero": k + 1,
@@ -564,9 +592,9 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
                 "coordenadas": coords if k % 2 == 0 else coords[::-1],
             })
 
-    recuperacion = n * m.largo_m if cuestas else 0.0
+    recuperacion = n * m.largo_m if cuestas else sum(largos[:-1]) if sesion.escalera_m else 0.0
     calentamiento_extra = max(0, round(sesion.calentamiento_m - ida["distancia_m"]))
-    total = ida["distancia_m"] + n * m.largo_m + recuperacion + calentamiento_extra
+    total = ida["distancia_m"] + sum(largos) + recuperacion + calentamiento_extra
     avisos = [aviso] if aviso else []
     if calentamiento_extra >= 200:
         avisos.append(tr(f"El tramo está a {ida['distancia_m']} m: completa el calentamiento "
@@ -582,7 +610,7 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
         "totales": {
             "distancia_m": round(total),
             "calentamiento_m": ida["distancia_m"] + calentamiento_extra,
-            "series_m": round(n * m.largo_m),
+            "series_m": round(sum(largos)),
             "recuperacion_m": round(recuperacion),
             "semaforos_trote": ida["semaforos"],
         },

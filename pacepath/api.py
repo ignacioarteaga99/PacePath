@@ -236,6 +236,7 @@ class PedidoTrazado(BaseModel):
 
 class TextoSesion(BaseModel):
     texto: str = Field(min_length=1, max_length=120)
+    ritmo_s_km: float | None = Field(default=None, ge=150, le=720)
 
 
 class PedidoDonde(BaseModel):
@@ -268,6 +269,9 @@ class PedidoRuta(BaseModel):
     # (cerrar un círculo repitiendo lo menos posible) o «vueltas» a un circuito.
     forma: Literal["auto", "circuito", "vueltas"] = "auto"
     vueltas: int | None = Field(default=None, ge=2, le=30)
+    # Ritmo habitual del corredor (s/km, de sus carreras de Strava; lo calcula
+    # el teléfono): para sesiones por tiempo, «45 min suave».
+    ritmo_s_km: float | None = Field(default=None, ge=150, le=720)
     # Preferencias del corredor (vienen de su teléfono; no se guardan).
     frecuentes: Frecuentes | None = None
     favoritos: list[list[tuple[float, float]]] | None = Field(default=None, max_length=20)
@@ -462,7 +466,7 @@ def buscar_lugares(q: str, limite: int = 8) -> list[dict]:
 def sesion(body: TextoSesion) -> dict:
     _anotar(detalle=body.texto)
     try:
-        s = interpretar(body.texto)
+        s = interpretar(body.texto, body.ritmo_s_km)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     _anotar(tipo=s.tipo.value)
@@ -484,7 +488,7 @@ def _fuera_de_mapa(lat: float, lon: float):
 
 def _plan(body: PedidoRuta) -> dict:
     try:
-        s = body.sesion or interpretar(body.texto or "")
+        s = body.sesion or interpretar(body.texto or "", body.ritmo_s_km)
     except ValueError as exc:
         uso.registrar("sesion_no_entendida", body.texto, exito=False)
         raise HTTPException(422, str(exc)) from exc

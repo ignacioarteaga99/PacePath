@@ -43,9 +43,26 @@ class Sesion(BaseModel):
     # Calentamiento y vuelta a la calma (trote suave hasta y desde el tramo)
     calentamiento_m: float = Field(default=2000, ge=0, le=10_000)
     vuelta_calma_m: float = Field(default=1500, ge=0, le=10_000)
+    # Pirámide o escalera: el largo de cada repetición («200-400-600-400-200»).
+    # Se corren sobre un tramo del largo mayor.
+    escalera_m: list[float] | None = Field(default=None, min_length=2, max_length=20)
+    # Por tiempo: «45 min suave», «fondo 1h30», fartlek «10x1'». La distancia
+    # sale del ritmo habitual del corredor (de sus carreras de Strava) o, sin
+    # él, de 6:00/km.
+    duracion_s: int | None = Field(default=None, ge=300, le=6 * 3600)
+    rep_s: int | None = Field(default=None, ge=10, le=1800)
+    ritmo_s_km: float | None = Field(default=None, ge=150, le=720)
 
     @model_validator(mode="after")
     def _completa(self) -> "Sesion":
+        if self.escalera_m:
+            self.repeticiones = len(self.escalera_m)
+            self.distancia_rep_m = max(self.escalera_m)
+        ritmo = self.ritmo_s_km or RITMO_POR_DEFECTO
+        if self.rep_s and not self.distancia_rep_m:
+            self.distancia_rep_m = _redondear(self.rep_s / (ritmo * RITMO_FARTLEK) * 1000, 10, 100)
+        if self.duracion_s and not self.distancia_m and self.tipo not in (TipoSesion.SERIES, TipoSesion.CUESTAS):
+            self.distancia_m = _redondear(self.duracion_s / (ritmo * RITMO_TIPO[self.tipo]) * 1000, 100, 1000)
         if self.tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS):
             if not self.repeticiones or not self.distancia_rep_m:
                 raise ValueError("las series y cuestas necesitan repeticiones y distancia")
@@ -59,6 +76,15 @@ class Sesion(BaseModel):
     def resumen(self) -> str:
         from .idioma import tr
         t = self.tipo
+        if t is TipoSesion.SERIES and self.escalera_m:
+            km = all(x >= 1000 and x % 100 == 0 for x in self.escalera_m)
+            pasos = "-".join(f"{x / 1000:g}".replace(".", ",") if km else f"{x:.0f}" for x in self.escalera_m)
+            return tr(f"pirámide {pasos} {'km' if km else 'm'}", f"pyramid {pasos} {'km' if km else 'm'}")
+        if t is TipoSesion.SERIES and self.rep_s:
+            pausa = (tr(f" / {_tiempo(self.pausa_s)} suave", f" / {_tiempo(self.pausa_s)} easy")
+                     if self.pausa_s else "")
+            return (f"fartlek {self.repeticiones}×{_tiempo(self.rep_s)}{pausa}"
+                    f" (≈ {_m(self.distancia_rep_m)})")
         if t is TipoSesion.SERIES:
             # La pausa sólo si el corredor la escribió: no se inventa.
             pausa = (tr(f" (pausa {self.pausa_s} s)", f" ({self.pausa_s} s rest)")
@@ -73,7 +99,31 @@ class Sesion(BaseModel):
             if self.max_subida_m is not None else ""
         nombre = {TipoSesion.TEMPO: ("tempo", "tempo"), TipoSesion.FONDO: ("fondo", "long run"),
                   TipoSesion.REGENERATIVO: ("regenerativo", "easy run")}[t]
+        if self.duracion_s:
+            return f"{tr(*nombre)} {_tiempo(self.duracion_s)} (≈ {_m(self.distancia_m)}){tope}"
         return f"{tr(*nombre)} {_m(self.distancia_m)}{tope}"
+
+
+# Ritmo por defecto (sin Strava) y cuánto más rápido o lento se corre cada
+# tipo respecto del ritmo habitual del corredor.
+RITMO_POR_DEFECTO = 360.0                 # 6:00 min/km
+RITMO_TIPO = {TipoSesion.REGENERATIVO: 1.06, TipoSesion.FONDO: 1.0, TipoSesion.TEMPO: 0.86}
+RITMO_FARTLEK = 0.82                      # los cambios de ritmo, cerca del de 5 km
+
+
+def _redondear(metros: float, paso: float, minimo: float) -> float:
+    return max(minimo, round(metros / paso) * paso)
+
+
+def _tiempo(s: int | None) -> str:
+    if not s:
+        return "?"
+    h, m = divmod(round(s / 60), 60) if s >= 60 else (0, 0)
+    if s < 60:
+        return f"{s}″"
+    if h:
+        return f"{h} h {m} min" if m else f"{h} h"
+    return f"{m}′" if s % 60 == 0 and m <= 10 else f"{m} min"
 
 
 def _m(metros: float | None) -> str:
@@ -94,7 +144,8 @@ _TIPOS = {
     "fondo": TipoSesion.FONDO, "largo": TipoSesion.FONDO, "tirada": TipoSesion.FONDO,
     "cuestas": TipoSesion.CUESTAS, "cuesta": TipoSesion.CUESTAS,
     "regenerativo": TipoSesion.REGENERATIVO, "suave": TipoSesion.REGENERATIVO,
-    "rodaje": TipoSesion.REGENERATIVO,
+    "rodaje": TipoSesion.REGENERATIVO, "trote": TipoSesion.REGENERATIVO,
+    "fartlek": TipoSesion.TEMPO,
     # English
     "intervals": TipoSesion.SERIES, "interval": TipoSesion.SERIES, "reps": TipoSesion.SERIES,
     "threshold": TipoSesion.TEMPO, "long": TipoSesion.FONDO,
@@ -125,23 +176,62 @@ _PLANO = re.compile(r"\b(?:plano|llano|flat)\b")
 PLANO_M_POR_KM = 5.0
 
 
-def interpretar(texto: str) -> Sesion:
-    """Convierte lo que el corredor escribe en una `Sesion`.
+# Pirámide o escalera: «pirámide 200-400-600-400-200», «piramide 1-2-3-2-1 km».
+_PIRAMIDE = re.compile(r"\b(?:pir[aá]mide|pyramid|escalera|ladder)\b")
+_PASOS = re.compile(r"(\d+(?:[.,]\d+)?)(?:\s*(?:-|–|,\s|/|\s)\s*(?=\d))?")
+# Repeticiones por tiempo (fartlek): «10x1'», «8x3 min r2'», «6x30s».
+_REPS_TIEMPO = re.compile(r"(\d+)\s*x\s*(\d+(?:[.,]\d+)?)\s*(min(?:utos?|s)?\b|'|’|s\b|seg\b|\"|″)")
+# Duración de una sesión continua: «45 min», «45'», «1h30», «1 h 15 min», «1 hora».
+_DURACION = re.compile(r"(?:(\d+)\s*h(?:oras?|rs?)?(?![a-z])\s*(?:(\d+)\s*(?:min(?:utos?|s)?\b|'|’)?)?"
+                       r"|(\d+)\s*(?:min(?:utos?|s)?\b|'|’))")
+
+
+def _segundos(num: str, unidad: str) -> int:
+    v = float(num.replace(",", "."))
+    return round(v * 60 if unidad.startswith("min") or unidad in ("'", "’") else v)
+
+
+def _pausa(t: str) -> int | None:
+    pausa = re.search(r"\b(?:r|p|pausa|rec)\s*(\d+)\s*(s|seg|min|'|’)?", t) \
+        or re.search(r"/\s*(\d+)\s*(s|seg|min|'|’)", t)
+    if not pausa:
+        return None
+    return int(pausa.group(1)) * (60 if pausa.group(2) in ("min", "'", "’") else 1)
+
+
+def interpretar(texto: str, ritmo_s_km: float | None = None) -> Sesion:
+    """Convierte lo que el corredor escribe en una `Sesion`. `ritmo_s_km`: su
+    ritmo habitual (para las sesiones por tiempo).
 
     >>> interpretar("6x1k").resumen
     '6×1 km'
     """
     t = texto.strip().lower().replace("×", "x")
     tipo = next((v for k, v in _TIPOS.items() if re.search(rf"\b{k}\b", t)), None)
+    ritmo = ritmo_s_km if ritmo_s_km and 150 <= ritmo_s_km <= 720 else None
+
+    if _PIRAMIDE.search(t):
+        resto = t[_PIRAMIDE.search(t).end():]
+        pausa_s = _pausa(resto)
+        resto = re.sub(r"\b(?:r|p|pausa|rec)\s*\d+\s*(?:s|seg|min|'|’)?|/\s*\d+\s*(?:s|seg|min|'|’)", " ", resto)
+        pasos = [m.group(1) for m in _PASOS.finditer(resto)]
+        unidad = re.search(r"\d\s*(k|km|m)\b", resto)
+        if len(pasos) >= 2:
+            u = unidad.group(1) if unidad else None
+            return Sesion(tipo=TipoSesion.SERIES, escalera_m=[_metros(p, u) for p in pasos[:20]],
+                          pausa_s=pausa_s)
+
+    rt = _REPS_TIEMPO.search(t)
+    if rt:
+        return Sesion(tipo=TipoSesion.SERIES, repeticiones=int(rt.group(1)),
+                      rep_s=_segundos(rt.group(2), rt.group(3)), ritmo_s_km=ritmo,
+                      pausa_s=_pausa(t[rt.end():]))
 
     reps = re.search(rf"(\d+)\s*x\s*{_DIST}", t)
     if reps:
         n = int(reps.group(1))
         d = _metros(reps.group(2), reps.group(3))
-        pausa = re.search(r"\b(?:r|p|pausa|rec)\s*(\d+)\s*(s|seg|min|')?", t)
-        pausa_s = None
-        if pausa:
-            pausa_s = int(pausa.group(1)) * (60 if pausa.group(2) in ("min", "'") else 1)
+        pausa_s = _pausa(t)
         pend = re.search(r"(\d+(?:[.,]\d+)?)\s*%", t)
         return Sesion(
             tipo=tipo if tipo is TipoSesion.CUESTAS else TipoSesion.SERIES,
@@ -153,13 +243,29 @@ def interpretar(texto: str) -> Sesion:
     tope = _TOPE.search(t)
     if tope:
         t = t[:tope.start()] + " " + t[tope.end():]
+    dur = _DURACION.search(t)
+    duracion_s = None
+    if dur:
+        h, m_h, m = dur.groups()
+        duracion_s = int(h) * 3600 + int(m_h or 0) * 60 if h else int(m) * 60
+        t = t[:dur.start()] + " " + t[dur.end():]
     dist = re.search(rf"\b{_DIST}\b", t)
+    if tipo is None and duracion_s:
+        tipo = TipoSesion.REGENERATIVO          # «45 min» a secas: trote suave
+    if duracion_s and not dist and tipo not in (None, TipoSesion.SERIES, TipoSesion.CUESTAS):
+        s = Sesion(tipo=tipo, duracion_s=duracion_s, ritmo_s_km=ritmo,
+                   max_subida_m=float(tope.group(1)) if tope else None)
+        if s.max_subida_m is None and _PLANO.search(t):
+            s.max_subida_m = float(math.ceil(PLANO_M_POR_KM * _km_sesion(s) / 10) * 10)
+        return s
     if tipo is None or tipo in (TipoSesion.SERIES, TipoSesion.CUESTAS) or not dist:
         from .idioma import tr
         raise ValueError(tr(f"No entiendo la sesión «{texto}». Prueba «6x1k», «tempo 8k», "
-                            "«fondo 18k», «cuestas 8x300 6%» o «regenerativo 6k».",
+                            "«fondo 18k», «45 min suave», «cuestas 8x300 6%», "
+                            "«pirámide 200-400-600-400-200» o «fartlek 10x1'».",
                             f"I don't understand «{texto}». Try «6x1k», «tempo 8k», "
-                            "«long run 18k», «hills 8x300 6%» or «easy 6k»."))
+                            "«long run 18k», «easy 45 min», «hills 8x300 6%», "
+                            "«pyramid 200-400-600-400-200» or «fartlek 10x1'»."))
     s = Sesion(tipo=tipo, distancia_m=_metros(dist.group(1), dist.group(2) or "k"),
                max_subida_m=float(tope.group(1)) if tope else None)
     if s.max_subida_m is None and _PLANO.search(t):

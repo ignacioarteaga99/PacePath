@@ -92,14 +92,32 @@ def explicar_series(plan: dict) -> list[str]:
            f"Run the {n} reps back and forth: the 1st one out, the 2nd one back, and so on."
            + (f" {s['pausa_s']} s rest at each end." if s.get("pausa_s") else "")),
     ]
+    if s.get("escalera_m"):
+        lineas[1] = tr("Pirámide: todas las repeticiones salen del inicio del tramo y corren su largo ("
+                       + " · ".join(metros(x) for x in s["escalera_m"]) + "); vuelves trotando al inicio"
+                       + (f" y descansas {s['pausa_s']} s." if s.get("pausa_s") else "."),
+                       "Pyramid: every rep starts at the beginning of the stretch and runs its length ("
+                       + " · ".join(metros(x) for x in s["escalera_m"]) + "); jog back to the start"
+                       + (f" and rest {s['pausa_s']} s." if s.get("pausa_s") else "."))
+    elif s.get("rep_s"):
+        lineas[1] = tr(f"Fartlek: {n} cambios de ritmo de unos {metros(t['largo_m'])} (lo que corres en "
+                       f"{s['rep_s']} s a ritmo de 5 km), en ida y vuelta por el tramo"
+                       + (f", con {s['pausa_s']} s suaves entre uno y otro." if s.get("pausa_s") else "."),
+                       f"Fartlek: {n} surges of about {metros(t['largo_m'])} (what you cover in "
+                       f"{s['rep_s']} s at 5K pace), back and forth along the stretch"
+                       + (f", with {s['pausa_s']} s easy in between." if s.get("pausa_s") else "."))
     if t["parque_pct"] >= 30:
         lineas.append(tr(f"El {t['parque_pct']} % del tramo va por parque.",
                          f"{t['parque_pct']} % of the stretch runs through a park."))
     cal = next(p for p in plan["partes"] if p["tipo"] == "calentamiento")
     por = (tr(" por ", " along ") + lista(cal["calles"][:4])) if cal.get("calles") else ""
     n, largo = plan["sesion"]["repeticiones"], plan["tramo"]["largo_m"]
-    lineas.append(tr(f"Series: {n} × {metros(largo)} = {metros(tot['series_m'])}.",
-                     f"Intervals: {n} × {metros(largo)} = {metros(tot['series_m'])}."))
+    if s.get("escalera_m"):
+        lineas.append(tr(f"Series: {' + '.join(metros(x) for x in s['escalera_m'])} = {metros(tot['series_m'])}.",
+                         f"Intervals: {' + '.join(metros(x) for x in s['escalera_m'])} = {metros(tot['series_m'])}."))
+    else:
+        lineas.append(tr(f"Series: {n} × {metros(largo)} = {metros(tot['series_m'])}.",
+                         f"Intervals: {n} × {metros(largo)} = {metros(tot['series_m'])}."))
     lineas.append(tr(f"Para llegar: {metros(cal['distancia_m'])} de trote hasta el inicio{por}"
                      f" ({_sem(cal['semaforos'])} en el camino); te sirve de calentamiento.",
                      f"To get there: {metros(cal['distancia_m'])} easy jog to the start{por}"
@@ -269,9 +287,10 @@ def explicar_continuo(plan: dict) -> list[str]:
         agua = [a for a in r["agua"] if a["tipo"] == "drinking_water"]
         banos = [a for a in r["agua"] if a["tipo"] == "toilets"]
         if agua:
-            lineas.append(tr("Fuentes de agua en los km ", "Water fountains at km ") +
-                          lista([num(a["a_m"] / 1000, 1) for a in agua]) + ".")
+            # Sin repetir el km (dos fuentes juntas, o la misma de ida y de vuelta).
+            kms = list(dict.fromkeys(num(a["a_m"] / 1000, 1) for a in agua))
+            lineas.append(tr("Fuentes de agua en los km ", "Water fountains at km ") + lista(kms) + ".")
         if banos:
-            lineas.append(tr("Baños en los km ", "Toilets at km ") +
-                          lista([num(a["a_m"] / 1000, 1) for a in banos]) + ".")
+            kms = list(dict.fromkeys(num(a["a_m"] / 1000, 1) for a in banos))
+            lineas.append(tr("Baños en los km ", "Toilets at km ") + lista(kms) + ".")
     return lineas

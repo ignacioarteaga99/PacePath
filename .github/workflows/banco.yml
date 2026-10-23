@@ -1,0 +1,28 @@
+name: Banco de rutas
+# Mide la calidad de las rutas (scripts/banco.py) desde 18 salidas reales de
+# Santiago × 8 sesiones y la compara con la línea base guardada en el repo
+# (banco/resultados/base.json). La tabla queda en el resumen de la ejecución.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["pacepath/**", "scripts/banco.py"]
+
+jobs:
+  banco:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Instalar
+        run: pip install -q -e .
+      - name: Correr el banco
+        env:
+          RACEENGINE_GRAPHS_URL: https://github.com/ignacioarteaga99/RaceEngine/releases/download/graphs
+          PACEPATH_NOMBRES_URL: ""
+        run: |
+          python scripts/banco.py --etiqueta actual --comparar base | grep -v '^\[context\]' | tail -120
+          cat banco/resultados/actual.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with: { name: banco, path: banco/resultados/actual.* }

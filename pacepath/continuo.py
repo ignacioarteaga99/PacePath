@@ -126,9 +126,10 @@ def puntuar(med: Medida, req: Requisitos, objetivo_m: float) -> float:
     p += (8.0 if req.tipo is TipoSesion.FONDO else 25.0) * med.repetido
     if req.radio_agua_m and med.agua:
         p -= 8.0 + 2.0 * min(len(med.agua) - 1, 3)
-    # Error de distancia: fuera del ±3 % se paga caro.
+    # Error de distancia: fuera del ±2 % se paga caro (un 6 % corto costaba
+    # menos que dos semáforos, y pedir 10 km y recibir 9,4 se nota).
     err = abs(med.distancia_m - objetivo_m) / objetivo_m
-    p += 400.0 * max(0.0, err - 0.03) + 30.0 * err
+    p += 1000.0 * max(0.0, err - 0.02) + 60.0 * err
     return p
 
 
@@ -465,7 +466,9 @@ def ida_y_vuelta(ctx: GraphContext, casa: int, distancia_m: float, req: Requisit
     mitad = distancia_m / 2
     coste, pred = _arbol(ctx, w, casa, mitad * 6)
     metros = _metros_arbol(ctx, coste, pred, casa)
-    cand = np.nonzero((metros >= 0.94 * mitad) & (metros <= 1.06 * mitad))[0]
+    # Punto de giro a la mitad justa (±2 %): con ±6 % el puntaje elegía casi
+    # siempre el más corto (menos semáforos) y los fondos salían 6 % cortos.
+    cand = np.nonzero((metros >= 0.985 * mitad) & (metros <= 1.02 * mitad))[0]
     rev = g.reverse
     out = []
     for destino in (_por_sector(ctx, casa, cand, coste, n) if len(cand) else []):

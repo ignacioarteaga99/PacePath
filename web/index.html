@@ -1209,14 +1209,14 @@ conectarBusqueda("desde", "sugerencias", (l) => fijarSalida(l.lat, l.lon, l.nomb
 // Sin meta, la ruta termina donde se cumplen los km (en series, cuestas y
 // tempo, al final de la vuelta a la calma).
 let meta = null, marcaMeta = null, eligiendoMeta = false;
-const CON_TOPE = /\b(fondo|largo|tirada|regenerativo|suave|rodaje|tempo|umbral|long|easy|recovery|threshold)\b/i;
+const CON_TOPE = /\b(fondo|largo|tirada|regenerativo|suave|rodaje|trote|tempo|umbral|fartlek|long|easy|recovery|threshold)\b|\d\s*(min|h)\b/i;
 // «plano» en la sesión = máx. 5 m de subida por km (lo interpreta el servidor).
 const PLANO = /\s*\b(plano|llano|flat)\b/i;
 // Forma de la ruta (volviendo a la salida). En series y cuestas las repeticiones
 // van siempre por su tramo recto: ahí «circuito» hace que la vuelta vaya por
 // otras calles, y «vueltas» no aplica.
 let forma = pref("pp_forma", "auto");
-const SERIES_TXT = /\d+\s*[x×]/i;
+const SERIES_TXT = /\d+\s*[x×]|pir[aá]mide|pyramid|escalera|ladder/i;
 function ponerForma(f) {
   forma = ["auto", "circuito", "vueltas"].includes(f) ? f : "auto";
   guardarPref("pp_forma", forma);
@@ -1645,6 +1645,9 @@ async function pedido() {
   if (CON_TOPE.test(p.texto) && Number.isFinite(tope) && tope >= 0) p.max_subida_m = tope;
   if (radioKm()) p.radio_max_m = radioKm() * 1000;
   Object.assign(p, formaPedida());
+  // Sesiones por tiempo («45 min suave», «fartlek 10x1'»): con tu ritmo habitual.
+  const ritmo = await ritmoHabitual();
+  if (ritmo) p.ritmo_s_km = ritmo;
   // Preferencias del corredor: viajan con cada pedido; el servidor no las guarda.
   const favs = favoritos();
   if (favs.length) p.favoritos = favs.map((f) => f.puntos);
@@ -1859,6 +1862,7 @@ const BD = (() => {
       return new Promise((ok) => { const r = tx("readonly").getAll(); r.onsuccess = () => ok(r.result); r.onerror = () => ok([]); });
     },
     async guardar(lista) {
+      _ritmo = undefined;                     // carreras nuevas: recalcular el ritmo habitual
       if (!db) await abrir();
       if (!db) { lista.forEach((c) => memoria.set(c.id, c)); return; }
       await new Promise((ok) => { const t = db.transaction("carreras", "readwrite");
@@ -1871,6 +1875,22 @@ const BD = (() => {
     },
   };
 })();
+
+// Tu ritmo habitual (s/km): la mediana de tus carreras de 3 km o más de los
+// últimos 4 meses (de Strava, guardadas en el teléfono). Sin carreras, nada: el
+// servidor usa 6:00/km.
+let _ritmo = undefined;
+async function ritmoHabitual() {
+  if (_ritmo !== undefined) return _ritmo;
+  try {
+    const desde = Date.now() - 120 * 864e5;
+    const r = (await BD.todas())
+      .filter((c) => c.distancia_m >= 3000 && c.tiempo_s > 0 && Date.parse(c.fecha) >= desde)
+      .map((c) => c.tiempo_s / (c.distancia_m / 1000)).filter((x) => x >= 150 && x <= 720).sort((a, b) => a - b);
+    _ritmo = r.length >= 3 ? Math.round(r[r.length >> 1]) : null;
+  } catch { _ritmo = null; }
+  return _ritmo;
+}
 
 // Polilínea codificada de Google (la que da Strava) → [[lat, lon], …]
 function decodificar(str) {
