@@ -22,9 +22,14 @@
     GET  /api/uso?clave=         métricas de la beta (clave = PACEPATH_ADMIN)
     GET  /admin                  panel de administración (registro de consultas)
     GET  /api/admin/eventos      sus datos (cabecera X-Admin-Clave = PACEPATH_ADMIN)
-    GET  /api/admin/acceso       beta cerrada: activa o no y el usuario (misma cabecera)
-    POST /api/admin/acceso       activarla o desactivarla, cambiar usuario y clave
-    POST /api/beta/entrar        entrar a la beta cerrada (usuario y clave de tester)
+    GET  /api/admin/acceso       beta cerrada: activa o no (misma cabecera)
+    POST /api/admin/acceso       activarla o desactivarla
+    GET/POST/PATCH/DELETE /api/admin/usuarios[/id]   cuentas (y quién es beta)
+    POST /api/auth/registro · /api/auth/entrar · /api/auth/salir   cuenta con correo
+    GET  /api/auth/google · /api/auth/microsoft      entrar con Google o Microsoft
+    GET  /api/cuenta             quién soy, si puedo entrar y si la beta está cerrada
+    POST /api/auth/recuperar · /api/auth/nueva-clave · /api/auth/reenviar · GET /api/auth/verificar
+                                 correo (apagado hasta configurar el envío: correo.py)
     GET  /privacidad             política de privacidad
     POST /api/strava/desconectar revoca el acceso en Strava y borra la cookie
 """
@@ -53,7 +58,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import acceso, ciudades, comunas, momento, frecuencia, idioma, lugares, nombres, registro, strava, uso
+from . import acceso, ciudades, comunas, correo, cuentas, momento, oauth, frecuencia, idioma, lugares, nombres, registro, strava, uso
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -109,24 +114,51 @@ async def _idioma(request: Request, call_next):
     return await call_next(request)
 
 
-# ── Beta cerrada: usuario y clave antes de entrar (se activa en /admin) ────
-# Sin la cookie de tester, las páginas de la app muestran la de entrada y la
-# API responde 401. Quedan abiertos el panel, las páginas legales (Strava las
-# exige públicas), la guía beta, los archivos fijos y la revisión de Render.
-_ABIERTAS = {"/admin", "/api/salud", "/api/beta/entrar", "/api/uso", "/manifest.webmanifest", "/sw.js",
+# ── Acceso: siempre con cuenta; con la beta cerrada, sólo testers ──────────
+# Sin sesión (o si la cuenta aún no puede entrar), las páginas de la app
+# muestran la de entrada (Google, Microsoft o correo) y la API responde 401.
+#   · Beta cerrada (se activa en /admin): sólo las cuentas marcadas como beta.
+#   · Beta abierta: cualquiera que se registre.
+#   · Con el envío de correos encendido (correo.py), quien se registró con
+#     correo debe confirmarlo antes.
+# Quedan abiertos el panel, el inicio de sesión, las páginas legales (Strava
+# las exige públicas), la guía beta, los archivos fijos y la revisión de Render.
+# PACEPATH_ACCESO_LIBRE=1 quita la cuenta obligatoria: sólo para tests y
+# desarrollo local, nunca en Render.
+_ABIERTAS = {"/admin", "/entrar", "/api/salud", "/api/uso", "/api/cuenta", "/manifest.webmanifest", "/sw.js",
              "/favicon.ico", "/privacidad", "/privacy", "/terminos", "/terms", "/beta"}
-_ABIERTAS_PREFIJO = ("/api/admin/", "/vendor/", "/icons/", "/strava/", "/mapa/")
+_ABIERTAS_PREFIJO = ("/api/admin/", "/api/auth/", "/vendor/", "/icons/", "/strava/", "/mapa/")
+
+
+def _pendiente(u: dict | None) -> str | None:
+    """Por qué esta sesión no puede usar la app (None: puede)."""
+    if not u:
+        return "sin_sesion"
+    if cuentas.falta_verificar(u, correo.activo()):
+        return "verificar"
+    if acceso.activo() and not u["beta"]:
+        return "beta"
+    return None
+
+
+def _usuario(request: Request) -> dict | None:
+    try:
+        return cuentas.de_cookie(request.cookies.get(cuentas.COOKIE))
+    except Exception as exc:  # noqa: BLE001 — la base caída no tumba la app
+        print(f"[cuentas] no pude leer la sesión: {type(exc).__name__}: {exc}", flush=True)
+        return None
 
 
 @app.middleware("http")
-async def _beta_cerrada(request: Request, call_next):
+async def _con_cuenta(request: Request, call_next):
     ruta = request.url.path
-    if (ruta in _ABIERTAS or ruta.startswith(_ABIERTAS_PREFIJO) or not acceso.activo()
-            or acceso.cookie_valida(request.cookies.get(acceso.COOKIE))):
+    if (ruta in _ABIERTAS or ruta.startswith(_ABIERTAS_PREFIJO)
+            or os.environ.get("PACEPATH_ACCESO_LIBRE") == "1"
+            or _pendiente(_usuario(request)) is None):
         return await call_next(request)
-    _anotar(evento="beta_cerrada")
+    _anotar(evento="sin_acceso")
     if ruta.startswith("/api/"):
-        return JSONResponse({"detail": "PacePath está en beta cerrada: entra con tu usuario y clave."},
+        return JSONResponse({"detail": "Entra con tu cuenta de PacePath."},
                             status_code=401, headers={"X-PacePath-Beta": "1"})
     return FileResponse(WEB / "entrar.html", headers={"Cache-Control": "no-store"})
 
@@ -143,7 +175,9 @@ CONSULTAS = {
     "/api/strava/conectar": "strava_conectar", "/api/strava/vuelta": "strava_conexion",
     "/api/strava/actividades": "strava_sync", "/api/strava/perfil": "strava_perfil",
     "/api/strava/foto": "strava_foto", "/api/strava/frecuencia": "strava_calles",
-    "/api/strava/desconectar": "strava_desconectar", "/api/beta/entrar": "beta_entrar",
+    "/api/strava/desconectar": "strava_desconectar",
+    "/api/auth/registro": "cuenta_registro", "/api/auth/entrar": "cuenta_entrar", "/api/auth/salir": "cuenta_salir",
+    "/api/auth/google/vuelta": "cuenta_google", "/api/auth/microsoft/vuelta": "cuenta_microsoft",
 }
 # Identificador anónimo del teléfono: al azar, sin relación con nombre ni Strava.
 COOKIE_USUARIO = "pp_u"
@@ -368,28 +402,210 @@ def admin_eventos(request: Request, desde: str | None = None, hasta: str | None 
     return registro.consultar(d.isoformat(), h.isoformat())
 
 
-class Entrada(BaseModel):
-    usuario: str = Field(max_length=80)
+# ── Cuentas: registro e inicio de sesión ───────────────────────────────────
+_MENSAJES = {
+    "correo_invalido": ("Ese correo no parece válido.", "That email doesn't look valid."),
+    "correo_existe": ("Ya hay una cuenta con ese correo: entra con ella.", "There's already an account with that email: sign in."),
+    "correo_existe_otro_metodo": ("Ya hay una cuenta con ese correo: entra con el método que usaste al crearla.",
+                                  "There's already an account with that email: sign in the way you created it."),
+    "clave_corta": (f"La clave debe tener al menos {cuentas.CLAVE_MIN} caracteres.",
+                    f"The password must be at least {cuentas.CLAVE_MIN} characters."),
+    "clave_incorrecta": ("Correo o clave incorrectos.", "Wrong email or password."),
+    "demasiados_intentos": ("Demasiados intentos: espera unos minutos.", "Too many attempts: wait a few minutes."),
+    "bloqueada": ("Esta cuenta está desactivada.", "This account is disabled."),
+    "sin_correo": ("Tu cuenta no compartió un correo: prueba otro método.", "Your account didn't share an email: try another method."),
+    "no_existe": ("Esa cuenta no existe.", "That account doesn't exist."),
+    "codigo_invalido": ("El enlace venció o ya se usó: pide uno nuevo.", "The link expired or was already used: ask for a new one."),
+    "correo_apagado": ("La recuperación por correo todavía no está disponible: escríbenos y te ayudamos.",
+                       "Email recovery isn't available yet: write to us and we'll help."),
+}
+
+
+def _error_cuenta(exc: cuentas.ErrorCuenta, codigo: int = 400) -> HTTPException:
+    es, en_ = _MENSAJES.get(str(exc), (str(exc), str(exc)))
+    return HTTPException(codigo, {"codigo": str(exc), "mensaje": tr(es, en_)})
+
+
+def _con_sesion(u: dict, request: Request, resp: Response) -> Response:
+    _poner_cookie(resp, request, cuentas.COOKIE, cuentas.abrir_sesion(u), cuentas.DURACION)
+    return resp
+
+
+class Registro(BaseModel):
+    correo: str = Field(max_length=200)
+    clave: str = Field(max_length=200)
+    nombre: str | None = Field(default=None, max_length=80)
+
+
+class Ingreso(BaseModel):
+    correo: str = Field(max_length=200)
     clave: str = Field(max_length=200)
 
 
-@app.post("/api/beta/entrar", include_in_schema=False)
-def beta_entrar(body: Entrada, request: Request) -> JSONResponse:
-    """Usuario y clave de tester → cookie de la beta cerrada (90 días)."""
-    if not acceso.entrar(body.usuario, body.clave):
-        time.sleep(1)                       # que adivinar la clave sea lento
-        _anotar(exito=False, detalle=body.usuario[:40])
-        raise HTTPException(401, tr("Usuario o clave incorrectos.", "Wrong username or password."))
+@app.post("/api/auth/registro", include_in_schema=False)
+def auth_registro(body: Registro, request: Request) -> Response:
+    try:
+        u = cuentas.crear(body.correo, body.nombre, body.clave)
+    except cuentas.ErrorCuenta as exc:
+        _anotar(exito=False, error=str(exc))
+        raise _error_cuenta(exc, 409 if str(exc) == "correo_existe" else 400) from exc
+    uso.registrar("cuenta_nueva", "correo")
+    _mandar_verificacion(u, request)
+    return _con_sesion(u, request, JSONResponse({"usuario": cuentas.publico(u)}))
+
+
+def _mandar_verificacion(u: dict, request: Request) -> None:
+    if not correo.activo():
+        return
+    try:
+        enlace = f"{_base(request)}/api/auth/verificar?codigo={cuentas.nuevo_codigo(u['id'], 'verificar')}"
+        correo.verificar(u["correo"], u["nombre"], enlace)
+    except Exception as exc:  # noqa: BLE001 — el correo caído no impide crear la cuenta
+        _anotar(error=f"no pude mandar el correo de verificación: {type(exc).__name__}: {exc}")
+
+
+@app.post("/api/auth/reenviar", include_in_schema=False)
+def auth_reenviar(request: Request) -> dict:
+    """Vuelve a mandar el correo para confirmar la cuenta."""
+    u = _usuario(request)
+    if not u:
+        raise HTTPException(401, "Not signed in")
+    if not correo.activo():
+        raise _error_cuenta(cuentas.ErrorCuenta("correo_apagado"), 503)
+    _mandar_verificacion(u, request)
+    return {"ok": True}
+
+
+@app.get("/api/auth/verificar", include_in_schema=False)
+def auth_verificar(codigo: str = "") -> Response:
+    try:
+        u = cuentas.usar_codigo(codigo, "verificar")
+    except cuentas.ErrorCuenta:
+        return RedirectResponse("/?cuenta=codigo_invalido")
+    cuentas.actualizar(u["id"], verificado=True)
+    uso.registrar("cuenta_verificada")
+    return RedirectResponse("/?cuenta=verificado")
+
+
+class PedidoRecuperar(BaseModel):
+    correo: str = Field(max_length=200)
+
+
+@app.post("/api/auth/recuperar", include_in_schema=False)
+def auth_recuperar(body: PedidoRecuperar, request: Request) -> dict:
+    """Manda el enlace para elegir una clave nueva. Responde lo mismo exista o
+    no la cuenta (que no sirva para averiguar quién está registrado)."""
+    if not correo.activo():
+        raise _error_cuenta(cuentas.ErrorCuenta("correo_apagado"), 503)
+    try:
+        u = cuentas.por_correo(cuentas.normalizar_correo(body.correo))
+    except cuentas.ErrorCuenta as exc:
+        raise _error_cuenta(exc) from exc
+    if u and u["activo"]:
+        try:
+            enlace = f"{_base(request)}/entrar?recuperar={cuentas.nuevo_codigo(u['id'], 'recuperar')}"
+            correo.recuperar(u["correo"], u["nombre"], enlace)
+        except Exception as exc:  # noqa: BLE001
+            _anotar(error=f"no pude mandar el correo de recuperación: {type(exc).__name__}: {exc}")
+    return {"ok": True}
+
+
+class NuevaClave(BaseModel):
+    codigo: str = Field(max_length=200)
+    clave: str = Field(max_length=200)
+
+
+@app.post("/api/auth/nueva-clave", include_in_schema=False)
+def auth_nueva_clave(body: NuevaClave, request: Request) -> Response:
+    """Clave nueva con el enlace del correo: cierra las demás sesiones y, como
+    el enlace llegó a su correo, lo da por verificado."""
+    if len(body.clave) < cuentas.CLAVE_MIN:
+        raise _error_cuenta(cuentas.ErrorCuenta("clave_corta"))
+    try:
+        u = cuentas.usar_codigo(body.codigo, "recuperar")
+        u = cuentas.actualizar(u["id"], clave=body.clave, verificado=True)
+    except cuentas.ErrorCuenta as exc:
+        raise _error_cuenta(exc) from exc
+    uso.registrar("cuenta_nueva_clave")
+    return _con_sesion(u, request, JSONResponse({"usuario": cuentas.publico(u)}))
+
+
+@app.post("/api/auth/entrar", include_in_schema=False)
+def auth_entrar(body: Ingreso, request: Request) -> Response:
+    try:
+        u = cuentas.entrar_con_clave(body.correo, body.clave)
+    except cuentas.ErrorCuenta as exc:
+        time.sleep(1)                       # que adivinar claves sea lento
+        _anotar(exito=False, error=str(exc))
+        raise _error_cuenta(exc, 429 if str(exc) == "demasiados_intentos" else 401) from exc
+    uso.registrar("cuenta_entrar", "correo")
+    return _con_sesion(u, request, JSONResponse({"usuario": cuentas.publico(u)}))
+
+
+@app.post("/api/auth/salir", include_in_schema=False)
+def auth_salir(request: Request) -> Response:
+    cuentas.cerrar_sesion(request.cookies.get(cuentas.COOKIE))
     resp = JSONResponse({"ok": True})
-    resp.set_cookie(acceso.COOKIE, acceso.ficha(), max_age=acceso.DURACION, httponly=True,
-                    samesite="lax", secure=_base(request).startswith("https"))
+    resp.delete_cookie(cuentas.COOKIE)
     return resp
+
+
+@app.get("/api/auth/proveedores", include_in_schema=False)
+def auth_proveedores() -> dict:
+    return oauth.configurados()
+
+
+@app.get("/api/auth/{proveedor}", include_in_schema=False)
+def auth_ir(proveedor: Literal["google", "microsoft"], request: Request) -> Response:
+    if not oauth.configurados()[proveedor]:
+        raise HTTPException(503, tr("Ese inicio de sesión no está configurado.", "That sign-in isn't configured."))
+    url, estado = oauth.iniciar(proveedor, f"{_base(request)}/api/auth/{proveedor}/vuelta")
+    resp = RedirectResponse(url)
+    _poner_cookie(resp, request, oauth.COOKIE_ESTADO, estado, 600)
+    return resp
+
+
+@app.get("/api/auth/{proveedor}/vuelta", include_in_schema=False)
+def auth_vuelta(proveedor: Literal["google", "microsoft"], request: Request, code: str | None = None,
+                state: str | None = None, error: str | None = None) -> Response:
+    if error or not code:
+        uso.registrar("cuenta_cancelada", proveedor)
+        return RedirectResponse("/?cuenta=cancelada")
+    try:
+        datos = oauth.terminar(proveedor, code, state or "", request.cookies.get(oauth.COOKIE_ESTADO),
+                               f"{_base(request)}/api/auth/{proveedor}/vuelta")
+        u = cuentas.entrar_con_proveedor(proveedor, datos["sub"], datos["correo"], datos["nombre"],
+                                         datos["correo_confiable"])
+    except cuentas.ErrorCuenta as exc:
+        uso.registrar("cuenta_error", proveedor, str(exc), exito=False)
+        return RedirectResponse(f"/?cuenta={exc}")
+    except oauth.ErrorOAuth as exc:
+        uso.registrar("cuenta_error", proveedor, exito=False)
+        _anotar(error=str(exc))
+        return RedirectResponse("/?cuenta=error")
+    uso.registrar("cuenta_entrar", proveedor)
+    resp = _con_sesion(u, request, RedirectResponse("/"))
+    resp.delete_cookie(oauth.COOKIE_ESTADO)
+    return resp
+
+
+@app.get("/entrar", include_in_schema=False)
+def pagina_entrar() -> FileResponse:
+    """Entrar o crear cuenta (también con la beta abierta)."""
+    return FileResponse(WEB / "entrar.html", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/cuenta", include_in_schema=False)
+def cuenta(request: Request) -> dict:
+    """Quién soy (si hay sesión), si puedo usar la app y qué opciones hay."""
+    u = _usuario(request)
+    return {"usuario": cuentas.publico(u) if u else None, "pendiente": _pendiente(u),
+            "beta_cerrada": acceso.activo(), "proveedores": oauth.configurados(),
+            "correo_activo": correo.activo()}
 
 
 class AjustesAcceso(BaseModel):
     activo: bool | None = None
-    usuario: str | None = Field(default=None, min_length=1, max_length=80)
-    clave: str | None = Field(default=None, min_length=4, max_length=200)
 
 
 def _solo_admin(request: Request) -> None:
@@ -401,18 +617,68 @@ def _solo_admin(request: Request) -> None:
 @app.get("/api/admin/acceso", include_in_schema=False)
 def admin_acceso(request: Request) -> dict:
     _solo_admin(request)
-    return acceso.estado()
+    return acceso.estado() | {"correo_activo": correo.activo()}
 
 
 @app.post("/api/admin/acceso", include_in_schema=False)
 def admin_cambiar_acceso(body: AjustesAcceso, request: Request) -> dict:
-    """Activa o desactiva la beta cerrada y cambia el usuario o la clave (se
-    guardan en la base: sobreviven a que Render duerma)."""
+    """Activa o desactiva la beta cerrada (se guarda en la base: sobrevive a
+    que Render duerma)."""
     _solo_admin(request)
     try:
-        return acceso.configurar(body.activo, body.usuario, body.clave)
+        return acceso.configurar(body.activo) | {"correo_activo": correo.activo()}
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(503, f"No pude guardar en la base de datos: {type(exc).__name__}") from exc
+
+
+class NuevoUsuario(BaseModel):
+    correo: str = Field(max_length=200)
+    nombre: str | None = Field(default=None, max_length=80)
+    clave: str | None = Field(default=None, max_length=200)
+    beta: bool = False
+
+
+class CambioUsuario(BaseModel):
+    correo: str | None = Field(default=None, max_length=200)
+    nombre: str | None = Field(default=None, max_length=80)
+    clave: str | None = Field(default=None, max_length=200)
+    beta: bool | None = None
+    activo: bool | None = None
+
+
+@app.get("/api/admin/usuarios", include_in_schema=False)
+def admin_usuarios(request: Request) -> list[dict]:
+    _solo_admin(request)
+    return cuentas.listar()
+
+
+@app.post("/api/admin/usuarios", include_in_schema=False)
+def admin_crear_usuario(body: NuevoUsuario, request: Request) -> dict:
+    """Crear una cuenta (p. ej. para habilitar a un tester antes de que entre:
+    al entrar con Google o con ese correo, queda vinculada)."""
+    _solo_admin(request)
+    try:
+        return cuentas.publico(cuentas.crear(body.correo, body.nombre, body.clave or None, beta=body.beta))
+    except cuentas.ErrorCuenta as exc:
+        raise _error_cuenta(exc, 409 if str(exc) == "correo_existe" else 400) from exc
+
+
+@app.patch("/api/admin/usuarios/{uid}", include_in_schema=False)
+def admin_cambiar_usuario(uid: str, body: CambioUsuario, request: Request) -> dict:
+    _solo_admin(request)
+    try:
+        return cuentas.publico(cuentas.actualizar(uid, **body.model_dump(exclude_none=True)))
+    except cuentas.ErrorCuenta as exc:
+        raise _error_cuenta(exc, 404 if str(exc) == "no_existe" else 409 if str(exc) == "correo_existe" else 400) from exc
+
+
+@app.delete("/api/admin/usuarios/{uid}", include_in_schema=False)
+def admin_borrar_usuario(uid: str, request: Request) -> dict:
+    _solo_admin(request)
+    if not cuentas.por_id(uid):
+        raise HTTPException(404, "Not Found")
+    cuentas.borrar(uid)
+    return {"ok": True}
 
 
 # App instalable (PWA): manifiesto y service worker en la raíz (su alcance es «/»).

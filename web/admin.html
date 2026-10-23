@@ -140,7 +140,7 @@
   .acc-form button { align-self: end; }
   .acc-aviso { font-size: 12.5px; color: var(--suave); margin: 8px 0 0; min-height: 1em; }
   .acc-aviso.mal { color: var(--error); }
-  .interruptor { position: relative; flex: none; width: 50px; height: 30px; }
+  .interruptor { position: relative; display: inline-block; vertical-align: middle; flex: none; width: 50px; height: 30px; }
   .interruptor input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
   .interruptor span { position: absolute; inset: 0; border-radius: 999px; background: var(--linea); transition: background .2s; pointer-events: none; }
   .interruptor span:after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff;
@@ -148,6 +148,26 @@
   .interruptor input:checked + span { background: var(--acento); }
   .interruptor input:checked + span:after { transform: translateX(20px); }
   .interruptor input:focus-visible + span { outline: 2px solid var(--ok); outline-offset: 2px; }
+  .interruptor.chico { width: 40px; height: 24px; }
+  .interruptor.chico span:after { width: 18px; height: 18px; }
+  .interruptor.chico input:checked + span:after { transform: translateX(16px); }
+  .usr-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .usr-filtros { display: flex; gap: 8px; margin: 12px 0 8px; flex-wrap: wrap; }
+  .usr-filtros input { flex: 1 1 220px; }
+  .usr td { vertical-align: middle; }
+  .usr .metodos .tag { margin-right: 4px; }
+  .usr .acc button { padding: 4px 8px; font-size: 12.5px; margin-left: 4px; }
+  .usr .apagado td { opacity: .55; }
+  dialog { border: 1px solid var(--linea); border-radius: 16px; padding: 20px; background: var(--tarjeta); color: var(--tinta); width: min(420px, 92vw); }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  dialog form { display: grid; gap: 10px; }
+  dialog h2 { font-size: 17px; margin: 0 0 4px; }
+  dialog label { display: grid; gap: 4px; font-size: 12.5px; color: var(--suave); }
+  dialog .fila-chk { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--tinta); }
+  .dlg-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  @media (max-width: 700px) {
+    .usr .creado, .usr .metodos { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -173,15 +193,37 @@
   <section class="tarjeta acceso" id="acceso">
     <div class="acc-cab">
       <div><h2>Acceso beta</h2><p class="sub" id="accEstado">Cargando…</p></div>
-      <label class="interruptor" title="Activar o desactivar"><input type="checkbox" id="accActivo" role="switch" aria-label="Pedir usuario y clave"><span></span></label>
+      <label class="interruptor" title="Activar o desactivar"><input type="checkbox" id="accActivo" role="switch" aria-label="Beta cerrada"><span></span></label>
     </div>
-    <form class="acc-form" id="formAcceso">
-      <label>Usuario<input id="accUsuario" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="80" required></label>
-      <label>Nueva clave<input id="accClave" type="password" autocomplete="new-password" minlength="4" maxlength="200" placeholder="Vacía = no cambia"></label>
-      <button class="prim" type="submit">Guardar</button>
-    </form>
+    <p class="acc-aviso" id="accCorreo"></p>
     <p class="acc-aviso" id="accAviso"></p>
   </section>
+
+  <section class="tarjeta" id="usuarios">
+    <div class="usr-cab">
+      <div><h2>Usuarios</h2><p class="sub" id="usrResumen">Cargando…</p></div>
+      <button class="prim" type="button" id="usrNuevo">+ Nuevo usuario</button>
+    </div>
+    <div class="usr-filtros">
+      <input type="search" id="usrBuscar" placeholder="Buscar por correo o nombre…" aria-label="Buscar usuarios">
+      <select id="usrFiltro" aria-label="Filtrar usuarios">
+        <option value="">Todos</option><option value="beta">Con beta</option><option value="sinbeta">Sin beta</option><option value="bloqueados">Desactivados</option>
+      </select>
+    </div>
+    <div id="usrLista"></div>
+  </section>
+
+  <dialog id="usrDialogo">
+    <form method="dialog" id="usrForm">
+      <h2 id="usrTitulo">Nuevo usuario</h2>
+      <label>Correo<input id="uCorreo" type="email" required maxlength="200" autocomplete="off"></label>
+      <label>Nombre<input id="uNombre" maxlength="80" autocomplete="off"></label>
+      <label><span id="uClaveEt">Clave (opcional)</span><input id="uClave" type="password" minlength="8" maxlength="200" autocomplete="new-password" placeholder="Vacía = entra con Google o Microsoft"></label>
+      <label class="fila-chk"><input type="checkbox" id="uBeta"> Habilitado para la beta</label>
+      <p class="acc-aviso mal" id="uError"></p>
+      <div class="dlg-acciones"><button type="button" id="uCancelar">Cancelar</button><button class="prim" type="submit">Guardar</button></div>
+    </form>
+  </dialog>
 
   <div class="filtros">
     <div class="chips" id="periodos" role="group" aria-label="Periodo">
@@ -221,7 +263,8 @@ const NOMBRES = {
   comunas: "Lista de comunas", evento: "Evento de la app", strava_conectar: "Strava · conectar",
   strava_conexion: "Strava · vuelta de conexión", strava_sync: "Strava · descargar carreras",
   strava_perfil: "Strava · perfil", strava_foto: "Strava · foto", strava_calles: "Strava · calles de siempre",
-  strava_desconectar: "Strava · desconectar", beta_entrar: "Beta · entrar con clave",
+  strava_desconectar: "Strava · desconectar", cuenta_registro: "Cuenta · registro", cuenta_entrar: "Cuenta · entrar",
+  cuenta_salir: "Cuenta · salir", cuenta_google: "Cuenta · vuelta de Google", cuenta_microsoft: "Cuenta · vuelta de Microsoft",
 };
 const nombre = (c) => NOMBRES[c] || c;
 
@@ -274,7 +317,7 @@ async function cargar() {
   if (!r.ok) { $("contenido").innerHTML = `<div class="vacio">El servidor respondió ${r.status}.</div>`; return false; }
   const j = await r.json();
   datos = { ...j, filas: j.filas.map((f) => Object.fromEntries(j.columnas.map((c, i) => [c, f[i]]))) };
-  if ($("panel").hidden) acceso();
+  if ($("panel").hidden) { acceso(); cargarUsuarios(); }
   $("login").hidden = true; $("panel").hidden = false;
   const a = $("almacen");
   a.className = "almacen" + (j.almacen !== "postgres" || j.error_almacen ? " mal" : "");
@@ -287,41 +330,93 @@ async function cargar() {
 }
 $("actualizar").onclick = cargar;
 
-// ── Acceso beta: la app pide usuario y clave (se guarda en la base) ──
+// ── Acceso beta: sólo entran las cuentas habilitadas (se guarda en la base) ──
 function pintarAcceso(a) {
   $("accActivo").checked = a.activo;
-  $("accUsuario").value = a.usuario;
   $("accEstado").innerHTML = a.activo
-    ? '<b class="on">Activado</b> · la app pide usuario y clave para entrar'
-    : "<b>Desactivado</b> · la app está abierta a todos";
-  avisoAcceso(a.clave_inicial ? "La clave es la inicial (admin123): cámbiala antes de compartir la app." : "", a.clave_inicial);
+    ? '<b class="on">Activado</b> · sólo entran las cuentas con beta (abajo)'
+    : "<b>Desactivado</b> · cualquiera puede crear su cuenta y entrar";
+  $("accCorreo").innerHTML = a.correo_activo
+    ? 'Correos de verificación y recuperación: <b class="on">encendidos</b>'
+    : "Correos de verificación y recuperación: <b>apagados</b> (falta configurar el remitente; mientras, si alguien olvida su clave, pónle una nueva con «Editar»)";
 }
 function avisoAcceso(texto, mal) { $("accAviso").textContent = texto; $("accAviso").className = "acc-aviso" + (mal ? " mal" : ""); }
+async function api(ruta, metodo = "GET", cuerpo) {
+  const r = await fetch(ruta, { method: metodo, headers: { "X-Admin-Clave": CLAVE, ...(cuerpo ? { "Content-Type": "application/json" } : {}) },
+    body: cuerpo ? JSON.stringify(cuerpo) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail?.mensaje || (typeof j.detail === "string" ? j.detail : `El servidor respondió ${r.status}.`));
+  return j;
+}
 async function acceso(cuerpo) {
-  try {
-    const r = await fetch("/api/admin/acceso", cuerpo ? { method: "POST", headers: { "X-Admin-Clave": CLAVE, "Content-Type": "application/json" },
-      body: JSON.stringify(cuerpo) } : { headers: { "X-Admin-Clave": CLAVE } });
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}));
-      avisoAcceso(typeof j.detail === "string" ? j.detail : `El servidor respondió ${r.status}.`, true);
-      return null;
-    }
-    const a = await r.json(); pintarAcceso(a); return a;
-  } catch { avisoAcceso("No pude conectar con el servidor.", true); return null; }
+  try { const a = await api("/api/admin/acceso", cuerpo ? "POST" : "GET", cuerpo); pintarAcceso(a); avisoAcceso(""); return a; }
+  catch (e) { avisoAcceso(e.message, true); return null; }
 }
 $("accActivo").onchange = async () => {
   const quiere = $("accActivo").checked;
   if (!await acceso({ activo: quiere })) $("accActivo").checked = !quiere;
 };
-$("formAcceso").onsubmit = async (e) => {
-  e.preventDefault();
-  const cuerpo = { usuario: $("accUsuario").value.trim() };
-  if ($("accClave").value) cuerpo.clave = $("accClave").value;
-  const a = await acceso(cuerpo);
-  if (a) {
-    $("accClave").value = "";
-    if (!a.clave_inicial) avisoAcceso("Guardado. Los testers que ya habían entrado tienen que volver a escribir usuario y clave.");
+
+// ── Usuarios: crear, editar, habilitar para la beta, desactivar, borrar ──
+let usuarios = [], editando = null;
+const fechaUsr = (ts) => ts ? horaLocal(ts) : "—";
+async function cargarUsuarios() {
+  try { usuarios = await api("/api/admin/usuarios"); pintarUsuarios(); }
+  catch (e) { $("usrLista").innerHTML = `<div class="vacio">${esc(e.message)}</div>`; }
+}
+function pintarUsuarios() {
+  const q = $("usrBuscar").value.trim().toLowerCase(), f = $("usrFiltro").value;
+  const lista = usuarios.filter((u) => (!q || u.correo.includes(q) || (u.nombre || "").toLowerCase().includes(q))
+    && (!f || (f === "beta" ? u.beta : f === "sinbeta" ? !u.beta : !u.activo)));
+  $("usrResumen").textContent = `${num(usuarios.length)} cuentas · ${num(usuarios.filter((u) => u.beta).length)} con beta`;
+  $("usrLista").innerHTML = lista.length ? `<div class="tabla"><table class="usr"><thead><tr>
+      <th>Correo</th><th>Nombre</th><th class="metodos">Entra con</th><th>Beta</th><th>Activo</th><th class="creado">Creado</th><th>Último ingreso</th><th></th></tr></thead><tbody>
+    ${lista.map((u) => `<tr class="${u.activo ? "" : "apagado"}" data-id="${u.id}">
+      <td>${esc(u.correo)}</td><td>${esc(u.nombre || "—")}</td>
+      <td class="metodos">${u.metodos.length ? u.metodos.map((m) => `<span class="tag">${{ clave: "correo", google: "Google", microsoft: "Microsoft" }[m]}</span>`).join("") : '<span class="tag">pendiente</span>'}</td>
+      <td><label class="interruptor chico"><input type="checkbox" data-campo="beta" ${u.beta ? "checked" : ""} aria-label="Beta"><span></span></label></td>
+      <td><label class="interruptor chico"><input type="checkbox" data-campo="activo" ${u.activo ? "checked" : ""} aria-label="Activo"><span></span></label></td>
+      <td class="creado nowrap">${fechaUsr(u.creado)}</td><td class="nowrap">${fechaUsr(u.ultimo)}</td>
+      <td class="acc nowrap"><button type="button" data-editar>Editar</button><button type="button" data-borrar>Borrar</button></td></tr>`).join("")}
+    </tbody></table></div>` : '<div class="vacio">No hay usuarios con ese filtro.</div>';
+}
+$("usrBuscar").oninput = $("usrFiltro").onchange = pintarUsuarios;
+$("usrLista").addEventListener("change", async (e) => {
+  const chk = e.target.closest("input[data-campo]"); if (!chk) return;
+  const id = chk.closest("tr").dataset.id;
+  try {
+    const u = await api(`/api/admin/usuarios/${id}`, "PATCH", { [chk.dataset.campo]: chk.checked });
+    usuarios = usuarios.map((x) => x.id === id ? u : x); pintarUsuarios();
+  } catch (err) { chk.checked = !chk.checked; alert(err.message); }
+});
+$("usrLista").addEventListener("click", async (e) => {
+  const fila = e.target.closest("tr[data-id]"); if (!fila) return;
+  const u = usuarios.find((x) => x.id === fila.dataset.id);
+  if (e.target.closest("[data-editar]")) abrirUsuario(u);
+  if (e.target.closest("[data-borrar]") && confirm(`¿Borrar la cuenta de ${u.correo}? No se puede deshacer.`)) {
+    try { await api(`/api/admin/usuarios/${u.id}`, "DELETE"); usuarios = usuarios.filter((x) => x.id !== u.id); pintarUsuarios(); }
+    catch (err) { alert(err.message); }
   }
+});
+function abrirUsuario(u) {
+  editando = u || null;
+  $("usrTitulo").textContent = u ? "Editar usuario" : "Nuevo usuario";
+  $("uCorreo").value = u?.correo || ""; $("uNombre").value = u?.nombre || ""; $("uClave").value = "";
+  $("uClaveEt").textContent = u ? "Clave nueva (vacía = no cambia)" : "Clave (opcional)";
+  $("uBeta").checked = u ? u.beta : true; $("uError").textContent = "";
+  $("usrDialogo").showModal();
+}
+$("usrNuevo").onclick = () => abrirUsuario(null);
+$("uCancelar").onclick = () => $("usrDialogo").close();
+$("usrForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const cuerpo = { correo: $("uCorreo").value.trim(), nombre: $("uNombre").value.trim(), beta: $("uBeta").checked };
+  if ($("uClave").value) cuerpo.clave = $("uClave").value;
+  try {
+    const u = editando ? await api(`/api/admin/usuarios/${editando.id}`, "PATCH", cuerpo) : await api("/api/admin/usuarios", "POST", cuerpo);
+    usuarios = editando ? usuarios.map((x) => x.id === u.id ? u : x) : [u, ...usuarios];
+    pintarUsuarios(); $("usrDialogo").close();
+  } catch (err) { $("uError").textContent = err.message; }
 };
 
 function opciones(sel, valores, todos, etiqueta = (v) => v) {

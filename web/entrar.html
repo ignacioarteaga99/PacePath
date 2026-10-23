@@ -50,6 +50,24 @@
   [hidden] { display: none !important; }
   @media (min-width: 700px) { main { padding-top: 48px; } .pista { margin: 26px 0 0; } .pista small { left: 0; } }
   .mal:empty { display: none; }
+  .tarjeta { margin-top: 18px; background: #fff; border: 1px solid var(--linea); border-radius: 18px; padding: 18px;
+    box-shadow: 0 14px 34px rgba(20, 20, 30, .07); display: grid; gap: 12px; }
+  .tarjeta form { margin: 0; padding: 0; border: 0; box-shadow: none; }
+  .prov { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; font: inherit; font-size: 15.5px;
+    font-weight: 700; color: var(--tinta); background: #fff; border: 1px solid #dcdce2; border-radius: 12px; padding: 12px; cursor: pointer; text-decoration: none; }
+  .prov svg { width: 20px; height: 20px; flex: none; }
+  .o { display: flex; align-items: center; gap: 10px; color: #a0a0aa; font-size: 12.5px; }
+  .o:before, .o:after { content: ""; flex: 1; height: 1px; background: var(--linea); }
+  .pestanas { display: flex; gap: 4px; background: #f3f3f6; border-radius: 12px; padding: 3px; }
+  .pestanas button { flex: 1; font: inherit; font-size: 14px; font-weight: 700; color: var(--suave); background: none; border: 0; border-radius: 9px; padding: 8px; cursor: pointer; }
+  .pestanas button.on { background: #fff; color: var(--tinta); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .espera { text-align: center; display: grid; gap: 10px; }
+  .espera b { font-size: 17px; }
+  .espera p { color: var(--suave); font-size: 14.5px; line-height: 1.5; }
+  .enlace { font: inherit; font-size: 13.5px; color: var(--suave); background: none; border: 0; text-decoration: underline; cursor: pointer; justify-self: center; }
+  .nota { color: var(--suave); font-size: 14px; line-height: 1.45; }
+  .mal.ok { color: #0b8a0b; }
+  .sec { font: inherit; font-size: 14px; font-weight: 700; color: var(--suave); background: none; border: 1px solid var(--linea); border-radius: 12px; padding: 10px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -65,12 +83,41 @@
 
   <div class="pista" id="pista" role="img"><canvas id="lienzo"></canvas><small data-t="toca"></small></div>
 
-  <form id="form">
-    <label><span data-t="usuario"></span><input id="usuario" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
-    <label><span data-t="clave"></span><input id="clave" name="password" type="password" autocomplete="current-password" required></label>
-    <button class="entrar" type="submit" id="boton" data-t="entrar"></button>
-    <div class="mal" id="mal" role="alert"></div>
+  <div class="tarjeta" id="ingreso">
+    <a class="prov" id="conGoogle" href="/api/auth/google" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span data-t="google"></span></a>
+    <a class="prov" id="conMicrosoft" href="/api/auth/microsoft" hidden><svg viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/><path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg><span data-t="microsoft"></span></a>
+    <div class="o" id="separador" hidden><span data-t="o"></span></div>
+    <div class="pestanas" role="tablist"><button type="button" id="tabEntrar" class="on" data-t="entrar"></button><button type="button" id="tabCrear" data-t="crear"></button></div>
+    <form id="form">
+      <label id="campoNombre" hidden><span data-t="nombre"></span><input id="nombre" name="name" autocomplete="name" maxlength="80"></label>
+      <label><span data-t="correo"></span><input id="correo" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" required></label>
+      <label><span data-t="clave"></span><input id="clave" name="password" type="password" autocomplete="current-password" required minlength="8"></label>
+      <button class="entrar" type="submit" id="boton" data-t="entrar"></button>
+      <div class="mal" id="mal" role="alert"></div>
+      <button class="enlace" type="button" id="olvide" data-t="olvide" hidden></button>
+    </form>
+  </div>
+  <form class="tarjeta" id="recuperar" hidden>
+    <b data-t="recTitulo"></b>
+    <p class="nota" data-t="recTexto"></p>
+    <label><span data-t="correo"></span><input id="recCorreo" type="email" autocomplete="email" autocapitalize="none" required></label>
+    <button class="entrar" type="submit" data-t="recBoton"></button>
+    <div class="mal ok" id="recMsg" role="status"></div>
+    <button class="enlace" type="button" id="recVolver" data-t="volver"></button>
   </form>
+  <form class="tarjeta" id="nuevaClave" hidden>
+    <b data-t="nuevaTitulo"></b>
+    <label><span data-t="clave"></span><input id="nueva" type="password" autocomplete="new-password" minlength="8" required></label>
+    <button class="entrar" type="submit" data-t="nuevaBoton"></button>
+    <div class="mal" id="nuevaMsg" role="alert"></div>
+  </form>
+  <div class="tarjeta espera" id="esperando" hidden>
+    <b id="hola"></b>
+    <p id="esperaTexto"></p>
+    <button class="sec" type="button" id="reenviar" data-t="reenviar" hidden></button>
+    <div class="mal ok" id="esperaMsg" role="status"></div>
+    <button class="sec" type="button" id="salir" data-t="salir"></button>
+  </div>
 
   <div class="datos" id="datos"></div>
 
@@ -83,16 +130,40 @@
 // ── Textos (español / inglés) ──
 const T = {
   es: { tag: "Beta privada", h1: "La ruta perfecta para tu entrenamiento <em>de hoy</em>.",
-    sub: "PacePath está en <b>beta</b>: mientras la afinamos, sólo entran los testers. Si te invitaron, escribe el usuario y la clave que te dieron.",
-    toca: "Toca para saltar", usuario: "Usuario", clave: "Clave", entrar: "Entrar", entrando: "Entrando…",
-    error: "Usuario o clave incorrectos.", red: "No pude conectar. Prueba de nuevo en unos segundos.",
+    sub: "PacePath está en <b>beta</b>: mientras la afinamos, sólo entran los testers. Entra con tu cuenta; si te invitaron, usa el correo con que te invitaron.",
+    subAbierta: "Entra o crea tu cuenta para armar la ruta de tu entrenamiento.",
+    espera: "Tu cuenta ya está creada, pero todavía no está habilitada para la beta. Avísale a PacePath con el correo de tu cuenta y te habilitamos.",
+    esperaCorreo: "Te mandamos un correo para confirmar tu cuenta: abre el enlace y vuelve aquí.",
+    reenviar: "Mandar el correo de nuevo", reenviado: "Listo: revisa tu correo (y la carpeta de spam).",
+    olvide: "¿Olvidaste tu clave?", recTitulo: "Recuperar tu clave",
+    recTexto: "Escribe el correo de tu cuenta y te mandamos un enlace para elegir una clave nueva.",
+    recBoton: "Mandar enlace", recEnviado: "Si hay una cuenta con ese correo, te llegará un enlace en unos minutos.",
+    volver: "Volver", nuevaTitulo: "Elige tu clave nueva", nuevaBoton: "Guardar y entrar",
+    verificado: "¡Listo! Tu correo quedó confirmado.", codigo_invalido: "El enlace venció o ya se usó: pide uno nuevo.",
+    toca: "Toca para saltar", google: "Continuar con Google", microsoft: "Continuar con Microsoft", o: "o con tu correo",
+    entrar: "Entrar", crear: "Crear cuenta", nombre: "Nombre", correo: "Correo", clave: "Clave (mínimo 8 caracteres)",
+    entrando: "Un momento…", red: "No pude conectar. Prueba de nuevo en unos segundos.",
+    hola: "Hola, {n}",
+    salir: "Cerrar sesión", cancelada: "Cancelaste el inicio de sesión.", fallo: "No se pudo iniciar sesión. Prueba de nuevo.",
     hecho: "Hecho en Santiago de Chile", guia: "Guía beta", privacidad: "Privacidad", terminos: "Términos",
     datos: ["Series sin semáforos", "Mapa outdoor", "Tu Strava en mapa de calor"], otro: "EN",
     alt: "Dos corredores animados saltan semáforos y conos" },
   en: { tag: "Private beta", h1: "The perfect route for <em>today's</em> workout.",
-    sub: "PacePath is in <b>beta</b>: while we fine-tune it, only testers can get in. If you were invited, enter the username and password you were given.",
-    toca: "Tap to jump", usuario: "Username", clave: "Password", entrar: "Sign in", entrando: "Signing in…",
-    error: "Wrong username or password.", red: "Couldn't connect. Try again in a few seconds.",
+    sub: "PacePath is in <b>beta</b>: while we fine-tune it, only testers can get in. Sign in with your account; if you were invited, use the email you were invited with.",
+    subAbierta: "Sign in or create your account to build the route for your workout.",
+    espera: "Your account is created, but it isn't enabled for the beta yet. Tell PacePath your account's email and we'll enable it.",
+    esperaCorreo: "We sent you an email to confirm your account: open the link and come back here.",
+    reenviar: "Send the email again", reenviado: "Done: check your inbox (and spam folder).",
+    olvide: "Forgot your password?", recTitulo: "Reset your password",
+    recTexto: "Enter your account's email and we'll send you a link to choose a new password.",
+    recBoton: "Send link", recEnviado: "If there's an account with that email, a link will arrive in a few minutes.",
+    volver: "Back", nuevaTitulo: "Choose your new password", nuevaBoton: "Save and sign in",
+    verificado: "Done! Your email is confirmed.", codigo_invalido: "The link expired or was already used: ask for a new one.",
+    toca: "Tap to jump", google: "Continue with Google", microsoft: "Continue with Microsoft", o: "or with your email",
+    entrar: "Sign in", crear: "Create account", nombre: "Name", correo: "Email", clave: "Password (at least 8 characters)",
+    entrando: "One moment…", red: "Couldn't connect. Try again in a few seconds.",
+    hola: "Hi, {n}",
+    salir: "Sign out", cancelada: "You cancelled the sign-in.", fallo: "Couldn't sign in. Try again.",
     hecho: "Made in Santiago, Chile", guia: "Beta guide", privacidad: "Privacy", terminos: "Terms",
     datos: ["No-lights intervals", "Outdoor map", "Your Strava as a heatmap"], otro: "ES",
     alt: "Two animated runners jump over traffic lights and cones" },
@@ -114,22 +185,101 @@ $("idioma").onclick = () => {
   idioma = idioma === "es" ? "en" : "es";
   try { localStorage.setItem("pp_lang", JSON.stringify(idioma)); } catch {}
   textos();
+  pestana(creando);
 };
 textos();
 
-// ── Entrar ──
+// ── Entrar: Google, Microsoft o correo ──
+let creando = false;
+function pestana(crear) {
+  creando = crear;
+  $("tabEntrar").classList.toggle("on", !crear); $("tabCrear").classList.toggle("on", crear);
+  $("campoNombre").hidden = !crear;
+  $("clave").autocomplete = crear ? "new-password" : "current-password";
+  $("boton").textContent = T[idioma][crear ? "crear" : "entrar"];
+  $("mal").textContent = "";
+}
+$("tabEntrar").onclick = () => pestana(false);
+$("tabCrear").onclick = () => pestana(true);
 $("form").onsubmit = async (e) => {
   e.preventDefault();
   const t = T[idioma];
   $("boton").disabled = true; $("boton").textContent = t.entrando; $("mal").textContent = "";
   try {
-    const r = await fetch("/api/beta/entrar", { method: "POST", headers: { "Content-Type": "application/json", "X-Idioma": idioma },
-      body: JSON.stringify({ usuario: $("usuario").value, clave: $("clave").value }) });
-    if (r.ok) { location.reload(); return; }
-    $("mal").textContent = t.error; $("clave").select();
-  } catch { $("mal").textContent = t.red; }
-  $("boton").disabled = false; $("boton").textContent = t.entrar;
+    const cuerpo = { correo: $("correo").value, clave: $("clave").value };
+    if (creando) cuerpo.nombre = $("nombre").value;
+    const r = await fetch(creando ? "/api/auth/registro" : "/api/auth/entrar", { method: "POST",
+      headers: { "Content-Type": "application/json", "X-Idioma": idioma }, body: JSON.stringify(cuerpo) });
+    if (r.ok) { location.replace("/"); return; }
+    const j = await r.json().catch(() => ({}));
+    $("mal").textContent = j.detail?.mensaje || (Array.isArray(j.detail) ? t.fallo : j.detail) || t.fallo;
+  } catch { $("mal").textContent = T[idioma].red; }
+  $("boton").disabled = false; $("boton").textContent = T[idioma][creando ? "crear" : "entrar"];
 };
+$("salir").onclick = async () => { await fetch("/api/auth/salir", { method: "POST" }).catch(() => {}); location.replace("/"); };
+// Mensajes de la vuelta (?cuenta=…): de Google o Microsoft, o del enlace del correo.
+const MENSAJE_VUELTA = {
+  es: { correo_existe_otro_metodo: "Ya hay una cuenta con ese correo: entra con el método que usaste al crearla.",
+        bloqueada: "Esta cuenta está desactivada.", sin_correo: "Tu cuenta no compartió un correo: prueba otro método." },
+  en: { correo_existe_otro_metodo: "There's already an account with that email: sign in the way you created it.",
+        bloqueada: "This account is disabled.", sin_correo: "Your account didn't share an email: try another method." },
+};
+const ver = (id) => ["ingreso", "esperando", "recuperar", "nuevaClave"].forEach((x) => { $(x).hidden = x !== id; });
+const postJson = (url, cuerpo) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "X-Idioma": idioma },
+  body: cuerpo ? JSON.stringify(cuerpo) : undefined });
+const mensaje = async (r) => { const j = await r.json().catch(() => ({})); return j.detail?.mensaje || T[idioma].fallo; };
+$("olvide").onclick = () => { ver("recuperar"); $("recCorreo").value = $("correo").value; $("recMsg").textContent = ""; };
+$("recVolver").onclick = () => ver("ingreso");
+$("recuperar").onsubmit = async (e) => {
+  e.preventDefault();
+  const r = await postJson("/api/auth/recuperar", { correo: $("recCorreo").value }).catch(() => null);
+  $("recMsg").classList.toggle("ok", !!r?.ok);
+  $("recMsg").textContent = !r ? T[idioma].red : r.ok ? T[idioma].recEnviado : await mensaje(r);
+};
+const codigoRecuperar = new URLSearchParams(location.search).get("recuperar");
+$("nuevaClave").onsubmit = async (e) => {
+  e.preventDefault();
+  const r = await postJson("/api/auth/nueva-clave", { codigo: codigoRecuperar, clave: $("nueva").value }).catch(() => null);
+  if (r?.ok) { location.replace("/"); return; }
+  $("nuevaMsg").textContent = r ? await mensaje(r) : T[idioma].red;
+};
+$("reenviar").onclick = async () => {
+  const r = await postJson("/api/auth/reenviar").catch(() => null);
+  $("esperaMsg").textContent = !r ? T[idioma].red : r.ok ? T[idioma].reenviado : await mensaje(r);
+};
+// Qué mostrar según la cuenta: entrar, esperar (beta o correo) o, si ya
+// puede usar la app, ir a ella. Con la beta abierta, la misma portada sin
+// la etiqueta «Beta privada».
+(async () => {
+  const q = new URLSearchParams(location.search), vuelta = q.get("cuenta");
+  if (vuelta) {
+    const t = T[idioma];
+    $("mal").classList.toggle("ok", vuelta === "verificado");
+    $("mal").textContent = t[vuelta] && ["cancelada", "verificado", "codigo_invalido"].includes(vuelta)
+      ? t[vuelta] : MENSAJE_VUELTA[idioma][vuelta] || t.fallo;
+    history.replaceState(null, "", location.pathname);
+  }
+  if (codigoRecuperar) { ver("nuevaClave"); return; }
+  try {
+    const c = await fetch("/api/cuenta", { headers: { "X-Idioma": idioma } }).then((r) => r.json());
+    if (c.usuario && !c.pendiente) { location.replace("/"); return; }
+    $("conGoogle").hidden = !c.proveedores?.google;
+    $("conMicrosoft").hidden = !c.proveedores?.microsoft;
+    $("separador").hidden = !(c.proveedores?.google || c.proveedores?.microsoft);
+    $("olvide").hidden = !c.correo_activo;
+    if (!c.beta_cerrada) {
+      document.querySelector(".tag").hidden = true;
+      document.querySelector('[data-t="sub"]').dataset.t = "subAbierta";
+      textos();
+    }
+    if (c.usuario) {
+      ver("esperando");
+      $("hola").textContent = T[idioma].hola.replace("{n}", c.usuario.nombre || c.usuario.correo);
+      $("esperaTexto").textContent = T[idioma][c.pendiente === "verificar" ? "esperaCorreo" : "espera"];
+      $("reenviar").hidden = c.pendiente !== "verificar";
+    }
+  } catch {}
+})();
 
 // ── Los corredores (pixel art, al estilo del dinosaurio de Chrome) ──
 // Mirando a la derecha. h pelo · s piel · o polera (él) · p polera (ella) ·

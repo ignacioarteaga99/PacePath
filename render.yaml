@@ -47,6 +47,27 @@ services:
       # Link para apoyar PacePath (Ko-fi, Mercado Pago…). Vacío: no hay botón.
       - key: PACEPATH_APORTE_URL
         sync: false
+      # Entrar con Google o Microsoft (pacepath/oauth.py). Sin ellas, sólo correo y clave.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+      # Correos de verificación y recuperación (pacepath/correo.py). APAGADO hasta
+      # tener el remitente support@pacepathapp.com en un servicio SMTP.
+      - key: PACEPATH_CORREO_ACTIVO
+        value: "0"
+      - key: PACEPATH_CORREO_SMTP
+        sync: false
+      - key: PACEPATH_CORREO_USUARIO
+        sync: false
+      - key: PACEPATH_CORREO_CLAVE
+        sync: false
+      - key: PACEPATH_CORREO_DE
+        value: "PacePath <support@pacepathapp.com>"
       # «1» cuando Strava apruebe la app (quita el aviso de beta junto al botón).
       - key: PACEPATH_STRAVA_ABIERTO
         value: "0"

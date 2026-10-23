@@ -37,7 +37,17 @@ _DDL_PG = """CREATE TABLE IF NOT EXISTS pp_eventos (
   consulta TEXT, evento TEXT, tipo TEXT, comuna TEXT, detalle TEXT, exito SMALLINT,
   estado SMALLINT, ms INTEGER, error TEXT, idioma TEXT, disp TEXT);
 CREATE INDEX IF NOT EXISTS pp_eventos_dia ON pp_eventos (dia);
-CREATE TABLE IF NOT EXISTS pp_ajustes (clave TEXT PRIMARY KEY, valor TEXT NOT NULL)"""
+CREATE TABLE IF NOT EXISTS pp_ajustes (clave TEXT PRIMARY KEY, valor TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS pp_usuarios (
+  id TEXT PRIMARY KEY, correo TEXT NOT NULL UNIQUE, nombre TEXT, clave TEXT,
+  google TEXT UNIQUE, microsoft TEXT UNIQUE, verificado SMALLINT NOT NULL DEFAULT 0,
+  beta SMALLINT NOT NULL DEFAULT 0, activo SMALLINT NOT NULL DEFAULT 1,
+  creado TEXT NOT NULL, ultimo TEXT);
+CREATE TABLE IF NOT EXISTS pp_sesiones (
+  token TEXT PRIMARY KEY, usuario TEXT NOT NULL, creada TEXT NOT NULL, expira TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS pp_sesiones_usuario ON pp_sesiones (usuario);
+CREATE TABLE IF NOT EXISTS pp_tokens (
+  token TEXT PRIMARY KEY, usuario TEXT NOT NULL, tipo TEXT NOT NULL, expira TEXT NOT NULL)"""
 _DDL_SQLITE = _DDL_PG.replace("BIGSERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
 
 
@@ -238,3 +248,10 @@ def ajustes() -> dict[str, str]:
 
 def guardar_ajustes(valores: dict[str, str]) -> None:
     _el_escritor().base.guardar_ajustes(valores)
+
+
+def sql(consulta: str, params: tuple = (), traer: bool = False):
+    """Una consulta a la base (con «?»). Para cuentas.py: se ejecuta al tiro,
+    no en lotes."""
+    base = _el_escritor().base
+    return base._ejecutar(consulta, params, traer=True) if traer else base._ejecutar(consulta, [params])

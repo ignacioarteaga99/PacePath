@@ -661,7 +661,7 @@ const EN = {
   "Inicio de la repetición": "Rep start", "Fin de la repetición": "Rep end", "Llegada": "Finish",
   "Semáforo": "Traffic light", "Cruce": "Crossing", "Fuente de agua": "Water fountain", "Baño": "Toilet",
   "Altimetría": "Elevation", "subida": "up", "bajada": "down",
-  "en total": "in total", "de series": "of intervals", "de subida": "uphill", "sin volver a la salida": "one way", "Cambiar salida": "Change start", "Otra opción": "Another option",
+  "en total": "in total", "de series": "of intervals", "de subida": "uphill", "sin volver a la salida": "one way", "Cambiar salida": "Change start", "Entrar": "Sign in", "Salir": "Sign out", "Otra opción": "Another option",
   "Escribe otra calle, usa «Cerca de mí» o toca el mapa.": "Type another street, use «Near me» or tap the map.",
   "Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.":
     "First choose where you start: type a street, use «Near me» or tap the map.",
@@ -1069,7 +1069,16 @@ new ResizeObserver(medirCabecera).observe(document.querySelector("header"));
 const esEscritorio = () => window.matchMedia("(min-width: 900px)").matches;
 
 let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), animacion = null;
-const PIE_HOJA = () => `<p class="pie-hoja"><button type="button" data-comentario>💬 ${t("Enviar comentario")}</button>
+// Cuenta: quién soy (se pide una vez al abrir la app).
+let miCuenta = null;
+fetch("/api/cuenta").then((r) => r.json()).then((c) => {
+  miCuenta = c.usuario;
+  document.querySelectorAll(".pie-hoja [data-cuenta]").forEach((x) => { x.outerHTML = enlaceCuenta(); });
+}).catch(() => {});
+const enlaceCuenta = () => miCuenta
+  ? `<button type="button" data-cuenta data-salir>👤 ${esc(miCuenta.nombre || miCuenta.correo)} · ${t("Salir")}</button>`
+  : `<a href="/entrar" data-cuenta>👤 ${t("Entrar")}</a>`;
+const PIE_HOJA = () => `<p class="pie-hoja">${enlaceCuenta()} · <button type="button" data-comentario>💬 ${t("Enviar comentario")}</button>
   ${window.PP_APORTE ? `· <a href="${esc(window.PP_APORTE)}" target="_blank" rel="noopener" data-aporte>☕ ${t("Apoya PacePath")}</a>` : ""}
   · <a href="/beta" target="_blank" rel="noopener">${t("Guía beta")}</a>
   · <a href="/privacidad" target="_blank" rel="noopener">${t("Privacidad")}</a>
@@ -3048,6 +3057,11 @@ medirCabecera();
 // ── Comentarios de la beta: se escriben aquí y se mandan por WhatsApp (el
 // corredor elige el grupo). Va un poco de contexto para entender el caso.
 $("hoja").addEventListener("click", (e) => { if (e.target.closest("[data-comentario]")) abrirComentario(); });
+$("hoja").addEventListener("click", async (e) => {
+  if (!e.target.closest("[data-salir]")) return;
+  await fetch("/api/auth/salir", { method: "POST" }).catch(() => {});
+  location.reload();
+});
 function contextoComentario() {
   const ua = navigator.userAgent, equipo = /iPhone|iPad/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : "computador";
   const app = window.matchMedia("(display-mode: standalone)").matches ? "app" : "navegador";

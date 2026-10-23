@@ -1,81 +1,207 @@
-"""Beta cerrada: usuario y clave antes de entrar, activable desde el panel."""
+"""Cuentas (correo, Google, Microsoft), beta por usuario y CRUD del panel."""
 import pytest
 from fastapi.testclient import TestClient
 
-from pacepath import acceso, api, registro
+from pacepath import acceso, api, cuentas, oauth, registro
 from pacepath.api import app
 
 ADMIN = {"X-Admin-Clave": "clave-larga-de-prueba"}
 
 
 @pytest.fixture
-def beta(monkeypatch, tmp_path):
-    """Base nueva (como un servidor recién desplegado) y la beta como venga por defecto."""
+def base(monkeypatch, tmp_path):
+    """Base nueva (como un servidor recién desplegado), beta activa."""
     monkeypatch.setenv("PACEPATH_ADMIN", "clave-larga-de-prueba")
+    monkeypatch.delenv("PACEPATH_ACCESO_LIBRE", raising=False)
+    for k in ("PACEPATH_CORREO_ACTIVO", "GOOGLE_CLIENT_ID", "MICROSOFT_CLIENT_ID"):
+        monkeypatch.delenv(k, raising=False)
     monkeypatch.setattr(api.time, "sleep", lambda s: None)
     anterior = registro._escritor
     registro.configurar(str(tmp_path / "base.sqlite"))
     acceso.olvidar()
+    cuentas._sesiones.clear()
+    cuentas._intentos.clear()
     yield
     registro._escritor = anterior
     acceso.olvidar()
+    cuentas._sesiones.clear()
 
 
-def entrar(cli, usuario="tester", clave="admin123"):
-    return cli.post("/api/beta/entrar", json={"usuario": usuario, "clave": clave})
+def registrar(cli, correo="ana@ejemplo.cl", clave="corre-mucho-2026", nombre="Ana"):
+    return cli.post("/api/auth/registro", json={"correo": correo, "clave": clave, "nombre": nombre})
 
 
-def test_por_defecto_pide_tester_y_admin123(beta):
+def test_beta_cerrada_por_defecto_y_por_usuario(base):
     cli = TestClient(app)
     r = cli.get("/")
     assert r.status_code == 200 and "Beta privada" in r.text and "window.PP_" not in r.text
-    assert r.headers["cache-control"] == "no-store"
-    r = cli.post("/api/sesion", json={"texto": "6x1k"})
-    assert r.status_code == 401 and r.headers["x-pacepath-beta"] == "1"
-    assert entrar(cli, clave="otra").status_code == 401
-    assert entrar(cli, usuario="otro").status_code == 401
-    assert entrar(cli, usuario=" Tester ").status_code == 200          # el usuario no distingue mayúsculas
-    assert cli.cookies.get(acceso.COOKIE)
+    assert cli.post("/api/sesion", json={"texto": "6x1k"}).status_code == 401
+    # Crear cuenta: queda registrada y con sesión, pero sin beta todavía.
+    r = registrar(cli)
+    assert r.status_code == 200 and r.json()["usuario"]["beta"] is False
+    assert cli.get("/api/cuenta").json()["usuario"]["correo"] == "ana@ejemplo.cl"
+    assert cli.post("/api/sesion", json={"texto": "6x1k"}).status_code == 401
+    # El admin la habilita: ahora entra.
+    uid = cli.get("/api/admin/usuarios", headers=ADMIN).json()[0]["id"]
+    assert cli.patch(f"/api/admin/usuarios/{uid}", headers=ADMIN, json={"beta": True}).json()["beta"] is True
+    assert cli.post("/api/sesion", json={"texto": "6x1k"}).status_code == 200
     assert "Beta privada" not in cli.get("/").text
+    # Beta desactivada: entra cualquier cuenta, también sin beta; sin cuenta, no.
+    cli.post("/api/admin/acceso", headers=ADMIN, json={"activo": False})
+    sin_beta = TestClient(app)
+    registrar(sin_beta, correo="beto@ejemplo.cl")
+    assert sin_beta.post("/api/sesion", json={"texto": "6x1k"}).status_code == 200
+    assert sin_beta.get("/api/cuenta").json()["pendiente"] is None
+    anonimo = TestClient(app)
+    assert anonimo.post("/api/sesion", json={"texto": "6x1k"}).status_code == 401
+    assert anonimo.get("/api/cuenta").json()["pendiente"] == "sin_sesion"
+
+
+def test_entrar_salir_y_errores(base):
+    cli = TestClient(app)
+    assert registrar(cli).status_code == 200
+    assert registrar(TestClient(app)).status_code == 409                       # correo repetido
+    assert registrar(TestClient(app), correo="otro@ejemplo.cl", clave="corta").status_code == 400
+    assert registrar(TestClient(app), correo="no-es-correo").status_code == 400
+    otro = TestClient(app)
+    r = otro.post("/api/auth/entrar", json={"correo": "ANA@ejemplo.cl ", "clave": "corre-mucho-2026"})
+    assert r.status_code == 200 and otro.cookies.get(cuentas.COOKIE)
+    assert otro.post("/api/auth/entrar", json={"correo": "ana@ejemplo.cl", "clave": "mala-clave"}).status_code == 401
+    otro.post("/api/auth/salir")
+    assert otro.get("/api/cuenta").json()["usuario"] is None
+    # Muchos intentos fallidos: freno.
+    for _ in range(cuentas.MAX_INTENTOS):
+        otro.post("/api/auth/entrar", json={"correo": "ana@ejemplo.cl", "clave": "mala-clave"})
+    assert otro.post("/api/auth/entrar", json={"correo": "ana@ejemplo.cl", "clave": "corre-mucho-2026"}).status_code == 429
+
+
+def test_crud_del_panel(base):
+    cli = TestClient(app)
+    assert cli.get("/api/admin/usuarios").status_code == 404                 # sin la clave de admin
+    u = cli.post("/api/admin/usuarios", headers=ADMIN, json={"correo": "tester@ejemplo.cl", "beta": True}).json()
+    assert u["beta"] and u["metodos"] == []                                    # pendiente: aún no entra
+    assert cli.post("/api/admin/usuarios", headers=ADMIN, json={"correo": "tester@ejemplo.cl"}).status_code == 409
+    # Editar: nombre y clave nueva; con la clave entra.
+    u = cli.patch(f"/api/admin/usuarios/{u['id']}", headers=ADMIN, json={"nombre": "Tester", "clave": "nueva-clave-123"}).json()
+    assert u["nombre"] == "Tester" and u["metodos"] == ["clave"]
+    t = TestClient(app)
+    assert t.post("/api/auth/entrar", json={"correo": "tester@ejemplo.cl", "clave": "nueva-clave-123"}).status_code == 200
+    assert t.post("/api/sesion", json={"texto": "6x1k"}).status_code == 200
+    # Desactivar: la sesión deja de valer al tiro.
+    cli.patch(f"/api/admin/usuarios/{u['id']}", headers=ADMIN, json={"activo": False})
+    assert t.post("/api/sesion", json={"texto": "6x1k"}).status_code == 401
+    assert t.post("/api/auth/entrar", json={"correo": "tester@ejemplo.cl", "clave": "nueva-clave-123"}).status_code == 401
+    # Borrar.
+    assert cli.delete(f"/api/admin/usuarios/{u['id']}", headers=ADMIN).json() == {"ok": True}
+    assert cli.get("/api/admin/usuarios", headers=ADMIN).json() == []
+    assert cli.delete(f"/api/admin/usuarios/{u['id']}", headers=ADMIN).status_code == 404
+    # Las claves nunca tal cual en la base.
+    assert "nueva-clave-123" not in str(registro.sql("SELECT * FROM pp_usuarios", (), traer=True))
+
+
+def _vuelta(monkeypatch, datos):
+    monkeypatch.setattr(oauth, "configurados", lambda: {"google": True, "microsoft": True})
+    monkeypatch.setattr(oauth, "terminar", lambda *a, **k: datos)
+
+
+def test_google_vincula_por_correo_verificado(base, monkeypatch):
+    cli = TestClient(app)
+    # El admin habilitó el correo antes de que la persona entrara.
+    cli.post("/api/admin/usuarios", headers=ADMIN, json={"correo": "maria@gmail.com", "beta": True})
+    _vuelta(monkeypatch, {"sub": "g-123", "correo": "maria@gmail.com", "nombre": "María", "correo_confiable": True})
+    r = cli.get("/api/auth/google/vuelta?code=x&state=y", follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/"
+    yo = cli.get("/api/cuenta").json()["usuario"]
+    assert yo["correo"] == "maria@gmail.com" and yo["beta"] and yo["nombre"] == "María" and "google" in yo["metodos"]
     assert cli.post("/api/sesion", json={"texto": "6x1k"}).status_code == 200
 
 
-def test_quedan_abiertos_el_panel_lo_legal_y_los_archivos(beta):
+def test_google_quita_la_clave_de_quien_registro_un_correo_ajeno(base, monkeypatch):
+    # Alguien registró con clave el correo de otra persona; la dueña entra con Google.
+    registrar(TestClient(app), correo="dueña@gmail.com", clave="clave-del-intruso")
+    _vuelta(monkeypatch, {"sub": "g-9", "correo": "dueña@gmail.com", "nombre": None, "correo_confiable": True})
+    TestClient(app).get("/api/auth/google/vuelta?code=x&state=y", follow_redirects=False)
+    intruso = TestClient(app)
+    assert intruso.post("/api/auth/entrar", json={"correo": "dueña@gmail.com", "clave": "clave-del-intruso"}).status_code == 401
+
+
+def test_microsoft_de_empresa_no_vincula_por_correo(base, monkeypatch):
     cli = TestClient(app)
-    for ruta in ("/admin", "/api/salud", "/privacidad", "/terms", "/beta", "/manifest.webmanifest", "/sw.js", "/icons/icono-192.png"):
-        r = cli.get(ruta)
-        assert r.status_code == 200 and "Beta privada" not in r.text, ruta
+    cli.post("/api/admin/usuarios", headers=ADMIN, json={"correo": "jefe@ejemplo.cl", "beta": True})
+    # Cuenta de empresa: el correo lo pone su administrador (no es confiable).
+    _vuelta(monkeypatch, {"sub": "m-1", "correo": "jefe@ejemplo.cl", "nombre": "X", "correo_confiable": False})
+    r = cli.get("/api/auth/microsoft/vuelta?code=x&state=y", follow_redirects=False)
+    assert r.headers["location"] == "/?cuenta=correo_existe_otro_metodo"
+    assert cli.get("/api/cuenta").json()["usuario"] is None
+    # Un correo nuevo sí crea la cuenta (sin beta), y se reconoce por su id de Microsoft.
+    _vuelta(monkeypatch, {"sub": "m-2", "correo": "nuevo@empresa.cl", "nombre": "Nuevo", "correo_confiable": False})
+    cli.get("/api/auth/microsoft/vuelta?code=x&state=y", follow_redirects=False)
+    assert cli.get("/api/cuenta").json()["usuario"]["correo"] == "nuevo@empresa.cl"
 
 
-def test_el_panel_la_desactiva_y_cambia_la_clave(beta):
-    cli, tester = TestClient(app), TestClient(app)
-    assert cli.get("/api/admin/acceso").status_code == 404                     # sin la clave de admin
-    assert cli.get("/api/admin/acceso", headers=ADMIN).json() == {"activo": True, "usuario": "tester", "clave_inicial": True}
-    entrar(tester)
-    assert tester.post("/api/sesion", json={"texto": "6x1k"}).status_code == 200
-
-    # Nueva clave: la sesión del tester deja de valer; la clave vieja ya no entra.
-    r = cli.post("/api/admin/acceso", headers=ADMIN, json={"clave": "carrera-2026"})
-    assert r.json() == {"activo": True, "usuario": "tester", "clave_inicial": False}
-    assert tester.post("/api/sesion", json={"texto": "6x1k"}).status_code == 401
-    assert entrar(tester).status_code == 401
-    assert entrar(tester, clave="carrera-2026").status_code == 200
-
-    # Se guarda en la base: sobrevive a un reinicio (Render duerme).
-    acceso.olvidar()
-    assert acceso.estado()["clave_inicial"] is False and acceso.entrar("tester", "carrera-2026")
-    assert "carrera-2026" not in str(registro.ajustes())                       # la clave nunca tal cual
-
-    # Desactivada: abierta a todos.
-    assert cli.post("/api/admin/acceso", headers=ADMIN, json={"activo": False}).json()["activo"] is False
-    assert TestClient(app).post("/api/sesion", json={"texto": "6x1k"}).status_code == 200
-    assert "Beta privada" not in TestClient(app).get("/").text
-    assert cli.post("/api/admin/acceso", headers=ADMIN, json={"clave": "abc"}).status_code == 422   # muy corta
+def test_estado_oauth_y_paginas_abiertas(base, monkeypatch):
+    cli = TestClient(app)
+    for ruta in ("/entrar", "/admin", "/privacidad", "/api/salud", "/api/cuenta", "/api/auth/proveedores"):
+        assert cli.get(ruta).status_code == 200, ruta
+    assert cli.get("/api/auth/google", follow_redirects=False).status_code == 503   # sin credenciales
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "id"); monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "secreto")
+    r = cli.get("/api/auth/google", follow_redirects=False)
+    assert r.status_code == 307 and "accounts.google.com" in r.headers["location"] and "code_challenge" in r.headers["location"]
+    estado = cli.cookies.get(oauth.COOKIE_ESTADO)
+    assert estado and estado.startswith("google.")
+    with pytest.raises(oauth.ErrorOAuth):                                     # estado que no coincide
+        oauth.terminar("google", "code", "otro-estado", estado, "http://x/vuelta")
 
 
-def test_sin_base_de_datos_queda_la_beta_inicial(beta, monkeypatch):
-    def caida():
-        raise OSError("Neon no responde")
-    monkeypatch.setattr(registro, "ajustes", caida)
-    acceso.olvidar()
-    assert acceso.activo() and acceso.entrar("tester", "admin123")
+def test_correo_apagado_por_defecto(base):
+    cli = TestClient(app)
+    registrar(cli)
+    c = cli.get("/api/cuenta").json()
+    assert c["correo_activo"] is False and c["pendiente"] == "beta"           # no se pide verificar
+    assert cli.post("/api/auth/recuperar", json={"correo": "ana@ejemplo.cl"}).status_code == 503
+
+
+@pytest.fixture
+def con_correo(base, monkeypatch):
+    for k, v in {"PACEPATH_CORREO_ACTIVO": "1", "PACEPATH_CORREO_SMTP": "smtp.x:465", "PACEPATH_CORREO_USUARIO": "u",
+                 "PACEPATH_CORREO_CLAVE": "c", "PACEPATH_CORREO_DE": "PacePath <support@pacepathapp.com>"}.items():
+        monkeypatch.setenv(k, v)
+    enviados = []
+    from pacepath import correo
+    monkeypatch.setattr(correo, "enviar", lambda para, asunto, texto: enviados.append((para, asunto, texto)))
+    return enviados
+
+
+def _enlace(texto):
+    import re
+    return re.search(r"https?://\S+", texto).group(0)
+
+
+def test_verificar_correo(con_correo):
+    cli = TestClient(app)
+    cli.post("/api/admin/acceso", headers=ADMIN, json={"activo": False})
+    registrar(cli)
+    assert cli.get("/api/cuenta").json()["pendiente"] == "verificar"
+    assert cli.post("/api/sesion", json={"texto": "6x1k"}).status_code == 401
+    para, asunto, texto = con_correo[-1]
+    assert para == "ana@ejemplo.cl" and "Confirma" in asunto
+    r = cli.get(_enlace(texto).replace("http://testserver", ""), follow_redirects=False)
+    assert r.headers["location"] == "/?cuenta=verificado"
+    assert cli.get("/api/cuenta").json()["pendiente"] is None
+    assert cli.get(_enlace(texto).replace("http://testserver", ""), follow_redirects=False).headers["location"] == "/?cuenta=codigo_invalido"
+
+
+def test_recuperar_clave(con_correo):
+    cli = TestClient(app)
+    registrar(cli)
+    assert cli.post("/api/auth/recuperar", json={"correo": "nadie@ejemplo.cl"}).json() == {"ok": True}   # no delata
+    n = len(con_correo)
+    assert cli.post("/api/auth/recuperar", json={"correo": "ana@ejemplo.cl"}).json() == {"ok": True}
+    assert len(con_correo) == n + 1
+    codigo = _enlace(con_correo[-1][2]).split("recuperar=")[1]
+    otro = TestClient(app)
+    assert otro.post("/api/auth/nueva-clave", json={"codigo": codigo, "clave": "corta"}).status_code == 400
+    assert otro.post("/api/auth/nueva-clave", json={"codigo": codigo, "clave": "clave-nueva-2026"}).status_code == 200
+    assert otro.post("/api/auth/nueva-clave", json={"codigo": codigo, "clave": "otra-clave-2026"}).status_code == 400   # se usa una vez
+    assert cli.get("/api/cuenta").json()["usuario"] is None                    # la sesión vieja se cerró
+    assert TestClient(app).post("/api/auth/entrar", json={"correo": "ana@ejemplo.cl", "clave": "clave-nueva-2026"}).status_code == 200
