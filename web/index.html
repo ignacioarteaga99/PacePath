@@ -1167,7 +1167,62 @@ let miCuenta = null;
 fetch("/api/cuenta").then((r) => r.json()).then((c) => {
   miCuenta = c.usuario;
   document.querySelectorAll(".pie-hoja [data-cuenta]").forEach((x) => { x.outerHTML = enlaceCuenta(); });
+  if (miCuenta) alEntrarCuenta().catch(() => {});
 }).catch(() => {});
+
+// ── Lo que viaja con la cuenta ──────────────────────────────────────────────
+// Tus preferencias (zonas, fase, forma, favoritos, rutas guardadas…) se suben
+// a tu cuenta y bajan en cualquier aparato donde entres. Las carreras de
+// Strava no: se vuelven a bajar de Strava (sus reglas limitan guardarlas en un
+// servidor), pero la conexión con Strava sí viaja con la cuenta, así que en
+// un aparato nuevo la descarga parte sola y después sólo trae lo nuevo.
+const DATOS_CUENTA = ["pp_entreno_ajustes", "pp_fase", "pp_segun_hora", "pp_forma", "pp_radio", "pp_favoritos",
+  "pp_guardadas", "pp_recientes", "pp_usar_frec", "pp_lang", "pp_noche", "pp_logros_vistos", "pp_pasaporte_abierto"];
+// Lo de Strava guardado en el teléfono: si entra otra cuenta en este aparato, se borra.
+const DATOS_STRAVA = ["pp_revision", "pp_sync", "pp_lugares", "pp_donde"];
+const hashTexto = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
+const instantanea = () => { const o = {}; try { for (const k of DATOS_CUENTA) { const v = localStorage.getItem(k); if (v !== null) o[k] = v; } } catch {} return o; };
+let subiendoCuenta = false;
+async function subirCuenta() {
+  if (!miCuenta || subiendoCuenta) return;
+  const datos = instantanea(), h = hashTexto(JSON.stringify(datos));
+  if (h === leer("pp_cuenta_hash", null)) return;            // nada cambió desde la última vez
+  subiendoCuenta = true;
+  try {
+    const r = await fetch("/api/cuenta/datos", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ datos }) });
+    if (r.ok) { escribir("pp_cuenta_hash", h); escribir("pp_cuenta_ts", (await r.json()).actualizado); }
+  } catch {} finally { subiendoCuenta = false; }
+}
+async function alEntrarCuenta() {
+  const de = leer("pp_cuenta_de", null);
+  if (de && de !== miCuenta.id) {
+    // Este aparato era de otra cuenta: lo suyo no se mezcla con lo tuyo.
+    try { [...DATOS_CUENTA, ...DATOS_STRAVA, "pp_cuenta_hash", "pp_cuenta_ts"].forEach((k) => localStorage.removeItem(k));
+      Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_")).forEach((k) => localStorage.removeItem(k)); } catch {}
+    await BD.borrar(); await BDE.borrar();
+  }
+  const j = await fetch("/api/cuenta/datos").then((r) => r.ok ? r.json() : null).catch(() => null);
+  if (j && j.actualizado && (de !== miCuenta.id || j.actualizado > (leer("pp_cuenta_ts", "") || ""))) {
+    // Lo de la cuenta es más nuevo (o es la primera vez aquí): manda. Lo de
+    // este aparato que la cuenta no tenga se conserva y se sube después.
+    const antes = JSON.stringify(instantanea());
+    for (const [k, v] of Object.entries(j.datos)) try { localStorage.setItem(k, v); } catch {}
+    escribir("pp_cuenta_ts", j.actualizado);
+    escribir("pp_cuenta_hash", hashTexto(JSON.stringify(j.datos)));
+    escribir("pp_cuenta_de", miCuenta.id);
+    // Idioma, modo noche, opciones…: se leen al abrir, así que se recarga una vez.
+    if (JSON.stringify(instantanea()) !== antes && !sessionStorage.getItem("pp_recargada")) {
+      sessionStorage.setItem("pp_recargada", "1"); location.reload(); return;
+    }
+  }
+  escribir("pp_cuenta_de", miCuenta.id);
+  subirCuenta();
+  setInterval(subirCuenta, 20_000);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) subirCuenta(); });
+  // Aparato nuevo con Strava conectado en la cuenta: la descarga parte sola.
+  const e = await fetch("/api/strava/estado").then((r) => r.json()).catch(() => ({}));
+  if (e.conectado && !(await BD.todas()).length) sincronizar(e);
+}
 const enlaceCuenta = () => miCuenta
   ? `<button type="button" data-cuenta data-salir>👤 ${esc(miCuenta.nombre || miCuenta.correo)} · ${t("Salir")}</button>`
   : `<a href="/entrar" data-cuenta>👤 ${t("Entrar")}</a>`;

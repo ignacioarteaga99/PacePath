@@ -18,6 +18,7 @@ La beta (acceso.py) deja entrar sólo a las cuentas marcadas como beta.
 from __future__ import annotations
 
 import hashlib
+import json
 import hmac
 import re
 import secrets
@@ -161,6 +162,40 @@ def borrar(uid: str) -> None:
     registro.vaciar()
     registro.sql("UPDATE pp_eventos SET cuenta = NULL WHERE cuenta = ?", (uid,))   # el registro deja de ser suyo
     _olvidar_usuario(uid)
+
+
+# ── Lo que viaja con la cuenta (para usar PacePath en otro aparato) ─────────
+
+def strava_de(uid: str) -> str | None:
+    """La conexión con Strava guardada en la cuenta (el mismo texto cifrado de la cookie)."""
+    f = registro.sql("SELECT strava FROM pp_usuarios WHERE id = ?", (uid,), traer=True)
+    return f[0][0] if f else None
+
+
+def guardar_strava(uid: str, cifrada: str | None) -> None:
+    registro.sql("UPDATE pp_usuarios SET strava = ? WHERE id = ?", (cifrada, uid))
+
+
+DATOS_MAX = 256_000          # bytes: preferencias, zonas, favoritos, rutas guardadas
+
+
+def datos_de(uid: str) -> tuple[dict, str | None]:
+    f = registro.sql("SELECT datos, datos_ts FROM pp_usuarios WHERE id = ?", (uid,), traer=True)
+    if not f or not f[0][0]:
+        return {}, None
+    try:
+        return json.loads(f[0][0]), f[0][1]
+    except ValueError:
+        return {}, None
+
+
+def guardar_datos(uid: str, datos: dict) -> str:
+    texto = json.dumps(datos, ensure_ascii=False, separators=(",", ":"))
+    if len(texto.encode()) > DATOS_MAX:
+        raise ErrorCuenta("datos_grandes")
+    ts = _ahora()
+    registro.sql("UPDATE pp_usuarios SET datos = ?, datos_ts = ? WHERE id = ?", (texto, ts, uid))
+    return ts
 
 
 # ── Entrar ──────────────────────────────────────────────────────────────────

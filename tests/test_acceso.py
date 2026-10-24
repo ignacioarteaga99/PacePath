@@ -389,3 +389,61 @@ def test_cuenta_de_google_con_clave_dice_que_entre_con_google(base, monkeypatch)
     uid = cuentas.por_correo("luz@gmail.com")["id"]
     cuentas.actualizar(uid, clave="clave-de-pacepath")
     assert otro.post("/api/auth/entrar", json={"correo": "luz@gmail.com", "clave": "clave-de-pacepath"}).status_code == 200
+
+
+def test_strava_viaja_con_la_cuenta(base, monkeypatch):
+    """Conectado en un aparato, al entrar en otro Strava ya está conectado; al
+    desconectar se borra de la cuenta; en un aparato compartido no se hereda
+    la conexión de otra cuenta."""
+    from pacepath import strava
+    monkeypatch.setenv("PACEPATH_SECRET", "secreto-de-prueba-para-cifrar")
+    monkeypatch.setattr(strava, "revocar", lambda s: None)
+    cli = TestClient(app)
+    cli.post("/api/admin/usuarios", headers=ADMIN, json={"correo": "ana@ejemplo.cl", "beta": True, "clave": "corre-mucho-2026"})
+    cli.post("/api/admin/usuarios", headers=ADMIN, json={"correo": "beto@ejemplo.cl", "beta": True, "clave": "corre-mucho-2026"})
+    entrar = lambda c, correo: c.post("/api/auth/entrar", json={"correo": correo, "clave": "corre-mucho-2026"})  # noqa: E731
+    telefono = TestClient(app)
+    entrar(telefono, "ana@ejemplo.cl")
+    ana = cuentas.por_correo("ana@ejemplo.cl")["id"]
+    # Conectó Strava en el teléfono (antes de esta versión): al primer pedido queda en la cuenta.
+    llave = strava.Sesion("tok", "ref", 9_999_999_999, 42, "Ana").cifrar()
+    telefono.cookies.set(strava.COOKIE, llave)
+    assert telefono.get("/api/strava/estado").json()["conectado"]
+    assert cuentas.strava_de(ana) == llave
+    # Otro aparato: entra con su cuenta y Strava ya está conectado (y queda en ese aparato).
+    pc = TestClient(app)
+    entrar(pc, "ana@ejemplo.cl")
+    r = pc.get("/api/strava/estado")
+    assert r.json()["conectado"] and r.json()["nombre"] == "Ana" and pc.cookies.get(strava.COOKIE)
+    # Aparato compartido: Beto entra en el PC de Ana → no hereda su Strava.
+    entrar(pc, "beto@ejemplo.cl")
+    assert not pc.get("/api/strava/estado").json()["conectado"]
+    assert cuentas.strava_de(cuentas.por_correo("beto@ejemplo.cl")["id"]) is None
+    # Ana desconecta en el teléfono: se borra de la cuenta y el otro aparato ya no la repone.
+    telefono.post("/api/strava/desconectar")
+    assert cuentas.strava_de(ana) is None
+    otro = TestClient(app)
+    entrar(otro, "ana@ejemplo.cl")
+    assert not otro.get("/api/strava/estado").json()["conectado"]
+    # Al salir de la cuenta, la conexión no queda en el aparato (pero sí en la cuenta).
+    cuentas.guardar_strava(ana, llave)
+    assert otro.get("/api/strava/estado").json()["conectado"] and otro.cookies.get(strava.COOKIE)
+    otro.post("/api/auth/salir")
+    assert not otro.cookies.get(strava.COOKIE) and cuentas.strava_de(ana) == llave
+
+
+def test_preferencias_viajan_con_la_cuenta(base):
+    cli = TestClient(app)
+    assert cli.get("/api/cuenta/datos").status_code == 401
+    registrar(cli)
+    cli.patch(f"/api/admin/usuarios/{cuentas.por_correo('ana@ejemplo.cl')['id']}", headers=ADMIN, json={"beta": True})
+    assert cli.get("/api/cuenta/datos").json() == {"datos": {}, "actualizado": None}
+    r = cli.put("/api/cuenta/datos", json={"datos": {"pp_fase": '"especifica"', "pp_entreno_ajustes": '{"fc_max":190}',
+                                                     "pp_revision": '{"no":"es de strava"}', "pp_sync": "{}"}})
+    ts = r.json()["actualizado"]
+    otro = TestClient(app)
+    otro.post("/api/auth/entrar", json={"correo": "ana@ejemplo.cl", "clave": "corre-mucho-2026"})
+    j = otro.get("/api/cuenta/datos").json()
+    assert j == {"datos": {"pp_fase": '"especifica"', "pp_entreno_ajustes": '{"fc_max":190}'}, "actualizado": ts}
+    grande = {"pp_guardadas": "x" * 300_000}
+    assert cli.put("/api/cuenta/datos", json={"datos": grande}).status_code == 413

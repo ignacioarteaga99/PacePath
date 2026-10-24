@@ -40,7 +40,11 @@ COLUMNAS = ("ts", "dia", "usuario", "strava", "consulta", "evento", "tipo", "com
 _MIGRACIONES = [("pp_eventos", "cuenta", "TEXT"), ("pp_eventos", "bytes_in", "INTEGER"),
                 ("pp_eventos", "bytes_out", "INTEGER"), ("pp_eventos", "externas", "SMALLINT"),
                 ("pp_eventos", "motor", "TEXT"),
-                ("pp_usuarios", "idioma", "TEXT")]        # en qué idioma escribirle (es/en)
+                ("pp_usuarios", "idioma", "TEXT"),        # en qué idioma escribirle (es/en)
+                # Para usar PacePath en otro aparato sin empezar de cero: la
+                # conexión con Strava (cifrada, como la cookie) y las preferencias.
+                ("pp_usuarios", "strava", "TEXT"), ("pp_usuarios", "datos", "TEXT"),
+                ("pp_usuarios", "datos_ts", "TEXT")]
 
 _DDL_PG = """CREATE TABLE IF NOT EXISTS pp_eventos (
   id BIGSERIAL PRIMARY KEY, ts TEXT NOT NULL, dia TEXT NOT NULL, usuario TEXT, strava SMALLINT,
@@ -53,7 +57,7 @@ CREATE TABLE IF NOT EXISTS pp_usuarios (
   id TEXT PRIMARY KEY, correo TEXT NOT NULL UNIQUE, nombre TEXT, clave TEXT,
   google TEXT UNIQUE, microsoft TEXT UNIQUE, verificado SMALLINT NOT NULL DEFAULT 0,
   beta SMALLINT NOT NULL DEFAULT 0, activo SMALLINT NOT NULL DEFAULT 1,
-  creado TEXT NOT NULL, ultimo TEXT, idioma TEXT);
+  creado TEXT NOT NULL, ultimo TEXT, idioma TEXT, strava TEXT, datos TEXT, datos_ts TEXT);
 CREATE TABLE IF NOT EXISTS pp_sesiones (
   token TEXT PRIMARY KEY, usuario TEXT NOT NULL, creada TEXT NOT NULL, expira TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS pp_sesiones_usuario ON pp_sesiones (usuario);

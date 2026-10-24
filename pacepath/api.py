@@ -313,6 +313,71 @@ async def _head(request: Request, call_next):
     return Response(status_code=resp.status_code, headers=headers)
 
 
+@app.middleware("http")
+async def _strava_en_cuenta(request: Request, call_next):
+    """La conexión con Strava viaja con la cuenta: si este aparato no la tiene
+    (otro teléfono, datos borrados, Safari que limpia), se repone desde la
+    cuenta; y cada vez que Strava la crea, renueva o corta, se guarda ahí. Así,
+    al entrar en otro aparato, Strava ya está conectado y sólo se baja lo que
+    falte. Lo guardado es la autorización (cifrada), no las carreras."""
+    if not request.url.path.startswith("/api/strava/"):
+        return await call_next(request)
+    u = _usuario(request)
+    tenia = request.cookies.get(strava.COOKIE)
+    guardada = cuentas.strava_de(u["id"]) if u else None
+    repuesta = None
+    if u and not tenia and guardada:
+        request.scope["headers"] = [*request.scope["headers"], (b"cookie", f"{strava.COOKIE}={guardada}".encode())]
+        repuesta = guardada
+    resp = await call_next(request)
+    if not u:
+        return resp
+    nueva = None
+    for v in resp.headers.getlist("set-cookie"):
+        if v.startswith(f"{strava.COOKIE}="):
+            valor = v.split(";", 1)[0].split("=", 1)[1].strip('"')
+            nueva = "" if not valor or "max-age=0" in v.lower() else valor
+    if nueva is not None:                          # la conectó, renovó o desconectó
+        if (nueva or None) != guardada:
+            cuentas.guardar_strava(u["id"], nueva or None)
+    elif tenia and tenia != guardada:              # conectada antes de que se guardara en la cuenta
+        cuentas.guardar_strava(u["id"], tenia)
+    elif repuesta:                                  # queda también en este aparato
+        _poner_cookie(resp, request, strava.COOKIE, repuesta, 180 * 24 * 3600)
+    return resp
+
+
+# Preferencias que viajan con la cuenta (lo del teléfono que no es de Strava).
+DATOS_CUENTA = {"pp_entreno_ajustes", "pp_fase", "pp_segun_hora", "pp_forma", "pp_radio", "pp_favoritos",
+                "pp_guardadas", "pp_recientes", "pp_usar_frec", "pp_lang", "pp_noche", "pp_logros_vistos",
+                "pp_pasaporte_abierto"}
+
+
+class DatosCuenta(BaseModel):
+    datos: dict[str, str]
+
+
+@app.get("/api/cuenta/datos", include_in_schema=False)
+def cuenta_datos(request: Request) -> dict:
+    u = _usuario(request)
+    if not u:
+        raise HTTPException(401, "Not signed in")
+    datos, ts = cuentas.datos_de(u["id"])
+    return {"datos": datos, "actualizado": ts}
+
+
+@app.put("/api/cuenta/datos", include_in_schema=False)
+def cuenta_guardar_datos(body: DatosCuenta, request: Request) -> dict:
+    u = _usuario(request)
+    if not u:
+        raise HTTPException(401, "Not signed in")
+    try:
+        ts = cuentas.guardar_datos(u["id"], {k: v for k, v in body.datos.items() if k in DATOS_CUENTA})
+    except cuentas.ErrorCuenta as exc:
+        raise _error_cuenta(exc, 413) from exc
+    return {"actualizado": ts}
+
+
 # La más externa (se agrega al final): escucha si el teléfono corta la conexión.
 app.add_middleware(cancelar.VigilarConexion, rutas={"/api/ruta"})
 
@@ -579,6 +644,8 @@ _MENSAJES = {
                       "escribe en Microsoft, nunca aquí). Si también quieres una clave para PacePath, usa «¿Olvidaste tu clave?».",
                       "This account was created with Microsoft: use “Continue with Microsoft” (your Outlook password "
                       "is typed on Microsoft, never here). If you also want a PacePath password, use “Forgot your password?”."),
+    "datos_grandes": ("Tus preferencias guardadas superan el máximo: borra rutas guardadas antiguas.",
+                      "Your saved preferences are over the limit: delete some old saved routes."),
     "codigo_invalido": ("El enlace venció o ya se usó: pide uno nuevo.", "The link expired or was already used: ask for a new one."),
     "correo_apagado": ("La recuperación por correo todavía no está disponible: escríbenos y te ayudamos.",
                        "Email recovery isn't available yet: write to us and we'll help."),
@@ -594,6 +661,9 @@ def _con_sesion(u: dict, request: Request, resp: Response) -> Response:
     if u.get("idioma") != idioma.actual():          # sus correos, en el idioma con que usa la app
         cuentas.actualizar(u["id"], idioma=idioma.actual())
     _poner_cookie(resp, request, cuentas.COOKIE, cuentas.abrir_sesion(u), cuentas.DURACION)
+    # La conexión con Strava de otra cuenta (aparato compartido) no se hereda:
+    # la de esta cuenta vuelve sola desde lo guardado (_strava_en_cuenta).
+    resp.delete_cookie(strava.COOKIE)
     return resp
 
 
@@ -722,6 +792,7 @@ def auth_salir(request: Request) -> Response:
     cuentas.cerrar_sesion(request.cookies.get(cuentas.COOKIE))
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(cuentas.COOKIE)
+    resp.delete_cookie(strava.COOKIE)          # queda guardada en la cuenta, no en este aparato
     return resp
 
 
