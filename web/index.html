@@ -260,6 +260,11 @@
   .barra-zonas .z1, .barra-zonas .z2 { color: #3a2400; }
   .leyenda-zonas { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--suave); margin: 6px 0; }
   .leyenda-zonas i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+  .kpis.umbrales { grid-template-columns: 1fr 1fr; margin: 4px 0 10px; }
+  #errorAjustes:empty { display: none; }
+  .ajustes-zonas small.usa { font-weight: 600; font-size: 11.5px; color: var(--suave); }
+  .ajustes-zonas small.usa.si { color: #1a8f3c; }
+  body.noche .ajustes-zonas small.usa.si { color: #5fd37f; }
   .ajustes-zonas summary { cursor: pointer; font-weight: 700; font-size: 14px; padding: 6px 0; }
   .ajustes-zonas .rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin: 6px 0 10px; }
   .ajustes-zonas label { display: grid; gap: 3px; font-size: 12px; font-weight: 700; color: var(--suave); }
@@ -2651,7 +2656,12 @@ Object.assign(EN, {
   "Con tu FC máxima": "From your max HR", "Con la FC más alta de tus carreras ({x}): escribe la tuya si la conoces": "From the highest HR in your runs ({x}): enter yours if you know it",
   "Con tu ritmo umbral": "From your threshold pace", "Con tus mejores tiempos (VDOT {v})": "From your best times (VDOT {v})",
   "Escribe tu FC máxima, tus mejores 10K/21K o tu ritmo umbral para calcular tus zonas.": "Enter your max HR, best 10K/half times or threshold pace to calculate your zones.",
-  "Tiempos equivalentes": "Equivalent times", "Distribución": "Distribution", "Últimas 12 semanas": "Last 12 weeks", "Últimas 4 semanas": "Last 4 weeks",
+  "Tiempos equivalentes": "Equivalent times", "Mejor 5K": "Best 5K", "Mejor maratón": "Best marathon", "maratón": "marathon",
+  "Ritmo umbral": "Threshold pace", "de tu mejor {d} (VDOT {v})": "from your best {d} (VDOT {v})", "el que escribiste": "the one you entered",
+  "escribe un mejor tiempo": "enter a best time", "escribe tu FC máxima": "enter your max HR",
+  "frontera I3/I4 (~87 % de la FC máx.)": "I3/I4 boundary (~87 % of max HR)", "se usa · VDOT {v}": "used · VDOT {v}",
+  "VDOT {v} · manda uno mejor": "VDOT {v} · a better one is used", "se usa para el pulso": "used for heart rate",
+  "vacío: se usa la más alta de tus carreras ({x})": "empty: the highest from your runs is used ({x})", "Distribución": "Distribution", "Últimas 12 semanas": "Last 12 weeks", "Últimas 4 semanas": "Last 4 weeks",
   "Piramidal": "Pyramidal", "Polarizada": "Polarized", "De umbral": "Threshold-heavy", "Mixta": "Mixed",
   "Índice de polarización {p}": "Polarization index {p}",
   "El método noruego es piramidal: mucho suave, bastante umbral controlado y poco I5.": "The Norwegian method is pyramidal: lots of easy running, a fair amount of controlled threshold and little I5.",
@@ -2670,7 +2680,10 @@ const ZONAS_TXT = ["Recuperación y rodaje muy suave", "Base aeróbica: la mayor
 const TIPO_TXT = { suave: "suave", suave_rapido: "suave rápido", umbral: "umbral", intensa: "intensa", fondo: "fondo", competencia: "competencia" };
 const FASES = [["basica", "Básica"], ["especifica", "Específica"], ["competencia", "Competencia (descarga)"]];
 const faseEntreno = () => leer("pp_fase", "basica");
-const ajustesEntreno = () => leer("pp_entreno_ajustes", {});
+// Sólo lo que hoy se puede escribir (FC de reposo, FC y ritmo umbral escritos ya no van).
+const AJUSTES_ENTRENO = ["fc_max", "t5k_s", "t10k_s", "t21k_s", "t42k_s"];
+const ajustesEntreno = () => { const a = leer("pp_entreno_ajustes", {}) || {};
+  return Object.fromEntries(AJUSTES_ENTRENO.filter((k) => a[k] != null).map((k) => [k, a[k]])); };
 // «42:30» → 2550 s; «1:35:00» → 5700 s; vacío → null; mal escrito → NaN.
 const aSegundos = (v) => { v = (v || "").trim(); if (!v) return null;
   const p = v.split(":").map(Number); if (p.some((x) => !Number.isFinite(x) || x < 0)) return NaN;
@@ -2817,7 +2830,14 @@ function pintarEntreno(j) {
     <p class="nota-kpi">${[fuenteFc, fuenteRitmo].filter(Boolean).map(esc).join(" · ")}</p>
     ${z.predicciones ? `<p class="nota-kpi">${t("Tiempos equivalentes")}: 5K ${hms(z.predicciones["5k"])} · 10K ${hms(z.predicciones["10k"])} · 21K ${hms(z.predicciones["21k"])} · 42K ${hms(z.predicciones["42k"])}</p>` : ""}`
     : `<p class="pista">${t("Escribe tu FC máxima, tus mejores 10K/21K o tu ritmo umbral para calcular tus zonas.")}</p>`;
-  const campo = (k, et, ph, fmt = (v) => v ?? "") => `<label>${t(et)}<input id="aj-${k}" inputmode="${k.endsWith("_s") ? "text" : "numeric"}" value="${esc(String(fmt(a[k])))}" placeholder="${esc(ph)}"></label>`;
+  // Cada dato dice si se está usando para calcular (y con qué valor).
+  const marca = (txt, usa) => txt ? `<small class="usa${usa ? " si" : ""}">${usa ? "✓ " : ""}${esc(txt)}</small>` : "";
+  const campo = (k, et, ph, fmt, nota) => `<label>${t(et)}<input id="aj-${k}" inputmode="${k.endsWith("_s") ? "text" : "numeric"}"
+    value="${esc(String((fmt || ((v) => v ?? ""))(a[k])))}" placeholder="${esc(ph)}">${nota || ""}</label>`;
+  const notaTiempo = (k) => z?.vdots?.[k] == null ? "" : z.vdot_de === k
+    ? marca(t("se usa · VDOT {v}", { v: num(z.vdots[k], 1) }), true) : marca(t("VDOT {v} · manda uno mejor", { v: num(z.vdots[k], 1) }));
+  const notaFc = z?.fuente_fc === "fc_max" ? marca(t("se usa para el pulso"), true)
+    : z?.fuente_fc === "fc_max_detectada" ? marca(t("vacío: se usa la más alta de tus carreras ({x})", { x: z.fc_max_detectada }), true) : "";
   const forma = rev && !rev.vacia && { polarizada: t("Polarizada"), piramidal: t("Piramidal"), umbral: t("De umbral"), mixta: t("Mixta") }[rev.forma];
   const umbral12 = rev?.semanas ? rev.semanas.reduce((s, w) => s + w.umbral, 0) : 0;
   hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu entrenamiento")}</h2>
@@ -2825,15 +2845,20 @@ function pintarEntreno(j) {
     <div class="bloque" style="margin-top:8px"><h3>${t("Fase")}</h3>
       <div class="fases" role="radiogroup" aria-label="${t("Fase")}">${FASES.map(([k, et]) =>
         `<button type="button" class="chip${k === fase ? " on" : ""}" role="radio" aria-checked="${k === fase}" data-fase="${k}">${t(et)}</button>`).join("")}</div></div>
-    <div class="bloque"><h3>${t("Tus zonas")}</h3>${tabla}
+    <div class="bloque"><h3>${t("Tus zonas")}</h3>
+      <div class="kpis umbrales"><div class="kpi"><span>${t("Ritmo umbral")}</span><b>${z?.ritmo_umbral_s ? ritmo(z.ritmo_umbral_s) : "–"}</b>
+          <small>${z?.vdot_de ? t("de tu mejor {d} (VDOT {v})", { d: { "5k": "5K", "10k": "10K", "21k": "21K", "42k": t("maratón") }[z.vdot_de], v: num(z.vdot, 1) })
+            : z?.fuente_ritmo === "umbral" ? t("el que escribiste") : t("escribe un mejor tiempo")}</small></div>
+        <div class="kpi"><span>${t("FC umbral")}</span><b>${z?.fc_umbral ? `${num(z.fc_umbral)} ppm` : "–"}</b>
+          <small>${z?.fc_umbral ? t("frontera I3/I4 (~87 % de la FC máx.)") : t("escribe tu FC máxima")}</small></div></div>
+      ${tabla}
       <details class="ajustes-zonas"${z && (z.fc || z.ritmo) ? "" : " open"}><summary>${t("Ajustar mis datos")}</summary>
         <form id="formZonas"><div class="rejilla">
-          ${campo("fc_max", "FC máxima", z?.fc_max_detectada ? t("detectada: {x}", { x: z.fc_max_detectada }) : "190")}
-          ${campo("fc_reposo", "FC de reposo", "50")}
-          ${campo("fc_umbral", "FC umbral", "170")}
-          ${campo("ritmo_umbral_s", "Ritmo umbral (/km)", "4:15", hms)}
-          ${campo("t10k_s", "Mejor 10K", "42:30", hms)}
-          ${campo("t21k_s", "Mejor 21K", "1:35:00", hms)}
+          ${campo("fc_max", "FC máxima", z?.fc_max_detectada ? t("detectada: {x}", { x: z.fc_max_detectada }) : "190", null, notaFc)}
+          ${campo("t5k_s", "Mejor 5K", "19:30", hms, notaTiempo("5k"))}
+          ${campo("t10k_s", "Mejor 10K", "42:30", hms, notaTiempo("10k"))}
+          ${campo("t21k_s", "Mejor 21K", "1:35:00", hms, notaTiempo("21k"))}
+          ${campo("t42k_s", "Mejor maratón", "3:20:00", hms, notaTiempo("42k"))}
         </div><button type="submit">${t("Calcular mis zonas")}</button><p class="aviso" id="errorAjustes" style="margin:6px 0 0"></p></form>
       </details></div>
     <p class="pista" id="estadoEntreno">${esc(estadoEntreno)}</p>
@@ -2864,8 +2889,8 @@ function pintarEntreno(j) {
   $("formZonas").onsubmit = (e) => {
     e.preventDefault();
     const nuevo = {};
-    for (const k of ["fc_max", "fc_reposo", "fc_umbral"]) { const v = parseFloat($(`aj-${k}`).value); if (Number.isFinite(v)) nuevo[k] = v; }
-    for (const k of ["ritmo_umbral_s", "t10k_s", "t21k_s"]) {
+    { const v = parseFloat($("aj-fc_max").value); if (Number.isFinite(v)) nuevo.fc_max = v; }
+    for (const k of ["t5k_s", "t10k_s", "t21k_s", "t42k_s"]) {
       const v = aSegundos($(`aj-${k}`).value);
       if (Number.isNaN(v)) { $("errorAjustes").textContent = t("Revisa el formato: tiempos como 42:30 o 1:35:00 y ritmos como 4:15."); return; }
       if (v) nuevo[k] = v;

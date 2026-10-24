@@ -1331,8 +1331,10 @@ class Ajustes(BaseModel):
     fc_max: float | None = Field(default=None, ge=120, le=230)
     fc_reposo: float | None = Field(default=None, ge=30, le=110)
     fc_umbral: float | None = Field(default=None, ge=100, le=220)
-    t10k_s: float | None = Field(default=None, ge=1500, le=6000)
-    t21k_s: float | None = Field(default=None, ge=3300, le=12_000)
+    t5k_s: float | None = Field(default=None, ge=720, le=3600)
+    t10k_s: float | None = Field(default=None, ge=1500, le=7200)
+    t21k_s: float | None = Field(default=None, ge=3300, le=15_000)
+    t42k_s: float | None = Field(default=None, ge=7000, le=30_000)
     ritmo_umbral_s: float | None = Field(default=None, ge=150, le=600)
     fase: Literal["basica", "especifica", "competencia"] = "basica"
 

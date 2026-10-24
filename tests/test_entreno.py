@@ -131,3 +131,12 @@ def test_sesion_estructurada_no_es_rodaje_suave():
         assert e.estructurada({"nombre": nombre}), nombre
     assert not e.estructurada({"nombre": "Trail am por Manquehue"})
     assert z["fc"]
+
+
+def test_mejores_tiempos_5k_a_maraton_y_cual_manda():
+    z = e.zonas({"t5k_s": 15 * 60 + 34, "t10k_s": 32 * 60 + 20, "t21k_s": 71 * 60 + 42, "t42k_s": 2 * 3600 + 40 * 60})
+    assert set(z["vdots"]) == {"5k", "10k", "21k", "42k"}
+    assert z["vdot_de"] == max(z["vdots"], key=z["vdots"].get) and z["vdot"] == z["vdots"][z["vdot_de"]]
+    assert z["vdots"]["42k"] < z["vdots"]["10k"]                          # el maratón flojo no manda
+    assert 200 <= z["ritmo_umbral_s"] <= 215                               # ~3:25/km
+    assert e.zonas({"t5k_s": 60})["ritmo"] is None                         # 0:12/km: imposible, se ignora

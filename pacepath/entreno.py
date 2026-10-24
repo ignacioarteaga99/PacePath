@@ -11,8 +11,8 @@ ritmo.
 · Pulso. Con la FC umbral (la de ~1 h a tope) se ancla todo en ella; si no,
   con FC máxima y de reposo (Karvonen), o sólo FC máxima (% FCmáx). Sin nada,
   la FC máxima se estima con lo más alto que registraron tus carreras.
-· Ritmo. El ritmo umbral escrito manda; si no, se calcula con tus mejores 10K
-  y 21K: VDOT de Daniels y su ritmo T (umbral).
+· Ritmo. El ritmo umbral escrito manda; si no, se calcula con tus mejores
+  5K, 10K, 21K o 42K (el de mejor VDOT de Daniels) y su ritmo T (umbral).
 
 Revisión: tiempo en cada zona por carrera (del pulso o, sin pulsómetro, del
 ritmo, segundo a segundo; si no hay detalle, la carrera entera en la zona de
@@ -98,9 +98,14 @@ def _rangos(fronteras: list[float]) -> list[dict]:
     return [{"zona": z, "desde": lim[i], "hasta": lim[i + 1]} for i, z in enumerate(ZONAS)]
 
 
+DISTANCIAS = {"5k": 5000, "10k": 10_000, "21k": 21_097.5, "42k": 42_195}
+
+
 def zonas(ajustes: dict, fc_max_detectada: float | None = None) -> dict:
     """Zonas de pulso y de ritmo con lo que haya: `ajustes` trae (todos
-    opcionales) fc_max, fc_reposo, fc_umbral, t10k_s, t21k_s, ritmo_umbral_s."""
+    opcionales) fc_max, fc_reposo, fc_umbral, t5k_s, t10k_s, t21k_s, t42k_s y
+    ritmo_umbral_s. Devuelve además qué se usó: `fuente_fc`, `fuente_ritmo`,
+    el VDOT de cada tiempo (`vdots`) y cuál mandó (`vdot_de`)."""
     out: dict = {"fc": None, "ritmo": None, "fuente_fc": None, "fuente_ritmo": None,
                  "fc_max_detectada": round(fc_max_detectada) if fc_max_detectada else None}
     fc_max = ajustes.get("fc_max") or None
@@ -118,15 +123,16 @@ def zonas(ajustes: dict, fc_max_detectada: float | None = None) -> dict:
         out["fc"] = _rangos([round(x) for x in b])
         out["fc_umbral"] = round(b[2])          # frontera I3/I4
         out["fc_aerobico"] = round(b[1])        # frontera I2/I3: el «umbral aeróbico»
-    # Ritmo
+    # Ritmo: el VDOT de cada mejor tiempo; manda el más alto (la mejor forma).
     vd, umbral_s = None, ajustes.get("ritmo_umbral_s") or None
-    carreras = [(10_000, ajustes.get("t10k_s")), (21_097.5, ajustes.get("t21k_s"))]
-    vdots = [vdot(d, t) for d, t in carreras if t and 0.6 * d / 1000 * 60 < t < 0.6 * d / 1000 * 900]
+    vdots = {k: vdot(d, ajustes[f"t{k}_s"]) for k, d in DISTANCIAS.items()
+             if ajustes.get(f"t{k}_s") and 150 <= ajustes[f"t{k}_s"] / (d / 1000) <= 720}   # entre 2:30 y 12:00/km
     if vdots:
-        vd = max(vdots)                         # la mejor forma de las dos
+        out["vdot_de"] = max(vdots, key=vdots.get)
+        vd = vdots[out["vdot_de"]]
+        out["vdots"] = {k: round(v, 1) for k, v in vdots.items()}
         out["vdot"] = round(vd, 1)
-        out["predicciones"] = {k: round(tiempo_equivalente(vd, d)) for k, d in
-                               (("5k", 5000), ("10k", 10_000), ("21k", 21_097.5), ("42k", 42_195))}
+        out["predicciones"] = {k: round(tiempo_equivalente(vd, d)) for k, d in DISTANCIAS.items()}
     if umbral_s:
         out["fuente_ritmo"] = "umbral"
     elif vd:
