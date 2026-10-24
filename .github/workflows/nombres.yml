@@ -38,7 +38,11 @@ jobs:
           IFS=',' read -ra LISTA <<< "$COMUNAS"
           for c in "${LISTA[@]}"; do
             c="$(echo "$c" | xargs)"; [ -z "$c" ] && continue
-            python scripts/ci_nombres.py "$c" dist | tee -a resumen.txt
+            # Si Overpass no responde para una comuna, seguir con las demás (la
+            # que falló queda sin nombres nuevos y se puede volver a pedir).
+            if ! python scripts/ci_nombres.py "$c" dist | tee -a resumen.txt; then
+              echo "::warning title=$c::Overpass no respondió"; echo "- $c: falló (Overpass)" >> resumen.txt; continue
+            fi
             gh release upload nombres "dist/$c.nombres.json.gz" --clobber
             sleep 5
           done
