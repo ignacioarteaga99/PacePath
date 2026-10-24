@@ -66,14 +66,12 @@ jobs:
 
       - name: Comprobar que el servidor puede bajarlos (como lo hace, con Python)
         run: |
-          U=https://mapas.pacepathapp.com/graphs/manifest.json
-          for ua in "Python-urllib/3.12" "PacePath/0.1 (https://pacepathapp.com)" "curl/8"; do
-            printf '%-40s ' "$ua"; curl -s -o /dev/null -w '%{http_code}\n' -A "$ua" "$U"; done
-          printf '%-40s ' "con Referer pacepathapp.com"; curl -s -o /dev/null -w '%{http_code}\n' -e https://pacepathapp.com/ "$U"
-          printf '%-40s ' "mapa (chile.pmtiles, HEAD)"; curl -sI -o /dev/null -w '%{http_code}\n' https://mapas.pacepathapp.com/chile.pmtiles
-          curl -s -A "Python-urllib/3.12" "$U" | head -c 300; echo
           python3 - <<'EOF'
           import json, urllib.request
+          # Igual que el servidor (pacepath/__init__.py): con User-Agent propio,
+          # porque Cloudflare rechaza «Python-urllib» (error 1010).
+          o = urllib.request.build_opener(); o.addheaders = [("User-Agent", "PacePath/0.1 (https://pacepathapp.com)")]
+          urllib.request.install_opener(o)
           base = "https://mapas.pacepathapp.com"
           m = json.load(urllib.request.urlopen(f"{base}/graphs/manifest.json", timeout=20))
           region = next(iter(k for k, v in m.items() if isinstance(v, dict) and "lat" in v))
