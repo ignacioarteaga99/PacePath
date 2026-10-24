@@ -2,8 +2,13 @@
 
 Usa la lista `lugares` que el workflow «Nombres de calle» publica por comuna,
 así que funciona sin cargar ningún grafo y sin un geocodificador externo. Si no
-encuentra nada, o si el texto trae número, pregunta a Nominatim, que en el
-servidor sí tiene red.
+encuentra nada, o si el texto trae número, pregunta a Nominatim (texto libre y,
+si no, calle + comuna por separado) y después a Photon, otro buscador sobre
+OpenStreetMap más tolerante con nombres incompletos. Antes se limpia lo que
+confunde a los buscadores («depto 1203», «casa B», «#», «Santiago, Chile»).
+En Chile pocas casas tienen su número en OpenStreetMap: si no hay número
+exacto, se ofrece la calle, y si la dirección queda fuera de las comunas con
+mapa, se dice (en vez de «sin resultados»).
 
     «pocuro»               → calles cuyo nombre lo contiene
     «pocuro 2500»          → la dirección (Nominatim), y la calle de respaldo
@@ -11,6 +16,7 @@ servidor sí tiene red.
 """
 from __future__ import annotations
 
+import difflib
 import gzip
 import json
 import re
@@ -108,26 +114,60 @@ def _locales(q: str, limite: int) -> list[dict]:
             p = _puntaje(nq, norm)
             if p is not None:
                 res.append((p + orden_tipo[t], len(n), n, la, lo, t, c))
+        if not res and len(nq) >= 4:
+            # Con una letra de más o de menos («apokindo», «pocuro»→«pocurro»):
+            # lo más parecido, palabra por palabra.
+            for norm, n, la, lo, t, c in indice():
+                if t == "esquina":
+                    continue
+                # Sólo palabras que empiezan igual y de largo parecido (un error
+                # de tipeo rara vez está en la primera letra): rápido sobre miles.
+                cands = [w for w in [norm, *norm.split()] if w[:1] == nq[:1] and abs(len(w) - len(nq)) <= 3]
+                if not cands:
+                    continue
+                r = max(difflib.SequenceMatcher(None, nq, w).ratio() for w in cands)
+                if r >= 0.8:
+                    res.append((10 - r * 5, len(n), n, la, lo, t, c))
     res.sort()
     return [{"nombre": n, "lat": la, "lon": lo, "tipo": t, "comuna": c}
             for _, _, n, la, lo, t, c in res[:limite]]
 
 
+# Lo que viene después del número de casa y confunde a los buscadores.
+_DEPTO = re.compile(r"\b(?:depto|dpto|departamento|dep|depa|casa|block|blk|torre|of|oficina|piso|local|"
+                    r"apto|apartamento|interior|int|lote|parcela|sitio)\b\.?\s*[\w-]*", re.I)
+_PAIS = re.compile(r",?\s*(?:regi[oó]n metropolitana|rm|santiago de chile|chile)\s*$", re.I)
+
+
+def limpiar(texto: str) -> tuple[str, str | None]:
+    """(calle y número, comuna o lugar si vino después de una coma)."""
+    q = _PAIS.sub("", texto.strip())
+    q = re.sub(r"\s+", " ", _DEPTO.sub(" ", q.replace("#", " ").replace("N°", " ").replace("n°", " "))).strip(" ,")
+    calle, _, lugar = q.partition(",")
+    lugar = lugar.strip(" ,") or None
+    return calle.strip(), lugar
+
+
 def buscar(texto: str, limite: int = 8) -> list[dict]:
-    q = texto.strip()
-    if len(q) < 3:
+    calle, lugar = limpiar(texto)
+    if len(calle) < 3:
         return []
-    # «Pocuro 2500, Providencia»: la comuna después de la coma no es parte del nombre.
-    calle = q.split(",")[0].strip()
+    q = f"{calle}, {lugar}" if lugar else calle
     if re.search(r"\d", calle):
         # Una dirección con número sólo la sabe ubicar el geocodificador; si no
         # la encuentra, al menos la calle (sin el número).
-        out = direcciones(q, limite)
-        sin_numero = re.sub(r"\s*(?:#|n[°º.]?\s*)?\d+\w?\b", "", calle).strip()
-        if len(sin_numero) >= 3:
-            out += _locales(sin_numero, limite - len(out))
-        return out[:limite]
-    return _locales(calle, limite) or direcciones(q, limite)
+        out = direcciones(q, limite, calle=calle, lugar=lugar)
+        sin_numero = re.sub(r"\s*(?:n[°º.]?\s*)?\d+\w?\b", "", calle).strip()
+        if len(sin_numero) >= 3 and not any(r.get("exacta") for r in out):
+            vistos = {r["nombre"] for r in out}
+            out += [r for r in _locales(sin_numero, limite) if r["nombre"] not in vistos]
+        return _ordenar(out)[:limite]
+    return _locales(calle, limite) or _ordenar(direcciones(q, limite, calle=calle, lugar=lugar))[:limite]
+
+
+def _ordenar(out: list[dict]) -> list[dict]:
+    """Primero las que están en el mapa (las de fuera, al final y marcadas)."""
+    return sorted(out, key=lambda r: bool(r.get("fuera")))
 
 
 # ── Direcciones (Nominatim) ─────────────────────────────────────────────────
@@ -141,6 +181,7 @@ _CACHE: dict[str, list[dict]] = {}
 
 
 def _nominatim_http(params: dict) -> list[dict]:
+    """Nominatim, respetando su política (1 petición por segundo, User-Agent propio)."""
     global _nom_ultima
     with _nom_lock:
         espera = 1.1 - (time.time() - _nom_ultima)
@@ -148,7 +189,7 @@ def _nominatim_http(params: dict) -> list[dict]:
             time.sleep(espera)
         _nom_ultima = time.time()
     req = urllib.request.Request(NOMINATIM + "?" + urllib.parse.urlencode(params),
-                                 headers={"User-Agent": "PacePath/0.1 (https://pacepath.onrender.com)"})
+                                 headers={"User-Agent": "PacePath/0.1 (https://pacepathapp.com)"})
     from . import uso
     uso.contar_externa()
     with urllib.request.urlopen(req, timeout=8) as r:  # noqa: S310
@@ -175,26 +216,87 @@ def _etiqueta(e: dict) -> str:
     return f"{primero}, {lugar}" if lugar and lugar not in primero else primero
 
 
-def direcciones(q: str, limite: int = 8) -> list[dict]:
+def direcciones(q: str, limite: int = 8, calle: str | None = None, lugar: str | None = None) -> list[dict]:
     clave = normalizar(q)
     if clave in _CACHE:
         return _CACHE[clave][:limite]
-    try:
-        datos = _nominatim_http({
-            "q": q, "format": "jsonv2", "addressdetails": 1, "limit": min(limite, 10),
-            "countrycodes": "cl", "viewbox": _caja(), "bounded": 1, "accept-language": "es",
-        })
-    except Exception:  # noqa: BLE001 — sin red, sin resultados (no se guarda)
-        return []
+    out: list[dict] = []
+    intentos = [lambda: _nominatim({"q": q})]
+    if calle and lugar:
+        intentos.append(lambda: _nominatim({"street": calle, "city": lugar}))
+    intentos.append(lambda: _photon(q))
+    hubo_red = False
+    for intento in intentos:
+        try:
+            nuevos = intento()
+            hubo_red = True
+        except Exception:  # noqa: BLE001 — sin red o servicio caído: el siguiente
+            continue
+        out = nuevos or out                       # si el siguiente no encuentra nada, se queda lo anterior
+        if any(not r.get("fuera") for r in out):
+            break
+    numero = re.search(r"\b(\d+)\w?\b", calle or q)
+    for r in out:
+        r["exacta"] = bool(numero and re.search(rf"\b{numero.group(1)}\b", r["nombre"]))
+    if hubo_red:                                   # sin red no se guarda: se reintenta
+        if len(_CACHE) > 500:
+            _CACHE.clear()
+        _CACHE[clave] = out
+    return out[:limite]
+
+
+def _resultado(nombre: str, la: float, lo: float, lugar: str = "") -> dict:
+    c = comunas.comuna_para(la, lo)
+    r = {"nombre": nombre, "lat": la, "lon": lo, "tipo": "direccion", "comuna": c or lugar}
+    if not c:
+        r["fuera"] = True                         # existe, pero aún no hay mapa ahí
+    return r
+
+
+def _nominatim(params: dict) -> list[dict]:
+    datos = _nominatim_http(params | {"format": "jsonv2", "addressdetails": 1, "limit": 8,
+                                      "countrycodes": "cl", "viewbox": _caja(), "bounded": 0,
+                                      "accept-language": "es"})
     out, vistos = [], set()
     for e in datos if isinstance(datos, list) else []:
-        la, lo = float(e["lat"]), float(e["lon"])
-        c = comunas.comuna_para(la, lo)
         nombre = _etiqueta(e)
-        if c and nombre not in vistos:
-            vistos.add(nombre)
-            out.append({"nombre": nombre, "lat": la, "lon": lo, "tipo": "direccion", "comuna": c})
-    if len(_CACHE) > 500:
-        _CACHE.clear()
-    _CACHE[clave] = out
-    return out[:limite]
+        if nombre in vistos:
+            continue
+        vistos.add(nombre)
+        a = e.get("address") or {}
+        out.append(_resultado(nombre, float(e["lat"]), float(e["lon"]),
+                              a.get("city") or a.get("town") or a.get("suburb") or ""))
+    return out
+
+
+PHOTON = "https://photon.komoot.io/api/"
+
+
+def _photon(q: str) -> list[dict]:
+    """Photon (komoot): busca sobre OpenStreetMap tolerando nombres a medias y
+    errores; sesgado a Santiago y limitado a Chile."""
+    cs = comunas.disponibles()
+    la0 = sum(c["lat"] for c in cs) / len(cs)
+    lo0 = sum(c["lon"] for c in cs) / len(cs)
+    params = {"q": q, "limit": 8, "lat": f"{la0:.4f}", "lon": f"{lo0:.4f}", "bbox": "-71.2,-34.0,-70.2,-33.0"}
+    req = urllib.request.Request(PHOTON + "?" + urllib.parse.urlencode(params),
+                                 headers={"User-Agent": "PacePath/0.1 (https://pacepathapp.com)"})
+    from . import uso
+    uso.contar_externa()
+    with urllib.request.urlopen(req, timeout=8) as r:  # noqa: S310
+        datos = json.loads(r.read() or b"{}")
+    out, vistos = [], set()
+    for f in datos.get("features", []):
+        p = f.get("properties") or {}
+        if p.get("countrycode", "CL").upper() != "CL":
+            continue
+        lo, la = f["geometry"]["coordinates"][:2]
+        via = p.get("street") or p.get("name") or ""
+        primero = f"{via} {p['housenumber']}" if via and p.get("housenumber") else (p.get("name") or via)
+        lugar = p.get("district") or p.get("city") or p.get("county") or ""
+        nombre = f"{primero}, {lugar}" if lugar and lugar not in primero else primero
+        if not primero or nombre in vistos:
+            continue
+        vistos.add(nombre)
+        out.append(_resultado(nombre, float(la), float(lo), lugar))
+    return out

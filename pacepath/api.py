@@ -932,7 +932,13 @@ def donde(body: PedidoDonde) -> list[dict | None]:
 @app.get("/api/lugares")
 def buscar_lugares(q: str, limite: int = 8) -> list[dict]:
     """Calles, esquinas («Pocuro con Tobalaba») y parques para elegir la salida."""
-    return lugares.buscar(q, min(max(limite, 1), 20))
+    r = lugares.buscar(q, min(max(limite, 1), 20))
+    # Para ver en el panel cuántas búsquedas fallan, sin guardar el texto (son direcciones de casas).
+    _anotar(detalle=" · ".join(filter(None, [
+        "con número" if re.search(r"\d", q) else "sin número", f"{len(r)} resultados",
+        "número exacto" if any(x.get("exacta") for x in r) else None,
+        "fuera del mapa" if r and all(x.get("fuera") for x in r) else None])))
+    return r
 
 
 @app.post("/api/sesion")
