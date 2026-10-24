@@ -48,7 +48,7 @@ Plan de trabajo: [`PLAN.md`](PLAN.md).
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
-pip install vendor/raceengine-*.whl -e ".[dev]"   # el motor viene en vendor/ (RaceEngine es privado)
+pip install -e ".[dev]"
 pytest                          # PACEPATH_SIN_RED=1 salta los tests con grafo real
 uvicorn pacepath.api:app --reload   # http://localhost:8000
 ```

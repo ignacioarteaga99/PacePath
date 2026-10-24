@@ -183,5 +183,5 @@ def test_en_vivo(admin, monkeypatch):
     r = next(x for x in v["recientes"] if x["consulta"] == "ruta")
     assert r["exito"] and r["motor"]["calculo"] >= 0
     assert v["serie"] and len(v["serie"][-1]) == 6 and v["serie"][-1][1] > 0
-    assert all(m[0] > v["t"] for m in cli.get(f"/api/admin/vivo?desde={v['t']}", headers=hdr).json()["serie"])
+    assert cli.get(f"/api/admin/vivo?desde={v['t']}", headers=hdr).json()["serie"] == []
     assert rendimiento._mediana("calculo:fondo") is not None          # para estimar el avance la próxima vez

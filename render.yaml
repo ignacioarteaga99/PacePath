@@ -15,9 +15,9 @@ services:
     autoDeploy: true
     envVars:
       - key: RACEENGINE_GRAPHS_URL
-        value: https://mapas.pacepathapp.com/graphs
+        value: https://github.com/ignacioarteaga99/RaceEngine/releases/download/graphs
       - key: PACEPATH_NOMBRES_URL
-        value: https://mapas.pacepathapp.com/nombres
+        value: https://github.com/ignacioarteaga99/PacePath/releases/download/nombres
       - key: RACEENGINE_MAX_REGIONS
         value: "1"
       # URL pública: con ella se arma la dirección de vuelta de Strava, que debe

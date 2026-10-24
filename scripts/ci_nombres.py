@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import gzip
 import json
-import os
 import sys
 import time
 import urllib.parse
@@ -38,13 +37,13 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-MANIFEST = os.environ.get("RACEENGINE_GRAPHS_URL", "https://mapas.pacepathapp.com/graphs").rstrip("/") + "/manifest.json"
+MANIFEST = "https://github.com/ignacioarteaga99/RaceEngine/releases/download/graphs/manifest.json"
 OVERPASS = (
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
 )
-UA = "PacePath/0.1 (https://pacepathapp.com)"
+UA = "PacePath/0.1 (https://github.com/ignacioarteaga99/PacePath)"
 
 
 def _get(url: str, data: bytes | None = None, timeout: int = 300) -> bytes:

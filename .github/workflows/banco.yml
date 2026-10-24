@@ -16,10 +16,10 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - name: Instalar
-        run: pip install -q vendor/raceengine-*.whl -e .
+        run: pip install -q -e .
       - name: Correr el banco
         env:
-          RACEENGINE_GRAPHS_URL: https://mapas.pacepathapp.com/graphs
+          RACEENGINE_GRAPHS_URL: https://github.com/ignacioarteaga99/RaceEngine/releases/download/graphs
           PACEPATH_NOMBRES_URL: ""
         run: |
           python scripts/banco.py --etiqueta actual --comparar base | grep -v '^\[context\]' | tail -120
