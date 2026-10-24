@@ -447,3 +447,28 @@ def test_preferencias_viajan_con_la_cuenta(base):
     assert j == {"datos": {"pp_fase": '"especifica"', "pp_entreno_ajustes": '{"fc_max":190}'}, "actualizado": ts}
     grande = {"pp_guardadas": "x" * 300_000}
     assert cli.put("/api/cuenta/datos", json={"datos": grande}).status_code == 413
+
+
+def test_descargar_y_borrar_mi_cuenta(base, monkeypatch):
+    from pacepath import strava
+    revocadas = []
+    monkeypatch.setattr(strava, "revocar", lambda s: revocadas.append(s.atleta_id if hasattr(s, "atleta_id") else s))
+    cli = TestClient(app)
+    assert cli.get("/api/cuenta/exportar").status_code == 401
+    assert cli.post("/api/cuenta/borrar", json={"confirmo": True}).status_code == 401
+    registrar(cli)
+    uid = cuentas.por_correo("ana@ejemplo.cl")["id"]
+    cli.patch(f"/api/admin/usuarios/{uid}", headers=ADMIN, json={"beta": True})
+    cli.put("/api/cuenta/datos", json={"datos": {"pp_unidad": '"mi"'}})
+    cuentas.guardar_strava(uid, strava.Sesion("tok", "ref", 9_999_999_999, 42, "Ana").cifrar())
+    r = cli.get("/api/cuenta/exportar")
+    assert r.status_code == 200 and "attachment" in r.headers["content-disposition"]
+    j = r.json()
+    assert j["cuenta"]["correo"] == "ana@ejemplo.cl" and "clave" not in j["cuenta"]
+    assert j["preferencias"]["datos"] == {"pp_unidad": '"mi"'} and j["strava"]["conectado"] is True
+    assert "tok" not in r.text                                     # el acceso a Strava no sale en claro
+    assert cli.post("/api/cuenta/borrar", json={"confirmo": False}).status_code == 422
+    assert cli.post("/api/cuenta/borrar", json={"confirmo": True}).json() == {"ok": True}
+    assert len(revocadas) == 1                                     # se revocó también en Strava
+    assert cuentas.por_id(uid) is None
+    assert cli.get("/api/cuenta/datos").status_code == 401

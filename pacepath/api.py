@@ -350,7 +350,7 @@ async def _strava_en_cuenta(request: Request, call_next):
 
 # Preferencias que viajan con la cuenta (lo del teléfono que no es de Strava).
 DATOS_CUENTA = {"pp_entreno_ajustes", "pp_fase", "pp_segun_hora", "pp_forma", "pp_radio", "pp_favoritos",
-                "pp_guardadas", "pp_recientes", "pp_usar_frec", "pp_lang", "pp_noche", "pp_logros_vistos",
+                "pp_guardadas", "pp_recientes", "pp_usar_frec", "pp_lang", "pp_unidad", "pp_noche", "pp_logros_vistos",
                 "pp_pasaporte_abierto"}
 
 
@@ -388,6 +388,62 @@ def _anotar(**campos) -> None:
     info = uso.consulta.get()
     if info is not None:
         info.update({k: v for k, v in campos.items() if v is not None})
+
+
+# ── Tus datos (GDPR / Ley 19.628): descargarlos todos y borrar la cuenta ─────
+
+@app.get("/api/cuenta/exportar", include_in_schema=False)
+def cuenta_exportar(request: Request) -> Response:
+    """Todo lo que PacePath guarda de tu cuenta, en un JSON para descargar.
+    Las carreras de Strava no están: nunca se guardan en el servidor."""
+    u = _usuario(request)
+    if not u:
+        raise HTTPException(401, "Not signed in")
+    registro.vaciar()
+    datos, ts = cuentas.datos_de(u["id"])
+    eventos = registro.sql("SELECT ts, consulta, evento, tipo, comuna, detalle, exito FROM pp_eventos "
+                           "WHERE cuenta = ? ORDER BY ts", (u["id"],), traer=True)
+    pedidas = registro.sql("SELECT id, nombre, estado, pedida FROM pp_zonas WHERE cuenta = ?", (u["id"],), traer=True)
+    cuerpo = {
+        "generado": registro.ahora()[0],
+        "cuenta": cuentas.publico(u) | {"idioma": u.get("idioma")},
+        "strava": {"conectado": bool(cuentas.strava_de(u["id"])),
+                   "nota": tr("El acceso a Strava se guarda cifrado; tus carreras viven sólo en tu teléfono.",
+                              "Strava access is stored encrypted; your runs live only on your phone.")},
+        "preferencias": {"datos": datos, "actualizado": ts},
+        "uso": [dict(zip(("ts", "consulta", "evento", "tipo", "comuna", "detalle", "exito"), f)) for f in eventos],
+        "zonas_pedidas": [dict(zip(("id", "nombre", "estado", "pedida"), f)) for f in pedidas],
+    }
+    return Response(json.dumps(cuerpo, ensure_ascii=False, indent=2), media_type="application/json",
+                    headers={"Content-Disposition": 'attachment; filename="pacepath-mis-datos.json"'})
+
+
+class BorrarCuenta(BaseModel):
+    confirmo: Literal[True]
+
+
+@app.post("/api/cuenta/borrar", include_in_schema=False)
+def cuenta_borrar(body: BorrarCuenta, request: Request) -> Response:
+    """Borra tu cuenta y todo lo suyo: preferencias, sesiones, la conexión con
+    Strava (se revoca también en Strava) y tu nombre en el registro de uso."""
+    u = _usuario(request)
+    if not u:
+        raise HTTPException(401, "Not signed in")
+    for cifrada in {cuentas.strava_de(u["id"]), request.cookies.get(strava.COOKIE)} - {None}:
+        if (st := strava.Sesion.descifrar(cifrada)) is not None:
+            try:
+                strava.revocar(st)
+            except Exception as exc:  # noqa: BLE001 — se borra igual; el acceso vence solo
+                print(f"[cuenta] no pude revocar Strava: {exc}", flush=True)
+    registro.sql("UPDATE pp_zonas SET cuenta = NULL WHERE cuenta = ?", (u["id"],))
+    registro.sql("UPDATE pp_zonas SET avisar = REPLACE(avisar, ?, '') WHERE avisar LIKE ?",
+                 (u["id"], f"%{u['id']}%"))
+    cuentas.borrar(u["id"])
+    uso.registrar("cuenta_borrada")
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(cuentas.COOKIE)
+    resp.delete_cookie(strava.COOKIE)
+    return resp
 
 
 @app.exception_handler(StarletteHTTPException)

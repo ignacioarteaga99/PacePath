@@ -132,12 +132,16 @@ def _m(metros: float | None) -> str:
         return "?"
     if metros >= 1000 and metros % 100 == 0:
         return f"{metros / 1000:g} km".replace(".", ",")
+    if metros >= 5000:                          # p. ej. 10 millas: «16,09 km», no «16093 m»
+        return f"{metros / 1000:.2f}".rstrip("0").rstrip(".").replace(".", ",") + " km"
     return f"{metros:.0f} m"
 
 
 # ── Escritura rápida: «6x1k», «8x400 r60», «fondo 18k», «cuestas 8x300 6%» ──
 
-_DIST = r"(\d+(?:[.,]\d+)?)\s*(k|km|m)?"
+# Millas («10 mi», «6x1 mile», «10 millas»): para quien corre en Estados Unidos o el Reino Unido.
+_DIST = r"(\d+(?:[.,]\d+)?)\s*(mi(?:llas?|les?)?(?![a-z])|k|km|m)?"
+MILLA_M = 1609.344
 _TIPOS = {
     "series": TipoSesion.SERIES, "serie": TipoSesion.SERIES,
     "intervalos": TipoSesion.SERIES,
@@ -159,6 +163,8 @@ def _metros(num: str, unidad: str | None) -> float:
     v = float(num.replace(",", "."))
     if unidad in ("k", "km"):
         return v * 1000
+    if unidad and unidad.startswith("mi"):
+        return v * MILLA_M
     if unidad == "m":
         return v
     # Sin unidad: «6x1» son kilómetros, «8x400» son metros.

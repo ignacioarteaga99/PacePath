@@ -140,3 +140,11 @@ def test_por_tiempo_con_tope_y_resumen():
     assert s.resumen == "fondo 1 h 30 min (≈ 15 km) (máx. +80 m)"
     assert interpretar("fondo 18k").duracion_s is None and interpretar("fondo 18k").distancia_m == 18000
     assert interpretar("pirámide 200-400-200").resumen == "pirámide 200-400-200 m"
+
+
+def test_millas():
+    assert interpretar("fondo 10 millas").distancia_m == pytest.approx(16093.44)
+    assert interpretar("long run 10 mi").resumen == "fondo 16,09 km"
+    s = interpretar("6x1 mile")
+    assert s.repeticiones == 6 and s.distancia_rep_m == pytest.approx(1609.344)
+    assert interpretar("45 min suave").duracion_s == 45 * 60       # «min» no son millas
