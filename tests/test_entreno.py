@@ -110,3 +110,24 @@ def test_carreras_en_cinta_van_aparte(monkeypatch):
     mapa, crudas, cinta = strava.carreras(strava.Sesion("t", "r", 9e9, 1))
     assert [c["id"] for c in mapa] == [1] and mapa[0]["fc_max"] == 180 and crudas == 3
     assert [c["id"] for c in cinta] == [2] and cinta[0]["cinta"] and cinta[0]["fc_media"] == 150
+
+
+def test_sesion_estructurada_no_es_rodaje_suave():
+    """«3000m (3'20"/km- 3'25"/km, 2' pausa)»: el pulso va atrasado en las series y
+    queda poco tiempo en I3–I4, pero el nombre dice que es calidad."""
+    z = e.zonas({"fc_max": 190})
+    pocas = [0, 25 * 60, 7 * 60, 2 * 60, 0]                       # 9' en I3–I4: bajo los 12'
+    serie = {"nombre": "3000m (3'20\"/km- 3'25\"/km, 2' pausa)", "tiempo_s": 34 * 60}
+    assert e.tipo_sesion(serie, pocas) == "umbral"
+    assert e.tipo_sesion({"nombre": "Morning Run", "tiempo_s": 34 * 60}, pocas) == "suave_rapido"
+    assert e.tipo_sesion({"nombre": "Lunch Run", "tipo_entreno": 3, "tiempo_s": 2000}, pocas) == "umbral"
+    # Sin detalle (sólo el promedio): con nombre de series, calidad igual.
+    solo_media = [0, 40 * 60, 0, 0, 0]
+    assert e.tipo_sesion({"nombre": "6x1k"}, solo_media, "fc_media") == "umbral"
+    assert e.tipo_sesion({"nombre": "Rodaje"}, solo_media, "fc_media") == "suave"
+    # Trotes suaves con «strides» relajados: si casi no hay I3+, sigue siendo suave.
+    assert e.tipo_sesion({"nombre": "Rodaje + 6x100"}, [0, 40 * 60, 60, 0, 0]) == "suave"
+    for nombre in ("2x3000", "4 x 1 km", "sub 4", "10' umbral", "fartlek", "Tempo 8k", "rec 90\""):
+        assert e.estructurada({"nombre": nombre}), nombre
+    assert not e.estructurada({"nombre": "Trail am por Manquehue"})
+    assert z["fc"]

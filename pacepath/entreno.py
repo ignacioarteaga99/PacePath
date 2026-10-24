@@ -43,9 +43,11 @@ FRAC_VEL_UMBRAL = (0.80, 0.90, 1.00, 1.05)
 SEMANAS = 12
 UMBRAL_MIN_S = 12 * 60          # tiempo en I3–I4 para contar una sesión de umbral
 I5_MIN_S = 5 * 60               # tiempo en I5 para contar una de alta intensidad
+# Un nombre así describe una sesión estructurada: «2x3000», «3'20"/km», «pausa 2'», «umbral»…
 PALABRAS_CALIDAD = re.compile(
     r"\d+\s*[x×]\s*\d|series|interval|umbral|threshold|tempo|fartlek|cuesta|hill|repet|reps|pista|track|"
-    r"progresiv|progression|lactato|doble|double", re.I)
+    r"progresiv|progression|lactato|doble|double|pausa|recup|\brec\b|\brest\b|\d\s*['’′]\s*\d{2}|/km|\bsub\s*\d", re.I)
+ESTRUCTURADA_MIN_S = 5 * 60     # en una sesión estructurada basta esto en I3+ (el pulso va atrasado en series)
 
 
 # ── Daniels: VDOT y ritmos ──────────────────────────────────────────────────
@@ -170,8 +172,18 @@ def segundos_por_zona(c: dict, z: dict) -> tuple[list[float], str]:
     return seg, "sin_datos"
 
 
-def tipo_sesion(c: dict, seg: list[float]) -> str:
-    """competencia · umbral · intensa · fondo · suave · suave_rapido."""
+def estructurada(c: dict) -> bool:
+    """Marcada como entrenamiento en Strava o con un nombre que describe series/umbral."""
+    return c.get("tipo_entreno") == 3 or bool(PALABRAS_CALIDAD.search(c.get("nombre") or ""))
+
+
+def tipo_sesion(c: dict, seg: list[float], fuente: str = "fc") -> str:
+    """competencia · umbral · intensa · fondo · suave · suave_rapido.
+
+    Una sesión estructurada (por su nombre o la marca de Strava) nunca es un
+    rodaje suave: en series con pausas el pulso no alcanza a subir y el tiempo
+    en zona se queda corto, y con sólo el promedio de la carrera no hay forma
+    de verlo. Basta con algo de I3+ (o no tener el detalle)."""
     total = sum(seg) or 1
     if c.get("tipo_entreno") == 1:
         return "competencia"
@@ -180,6 +192,8 @@ def tipo_sesion(c: dict, seg: list[float]) -> str:
         return "intensa"
     if umbral >= UMBRAL_MIN_S:
         return "umbral"
+    if estructurada(c) and (umbral + i5 >= ESTRUCTURADA_MIN_S or fuente not in ("fc", "ritmo")):
+        return "intensa" if i5 > umbral else "umbral"
     if (c.get("tiempo_s") or 0) >= 90 * 60 or c.get("tipo_entreno") == 2:
         return "fondo"
     # Un rodaje sin estructura con más de un 20 % sobre el umbral aeróbico:
@@ -230,7 +244,7 @@ def revision(carreras: list[dict], ajustes: dict, hoy: date | None = None) -> di
         if lunes < inicio or lunes > lunes_hoy:
             continue
         seg, fuente = segundos_por_zona(c, z)
-        tipo = tipo_sesion(c, seg)
+        tipo = tipo_sesion(c, seg, fuente)
         s = semanas[(lunes - inicio).days // 7]
         km = (c.get("distancia_m") or 0) / 1000
         s["km"] += km
