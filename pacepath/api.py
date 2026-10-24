@@ -61,7 +61,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import acceso, cancelar, ciudades, comunas, correo, cuentas, momento, oauth, frecuencia, idioma, lugares, nombres, recientes, registro, rendimiento, strava, uso
+from . import acceso, cancelar, ciudades, comunas, correo, cuentas, entreno, momento, oauth, frecuencia, idioma, lugares, nombres, recientes, registro, rendimiento, strava, uso
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -202,6 +202,7 @@ async def _con_cuenta(request: Request, call_next):
 CONSULTAS = {
     "/": "visita", "/privacidad": "privacidad", "/privacy": "privacidad", "/beta": "guia_beta",
     "/terminos": "terminos", "/terms": "terminos",
+    "/api/entreno/revision": "entreno", "/api/strava/histograma": "strava_histograma",
     "/api/ruta": "ruta", "/api/ruta.gpx": "gpx", "/api/trazar": "trazado", "/api/trazar.gpx": "gpx",
     "/api/sesion": "interpretar", "/api/lugares": "busqueda", "/api/donde": "donde_corri",
     "/api/comunas": "comunas", "/api/evento": "evento",
@@ -1219,15 +1220,58 @@ def strava_actividades(request: Request, pagina: int = 1, despues: int | None = 
                                     "Connect your Strava account."))
     try:
         s, renovada = strava.vigente(s)
-        lista, crudas = strava.carreras(s, max(1, pagina), despues)
+        lista, crudas, cinta = strava.carreras(s, max(1, pagina), despues)
     except strava.StravaError as exc:
         raise _error_strava(exc) from exc
     _anotar(detalle=f"página {pagina}{' · desde ' + time.strftime('%Y-%m-%d', time.gmtime(despues)) if despues else ''}"
                     f" · {crudas} actividades → {len(lista)} carreras")
-    resp = JSONResponse({"carreras": lista, "ultima": crudas < 100, "pagina": pagina})
+    resp = JSONResponse({"carreras": lista, "cinta": cinta,
+                         "ultima": crudas < 100, "pagina": pagina})
     if renovada:
         _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
     return resp
+
+
+@app.get("/api/strava/histograma")
+def strava_histograma(request: Request, id: int) -> Response:
+    """Pulso y ritmo de una carrera, resumidos (para la revisión del
+    entrenamiento). No se guarda: va directo al teléfono."""
+    s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
+    if s is None:
+        raise HTTPException(401, tr("Conecta tu cuenta de Strava.", "Connect your Strava account."))
+    try:
+        s, renovada = strava.vigente(s)
+        h = strava.histograma(s, id)
+    except strava.StravaError as exc:
+        raise _error_strava(exc) from exc
+    resp = JSONResponse(h)
+    if renovada:
+        _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
+    return resp
+
+
+class Ajustes(BaseModel):
+    fc_max: float | None = Field(default=None, ge=120, le=230)
+    fc_reposo: float | None = Field(default=None, ge=30, le=110)
+    fc_umbral: float | None = Field(default=None, ge=100, le=220)
+    t10k_s: float | None = Field(default=None, ge=1500, le=6000)
+    t21k_s: float | None = Field(default=None, ge=3300, le=12_000)
+    ritmo_umbral_s: float | None = Field(default=None, ge=150, le=600)
+    fase: Literal["basica", "especifica", "competencia"] = "basica"
+
+
+class PedidoRevision(BaseModel):
+    ajustes: Ajustes
+    carreras: list[dict] = Field(default_factory=list, max_length=600)
+    hoy: date | None = None
+
+
+@app.post("/api/entreno/revision")
+def entreno_revision(body: PedidoRevision) -> dict:
+    """Zonas y revisión de los últimos 3 meses con las carreras que manda el
+    teléfono (de Strava, guardadas allá). No se guarda nada."""
+    _anotar(tipo=body.ajustes.fase, detalle=f"{len(body.carreras)} carreras")
+    return entreno.revision(body.carreras, body.ajustes.model_dump(), hoy=body.hoy)
 
 
 @app.get("/api/strava/foto")

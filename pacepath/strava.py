@@ -255,20 +255,24 @@ def revocar(s: Sesion) -> None:
 # ── Actividades ─────────────────────────────────────────────────────────────
 
 def carreras(s: Sesion, pagina: int = 1, despues: int | None = None,
-             por_pagina: int = 100) -> tuple[list[dict], int]:
-    """Una página de carreras (sólo lo necesario para el mapa) y cuántas
-    actividades de cualquier tipo traía la página: si trae menos que
-    `por_pagina`, era la última."""
+             por_pagina: int = 100) -> tuple[list[dict], int, list[dict]]:
+    """Una página de carreras (sólo lo necesario para el mapa), cuántas
+    actividades de cualquier tipo traía la página (si trae menos que
+    `por_pagina`, era la última) y las carreras sin mapa (cinta)."""
     q = {"page": pagina, "per_page": por_pagina}
     if despues:
         q["after"] = int(despues)
     datos = _http("GET", f"{API}/athlete/activities?" + urllib.parse.urlencode(q),
                   token=s.access_token)
-    out = []
+    out, cinta = [], []
     for a in datos if isinstance(datos, list) else []:
         tipo = a.get("sport_type") or a.get("type")
         linea = (a.get("map") or {}).get("summary_polyline")
-        if tipo not in CARRERA or not linea:
+        if tipo not in CARRERA:
+            continue
+        if not linea:
+            # Cinta (o sin GPS): no va al mapa, pero cuenta para la revisión del entrenamiento.
+            cinta.append(_resumen(a))
             continue
         out.append({
             "id": a["id"], "nombre": a.get("name", ""),
@@ -277,11 +281,54 @@ def carreras(s: Sesion, pagina: int = 1, despues: int | None = None,
             "tiempo_s": int(a.get("moving_time") or 0),
             "desnivel_m": round(a.get("total_elevation_gain") or 0),
             "fc_media": a.get("average_heartrate"),
+            "fc_max": a.get("max_heartrate"),
             # 1 = carrera, 2 = fondo, 3 = entrenamiento (lo que marca el atleta)
             "tipo_entreno": a.get("workout_type"),
             "polilinea": linea,
         })
-    return out, len(datos) if isinstance(datos, list) else 0
+    return out, len(datos) if isinstance(datos, list) else 0, cinta
+
+
+def _resumen(a: dict) -> dict:
+    return {"id": a["id"], "nombre": a.get("name", ""), "fecha": a.get("start_date", ""),
+            "fecha_local": a.get("start_date_local", ""), "distancia_m": round(a.get("distance", 0)),
+            "tiempo_s": int(a.get("moving_time") or 0), "fc_media": a.get("average_heartrate"),
+            "fc_max": a.get("max_heartrate"), "tipo_entreno": a.get("workout_type"), "cinta": True}
+
+
+def histograma(s: Sesion, actividad: int) -> dict:
+    """Pulso y ritmo de una carrera, segundo a segundo, resumidos: segundos por
+    pulsación ([bpm, s]) y por ritmo en tramos de 5 s/km ([s/km, s]), sólo en
+    movimiento. Es lo que necesita la revisión del entrenamiento para repartir
+    el tiempo en zonas (y recalcularlo si cambian las zonas) sin guardar la
+    carrera entera: unos cientos de bytes en vez de decenas de KB."""
+    d = _http("GET", f"{API}/activities/{int(actividad)}/streams?keys=heartrate,velocity_smooth,time,moving"
+                     "&key_by_type=true", token=s.access_token)
+    serie = lambda k: (d.get(k) or {}).get("data") or [] if isinstance(d, dict) else []  # noqa: E731
+    t, fc, vel, mov = serie("time"), serie("heartrate"), serie("velocity_smooth"), serie("moving")
+    fc_s: dict[int, float] = {}
+    ritmo_s: dict[int, float] = {}
+    total = 0.0
+    for i in range(1, len(t)):
+        dt = t[i] - t[i - 1]
+        if not 0 < dt <= 10 or (mov and not mov[i]):          # pausas y saltos del GPS
+            continue
+        total += dt
+        if i < len(fc) and fc[i] and 60 <= fc[i] <= 230:
+            fc_s[int(fc[i])] = fc_s.get(int(fc[i]), 0) + dt
+        if i < len(vel) and vel[i] and vel[i] > 1.0:          # más lento que 16:40/km: caminando
+            r = min(1200, int(1000 / vel[i] // 5 * 5))
+            ritmo_s[r] = ritmo_s.get(r, 0) + dt
+    # FC máx. de la carrera sin los picos del sensor: lo que se sostuvo ≥ 5 s.
+    fc_max, acum = None, 0.0
+    for b in sorted(fc_s, reverse=True):
+        acum += fc_s[b]
+        if acum >= 5:
+            fc_max = b
+            break
+    return {"fc": [[b, round(x)] for b, x in sorted(fc_s.items())],
+            "ritmo": [[r, round(x)] for r, x in sorted(ritmo_s.items())],
+            "fc_max": fc_max, "s": round(total)}
 
 
 def _totales(t: dict | None) -> dict:

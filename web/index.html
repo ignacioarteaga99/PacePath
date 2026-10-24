@@ -225,7 +225,7 @@
   .interruptor input { width: 18px; height: 18px; }
   /* En «trazar» el primer toque ya es la salida: el campo «Desde» sobra. */
   body.modo-trazar #form > .campo:first-child { display: none; }
-  /* ── Mi ciudad ─────────────────────────────────────────────────────────── */
+  /* ── Mis lugares ─────────────────────────────────────────────────────────── */
   body.vista-perfil #form, body.vista-perfil .modos, body.vista-perfil .chips,
   body.vista-perfil .plegado { display: none !important; }
   body.vista-perfil .titulo-perfil { display: inline; }
@@ -236,6 +236,48 @@
   body.vista-ciudad #form, body.vista-ciudad .modos, body.vista-ciudad .chips,
   body.vista-ciudad .plegado { display: none !important; }
   body.vista-ciudad .titulo-ciudad { display: inline; }
+  body.vista-entreno #form, body.vista-entreno .modos, body.vista-entreno .chips,
+  body.vista-entreno .plegado, body.vista-entreno #botonCapas, body.vista-entreno #menuCapas { display: none !important; }
+  body.vista-entreno .titulo-entreno { display: inline; }
+  .titulo-entreno { display: none; font-weight: 800; font-size: 17px; }
+  body.vista-entreno #hoja { max-height: calc(100dvh - var(--cab, 120px) - 180px - env(safe-area-inset-bottom)); }
+  /* ── Entreno ── zonas I1–I5: escala secuencial (más oscuro, más intenso) */
+  :root { --z1: #f2cf5b; --z2: #f0953a; --z3: #dc4f2a; --z4: #a61e3f; --z5: #521246; }
+  .fases { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 2px; }
+  .zonas-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .zonas-tabla th { text-align: left; font-size: 11px; color: var(--suave); font-weight: 700; padding: 4px 6px; }
+  .zonas-tabla td { padding: 7px 6px; border-top: 1px solid var(--linea); vertical-align: top; }
+  .zonas-tabla td small { display: block; color: var(--suave); font-size: 11.5px; }
+  .zona-chip { display: inline-block; min-width: 26px; text-align: center; border-radius: 6px; padding: 1px 5px;
+    font-weight: 800; font-size: 12px; color: #fff; }
+  .zona-chip.z1, .zona-chip.z2 { color: #3a2400; }
+  .z1 { background: var(--z1); } .z2 { background: var(--z2); } .z3 { background: var(--z3); }
+  .z4 { background: var(--z4); } .z5 { background: var(--z5); }
+  .barra-zonas { display: flex; gap: 2px; height: 26px; border-radius: 6px; overflow: hidden; margin: 4px 0 2px; }
+  .barra-zonas span { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
+    color: #fff; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .barra-zonas .z1, .barra-zonas .z2 { color: #3a2400; }
+  .leyenda-zonas { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--suave); margin: 6px 0; }
+  .leyenda-zonas i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+  .ajustes-zonas summary { cursor: pointer; font-weight: 700; font-size: 14px; padding: 6px 0; }
+  .ajustes-zonas .rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin: 6px 0 10px; }
+  .ajustes-zonas label { display: grid; gap: 3px; font-size: 12px; font-weight: 700; color: var(--suave); }
+  .ajustes-zonas input { font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--linea);
+    background: var(--gris); color: var(--tinta); width: 100%; min-width: 0; }
+  .chequeos { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 8px; }
+  .chequeos li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: start; }
+  .chequeos .ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 900;
+    font-size: 13px; color: #fff; }
+  .chequeos .ok .ico { background: #1a8f3c; } .chequeos .ojo .ico { background: #c98500; } .chequeos .mal .ico { background: #c92a2a; }
+  .chequeos b { font-size: 14px; } .chequeos p { margin: 2px 0 0; font-size: 13px; color: var(--suave); line-height: 1.4; }
+  .sesiones-entreno { list-style: none; padding: 0; margin: 4px 0 0; font-size: 13px; }
+  .sesiones-entreno li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; border-top: 1px solid var(--linea); }
+  .sesiones-entreno li span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tipo-sesion { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; background: var(--gris); white-space: nowrap; }
+  .tipo-sesion.umbral, .tipo-sesion.intensa { background: #fbe3d6; color: #8a2d0b; }
+  .tipo-sesion.suave_rapido { background: #fdf0c9; color: #6b4a00; }
+  body.noche .tipo-sesion.umbral, body.noche .tipo-sesion.intensa { background: #4a2416; color: #ffd2bd; }
+  body.noche .tipo-sesion.suave_rapido { background: #42361a; color: #ffe39a; }
   .titulo-ciudad { display: none; font-weight: 800; font-size: 17px; }
   /* «Connect with Strava» según la guía de marca de Strava (naranja #FC4C02, 48 px). */
   .strava { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 48px;
@@ -514,8 +556,9 @@
       <button type="button" class="on" id="modo-sesion" data-i18n>Para mi sesión</button>
       <button type="button" id="modo-trazar" data-i18n>Trazar a mano</button>
     </div>
-    <span class="titulo-ciudad" data-i18n>Mi ciudad</span>
+    <span class="titulo-ciudad" data-i18n>Mis lugares</span>
     <span class="titulo-perfil" data-i18n>Perfil</span>
+    <span class="titulo-entreno" data-i18n>Entreno</span>
     <small id="comuna" hidden></small>
   </div>
   <div class="chips solo-sesion" id="chips">
@@ -600,7 +643,9 @@
      stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 19c0-4 4-4 5.5-6.5S10.5 8 12 6c.6-.7 1.4-1 2.1-1"/>
      <circle cx="6.5" cy="19" r="1.6" fill="currentColor"/><circle cx="17.6" cy="5" r="1.8"/></svg><span data-i18n>Hoy</span></a>
   <a href="#" id="tab-ciudad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-     stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n>Mi ciudad</span></a>
+     stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span data-i18n>Mis lugares</span></a>
+  <a href="#" id="tab-entreno"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"/></svg><span data-i18n>Entreno</span></a>
   <a href="#" id="tab-perfil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
      stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span data-i18n>Perfil</span></a>
 </nav>
@@ -622,7 +667,7 @@ let idioma = (() => {
 const EN = {
   "Tipo de mapa": "Map type", "Plano": "Flat", "Plano: máx. 5 m de subida por km": "Flat: max 5 m of climb per km", "Claro": "Light", "Calles": "Streets", "Relieve": "Terrain",
   "Híbrido": "Hybrid", "Satélite": "Satellite", "veces": "times",
-  "Para mi sesión": "For my session", "Trazar a mano": "Draw by hand", "Mi ciudad": "My city",
+  "Para mi sesión": "For my session", "Trazar a mano": "Draw by hand", "Mis lugares": "My places",
   "Perfil": "Profile", "Hoy": "Today", "Series": "Intervals", "Tempo": "Tempo", "Serie": "Rep",
   "Fondo largo": "Long run", "Cuestas": "Hills", "Regenerativo": "Easy run", "Editar": "Edit",
   "Desde": "From", "Calle, esquina o lugar": "Street, corner or place", "Sesión": "Session",
@@ -2027,7 +2072,7 @@ function activarPreferencias() {
   });
 }
 
-// ── Mi ciudad: tus carreras de Strava como mapa de calor ────────────────────
+// ── Mis lugares: tus carreras de Strava como mapa de calor ────────────────────
 // Las carreras se guardan en este navegador (IndexedDB) y sólo se piden las
 // nuevas. El servidor no guarda nada: el acceso a Strava va en una cookie
 // cifrada. Desconectar revoca el acceso en Strava y borra todo.
@@ -2215,14 +2260,16 @@ function cambiarVista(v) {
   $("hoja").style.maxHeight = "";          // cada vista parte con la hoja a media altura
   document.body.classList.toggle("vista-ciudad", v === "ciudad");
   document.body.classList.toggle("vista-perfil", v === "perfil");
+  document.body.classList.toggle("vista-entreno", v === "entreno");
+  $("tab-entreno").classList.toggle("on", v === "entreno");
   $("tab-hoy").classList.toggle("on", v === "hoy");
   $("tab-ciudad").classList.toggle("on", v === "ciudad");
   $("tab-perfil").classList.toggle("on", v === "perfil");
-  if (v === "ciudad" || v === "perfil") {
+  if (v === "ciudad" || v === "perfil" || v === "entreno") {
     capas.remove(); marcasPuntos.remove(); if (marcaSalida) marcaSalida.remove(); if (marcaMeta) marcaMeta.remove();
     if (circuloRadio) { circuloRadio.remove(); circuloRadio = null; }
     calor.addTo(mapa);
-    if (v === "ciudad") abrirCiudad(); else abrirPerfil();
+    if (v === "ciudad") abrirCiudad(); else if (v === "entreno") abrirEntreno(); else abrirPerfil();
   } else {
     calor.remove();
     capas.addTo(mapa); marcasPuntos.addTo(mapa);
@@ -2234,6 +2281,7 @@ function cambiarVista(v) {
 $("tab-hoy").onclick = (e) => { e.preventDefault(); cambiarVista("hoy"); };
 $("tab-ciudad").onclick = (e) => { e.preventDefault(); cambiarVista("ciudad"); };
 $("tab-perfil").onclick = (e) => { e.preventDefault(); cambiarVista("perfil"); };
+$("tab-entreno").onclick = (e) => { e.preventDefault(); cambiarVista("entreno"); };
 
 const STRAVA_CONECTAR = () => `<a class="strava" href="/api/strava/conectar">${LOGO_STRAVA}Connect with Strava</a>`;
 // «Powered by Strava»: el logo oficial (naranja de día, blanco de noche).
@@ -2249,7 +2297,7 @@ async function abrirCiudad(aviso) {
   if (!e.conectado) {
     calor.setRutas([]);
     hoja(`${aviso ? `<p class="aviso">${esc(aviso)}</p>` : ""}
-      <div class="tipo">${t("Mi ciudad")}</div><h2>${t("Las calles que ya corriste")}</h2>
+      <div class="tipo">${t("Mis lugares")}</div><h2>${t("Las calles que ya corriste")}</h2>
       <p class="pista">${t("Conecta tu Strava y PacePath dibuja todas tus carreras como un mapa de calor: lo que más repites se ve más intenso.")}</p>
       ${e.configurado === false ? `<p class="aviso">${t("Strava no está configurado en el servidor.")}</p>`
         : STRAVA_CONECTAR() + AVISO_BETA(e)}
@@ -2272,7 +2320,7 @@ async function dibujarCalor(e, aviso, encuadrar) {
   const km = lista.reduce((t, c) => t + c.distancia_m, 0) / 1000;
   const desde = lista.length ? lista.map((c) => c.fecha).sort()[0].slice(0, 10).split("-").reverse().join("-") : "–";
   hoja(`${aviso ? `<p class="aviso">${esc(aviso)}</p>` : ""}
-    <div class="tipo">${t("Mi ciudad")}${e.nombre ? " · " + esc(e.nombre) : ""}</div>
+    <div class="tipo">${t("Mis lugares")}${e.nombre ? " · " + esc(e.nombre) : ""}</div>
     <h2>${t("Tus carreras")}</h2>
     <div class="cifras tres">
       <div class="cifra"><span>${t("Carreras")}</span><b>${num(lista.length)}</b></div>
@@ -2297,7 +2345,8 @@ async function dibujarCalor(e, aviso, encuadrar) {
     if (!confirm(t("¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso."))) return;
     await fetch("/api/strava/desconectar", { method: "POST" });
     await BD.borrar();
-    Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_") || ["pp_donde", "pp_lugares", "pp_logros_vistos", "pp_sync"].includes(k))
+    await BDE.borrar();
+    Object.keys(localStorage).filter((k) => k.startsWith("pp_frec_") || ["pp_donde", "pp_lugares", "pp_logros_vistos", "pp_sync", "pp_revision"].includes(k))
       .forEach((k) => localStorage.removeItem(k));
     abrirCiudad(t("Strava desconectado: se borraron tus datos."));
   };
@@ -2404,7 +2453,7 @@ function encuadrarCalor(lista) {
 // pedían nunca más (sólo «lo posterior a la más nueva»).
 const leerSync = () => leer("pp_sync", {}) || {};
 const guardarSync = (st) => escribir("pp_sync", st);
-const SYNC_AUTO_MIN = 15;          // al abrir Mi ciudad o Perfil, sincronizar sólo si pasó este rato
+const SYNC_AUTO_MIN = 15;          // al abrir Mis lugares o Perfil, sincronizar sólo si pasó este rato
 let sincronizando = null;
 
 function haceCuanto(iso) {
@@ -2490,6 +2539,7 @@ async function _sincronizar(e, { todo = false } = {}) {
       avance();
       const j = await paginaStrava(pagina, despues);
       await BD.guardar(j.carreras);
+      if (j.cinta?.length) await BDE.guardar("cinta", j.cinta);
       nuevas += j.carreras.filter((c) => !yaEstaban.has(c.id)).length;
       vistas += j.carreras.length;
       paginas++;
@@ -2513,6 +2563,248 @@ async function _sincronizar(e, { todo = false } = {}) {
   else if (nuevas && vista === "ciudad") await dibujarCalor(e, null, !lista.length);
   const fin = textoSync();
   pintarSync(nuevas && !fin.mal ? t("{n} carreras nuevas.", { n: nuevas }) + " " + fin.txt : fin.txt, fin.mal);
+  // Terminada la sincronización (y sólo entonces), la revisión del entrenamiento.
+  prepararEntreno().catch(() => {});
+}
+
+// ── Entreno: zonas y revisión de los últimos 3 meses (método noruego) ────────
+// El pulso y el ritmo segundo a segundo de cada carrera se piden a Strava una
+// vez (resumidos en un histograma) y quedan en este teléfono: si cambian las
+// zonas o la fase, la revisión se rehace sin volver a llamar a Strava. Nada
+// de esto se guarda en el servidor.
+Object.assign(EN, {
+  "Entreno": "Training", "Tu entrenamiento": "Your training", "Últimos 3 meses · filosofía del método noruego": "Last 3 months · Norwegian method philosophy",
+  "Fase": "Phase", "Básica": "Base", "Específica": "Specific", "Competencia (descarga)": "Race (taper)",
+  "Tus zonas": "Your zones", "Pulso": "Heart rate", "Ritmo": "Pace", "Zona": "Zone",
+  "Recuperación y rodaje muy suave": "Recovery and very easy running", "Base aeróbica: la mayor parte del volumen": "Aerobic base: most of the volume",
+  "Umbral controlado (el «doble umbral» noruego)": "Controlled threshold (the Norwegian \"double threshold\")",
+  "Umbral alto, ritmo de 10K": "High threshold, 10K pace", "VO₂máx: cuestas y series cortas": "VO₂max: hills and short reps",
+  "Calcular mis zonas": "Calculate my zones", "Ajustar mis datos": "Adjust my data", "FC máxima": "Max HR", "FC de reposo": "Resting HR",
+  "FC umbral": "Threshold HR", "Mejor 10K": "Best 10K", "Mejor 21K": "Best half marathon", "Ritmo umbral (/km)": "Threshold pace (/km)",
+  "detectada: {x}": "detected: {x}", "Revisa el formato: tiempos como 42:30 o 1:35:00 y ritmos como 4:15.": "Check the format: times like 42:30 or 1:35:00 and paces like 4:15.",
+  "Con tu FC umbral": "From your threshold HR", "Con tu FC máxima y de reposo (Karvonen)": "From your max and resting HR (Karvonen)",
+  "Con tu FC máxima": "From your max HR", "Con la FC más alta de tus carreras ({x}): escribe la tuya si la conoces": "From the highest HR in your runs ({x}): enter yours if you know it",
+  "Con tu ritmo umbral": "From your threshold pace", "Con tus mejores tiempos (VDOT {v})": "From your best times (VDOT {v})",
+  "Escribe tu FC máxima, tus mejores 10K/21K o tu ritmo umbral para calcular tus zonas.": "Enter your max HR, best 10K/half times or threshold pace to calculate your zones.",
+  "Tiempos equivalentes": "Equivalent times", "Distribución": "Distribution", "Últimas 12 semanas": "Last 12 weeks", "Últimas 4 semanas": "Last 4 weeks",
+  "Piramidal": "Pyramidal", "Polarizada": "Polarized", "De umbral": "Threshold-heavy", "Mixta": "Mixed",
+  "Índice de polarización {p}": "Polarization index {p}",
+  "El método noruego es piramidal: mucho suave, bastante umbral controlado y poco I5.": "The Norwegian method is pyramidal: lots of easy running, a fair amount of controlled threshold and little I5.",
+  "Semana a semana": "Week by week", "Horas por zona · {n} sesiones de umbral en 12 semanas": "Hours per zone · {n} threshold sessions in 12 weeks",
+  "Revisión": "Review", "Sesiones recientes": "Recent sessions",
+  "suave": "easy", "suave rápido": "easy, too fast", "umbral": "threshold", "intensa": "hard", "fondo": "long run", "competencia": "race",
+  "Pulso segundo a segundo en el {p} % del tiempo; el resto, con el promedio de cada carrera.": "Second-by-second heart rate for {p} % of the time; the rest, from each run's average.",
+  "Analizando tus carreras… {n} de {t}": "Analysing your runs… {n} of {t}",
+  "Conecta tu Strava para revisar cómo vienes entrenando: zonas, polarización y sesiones de umbral de los últimos 3 meses.": "Connect your Strava to review how you've been training: zones, polarization and threshold sessions over the last 3 months.",
+  "Aún no hay carreras de los últimos 3 meses en este teléfono.": "There are no runs from the last 3 months on this phone yet.",
+  "Semana del {f}: {h} h · {k} km · {u} de umbral": "Week of {f}: {h} h · {k} km · {u} threshold",
+  "Revisión del {f}": "Review from {f}", "No pude calcular la revisión ahora.": "I couldn't calculate the review right now.",
+});
+const ZONAS_TXT = ["Recuperación y rodaje muy suave", "Base aeróbica: la mayor parte del volumen",
+  "Umbral controlado (el «doble umbral» noruego)", "Umbral alto, ritmo de 10K", "VO₂máx: cuestas y series cortas"];
+const TIPO_TXT = { suave: "suave", suave_rapido: "suave rápido", umbral: "umbral", intensa: "intensa", fondo: "fondo", competencia: "competencia" };
+const FASES = [["basica", "Básica"], ["especifica", "Específica"], ["competencia", "Competencia (descarga)"]];
+const faseEntreno = () => leer("pp_fase", "basica");
+const ajustesEntreno = () => leer("pp_entreno_ajustes", {});
+// «42:30» → 2550 s; «1:35:00» → 5700 s; vacío → null; mal escrito → NaN.
+const aSegundos = (v) => { v = (v || "").trim(); if (!v) return null;
+  const p = v.split(":").map(Number); if (p.some((x) => !Number.isFinite(x) || x < 0)) return NaN;
+  return p.reduce((a, x) => a * 60 + x, 0); };
+const hms = (s) => { if (!s) return ""; s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`; };
+
+// Histogramas y carreras en cinta (sin mapa), en su propia base del teléfono.
+const BDE = (() => {
+  let db = null;
+  const abrir = () => new Promise((ok) => {
+    try {
+      const r = indexedDB.open("pacepath-entreno", 1);
+      r.onupgradeneeded = () => { r.result.createObjectStore("hist", { keyPath: "id" }); r.result.createObjectStore("cinta", { keyPath: "id" }); };
+      r.onsuccess = () => { db = r.result; ok(); };
+      r.onerror = () => ok();
+    } catch { ok(); }
+  });
+  return {
+    async todas(almacen) {
+      if (!db) await abrir();
+      if (!db) return [];
+      return new Promise((ok) => { const r = db.transaction(almacen).objectStore(almacen).getAll(); r.onsuccess = () => ok(r.result); r.onerror = () => ok([]); });
+    },
+    async guardar(almacen, lista) {
+      if (!db) await abrir();
+      if (!db || !lista.length) return;
+      await new Promise((ok) => { const tr = db.transaction(almacen, "readwrite");
+        lista.forEach((x) => tr.objectStore(almacen).put(x)); tr.oncomplete = ok; tr.onerror = ok; });
+    },
+    async borrar() {
+      if (!db) await abrir();
+      if (db) for (const a of ["hist", "cinta"]) await new Promise((ok) => { const r = db.transaction(a, "readwrite").objectStore(a).clear(); r.onsuccess = ok; r.onerror = ok; });
+    },
+  };
+})();
+
+let preparandoEntreno = null, estadoEntreno = "";
+function prepararEntreno(op = {}) {
+  if (!preparandoEntreno) preparandoEntreno = _prepararEntreno(op).finally(() => { preparandoEntreno = null; estadoEntreno = ""; });
+  return preparandoEntreno;
+}
+async function carrerasEntreno() {
+  const desde = Date.now() - 365 * 864e5;              // un año: para detectar la FC máxima
+  return [...(await BD.todas()), ...(await BDE.todas("cinta"))]
+    .filter((c) => c.tiempo_s > 0 && Date.parse(c.fecha) >= desde);
+}
+async function _prepararEntreno({ sinStrava = false } = {}) {
+  const lista = await carrerasEntreno();
+  const hist = new Map((await BDE.todas("hist")).map((h) => [h.id, h]));
+  if (!sinStrava) {
+    // El detalle sólo de los últimos 3 meses, de a poco (cupo de Strava): lo que falte, la próxima vez.
+    const tresMeses = Date.now() - 13 * 7 * 864e5;
+    const faltan = lista.filter((c) => !hist.has(c.id) && Date.parse(c.fecha) >= tresMeses)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 40);
+    let n = 0;
+    for (const c of faltan) {
+      estadoEntreno = t("Analizando tus carreras… {n} de {t}", { n: ++n, t: faltan.length });
+      if (vista === "entreno" && $("estadoEntreno")) $("estadoEntreno").textContent = estadoEntreno;
+      const r = await fetch(`/api/strava/histograma?id=${c.id}`).catch(() => null);
+      if (!r || !r.ok) break;                          // sin red, límite de Strava o sin sesión
+      const h = { ...(await r.json()), id: c.id };
+      hist.set(c.id, h);
+      await BDE.guardar("hist", [h]);
+    }
+  }
+  return calcularRevision(lista, hist);
+}
+async function calcularRevision(lista, hist) {
+  const carreras = lista.map(({ polilinea, puntos, ...c }) => {
+    const h = hist.get(c.id);
+    return h ? { ...c, hist: { fc: h.fc, ritmo: h.ritmo, fc_max: h.fc_max } } : c;
+  });
+  const d = new Date(), hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const r = await fetch("/api/entreno/revision", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ajustes: { ...ajustesEntreno(), fase: faseEntreno() }, carreras: carreras.slice(-600), hoy }) });
+  if (!r.ok) throw new Error(t("No pude calcular la revisión ahora."));
+  const j = { ...(await r.json()), calculada: Date.now() };
+  escribir("pp_revision", j);
+  if (vista === "entreno") pintarEntreno(j);
+  return j;
+}
+
+let stravaEntreno = null;
+async function abrirEntreno() {
+  const guardada = leer("pp_revision", null);
+  pintarEntreno(guardada);                             // al instante, la última
+  stravaEntreno = await fetch("/api/strava/estado").then((r) => r.json()).catch(() => ({}));
+  if (vista !== "entreno") return;
+  if (stravaEntreno.conectado && necesitaSync()) { sincronizar(stravaEntreno); pintarEntreno(guardada); return; }  // al terminar, la revisión
+  if (!guardada) await prepararEntreno({ sinStrava: !stravaEntreno.conectado }).catch(() => {});
+  pintarEntreno(leer("pp_revision", null));
+}
+// Rehacer con lo que hay en el teléfono (cambiaron las zonas o la fase).
+const recalcularEntreno = async () => {
+  try { await calcularRevision(await carrerasEntreno(), new Map((await BDE.todas("hist")).map((h) => [h.id, h]))); }
+  catch (err) { const m = $("errorAjustes"); if (m) m.textContent = err.message; }
+};
+
+function barraZonas(pct) {
+  return `<div class="barra-zonas" role="img" aria-label="${pct.map((p, i) => `I${i + 1} ${num(p)} %`).join(", ")}">
+    ${pct.map((p, i) => p > 0 ? `<span class="z${i + 1}" style="flex:${p}">${p >= 9 ? `I${i + 1} ${num(p)}%` : p >= 5 ? num(p) : ""}</span>` : "").join("")}</div>`;
+}
+// Horas por semana apiladas por zona (I1 abajo), con el valor al tocar.
+function barrasZonas(id, semanas) {
+  const W = Math.max(280, $("hoja").clientWidth - 40), H = 130, abajo = 18, izq = 30;
+  const max = Math.max(1, ...semanas.map((w) => w.horas));
+  const paso = [1, 2, 5, 10, 20].find((p) => max / p <= 4) || 50, tope = Math.ceil(max / paso) * paso;
+  const y = (v) => (H - abajo) - v / tope * (H - abajo - 6);
+  const bw = (W - izq) / semanas.length, ancho = Math.max(4, Math.min(20, bw - 5));
+  let svg = "";
+  for (let v = 0; v <= tope; v += paso) svg += `<line x1="${izq}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--linea)"/>
+    <text x="${izq - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="var(--suave)">${num(v)} h</text>`;
+  semanas.forEach((w, i) => {
+    const x = izq + i * bw + (bw - ancho) / 2;
+    let base = 0;
+    w.pct.forEach((p, z) => {
+      const h = w.horas * p / 100;
+      if (h <= 0) return;
+      const y0 = y(base), y1 = y(base + h);
+      svg += `<path data-i="${i}" fill="var(--z${z + 1})" d="M${x},${y0} V${y1 + (y0 - y1 > 2 ? 1 : 0)} h${ancho} V${y0} z"/>`;   // 1 px de aire entre zonas
+      base += h;
+    });
+    if (i % 3 === 0) svg += `<text x="${x + ancho / 2}" y="${H - 4}" text-anchor="middle" font-size="10" fill="var(--suave)">${fechaCorta(new Date(w.inicio + "T12:00"))}</text>`;
+  });
+  return `<div class="grafico" id="${id}" data-w="${W}" data-izq="${izq}" data-n="${semanas.length}">
+    <svg viewBox="0 0 ${W} ${H}" height="${H}">${svg}</svg><div class="tip"></div></div>`;
+}
+
+function pintarEntreno(j) {
+  const a = ajustesEntreno(), z = j?.zonas, rev = j?.revision, fase = faseEntreno();
+  const fuenteFc = z && { umbral: t("Con tu FC umbral"), reserva: t("Con tu FC máxima y de reposo (Karvonen)"), fc_max: t("Con tu FC máxima"),
+    fc_max_detectada: t("Con la FC más alta de tus carreras ({x}): escribe la tuya si la conoces", { x: z.fc_max_detectada }) }[z.fuente_fc];
+  const fuenteRitmo = z && { umbral: t("Con tu ritmo umbral"), vdot: t("Con tus mejores tiempos (VDOT {v})", { v: num(z.vdot || 0, 1) }) }[z.fuente_ritmo];
+  const rango = (r, fmt) => r.desde == null ? `< ${fmt(r.hasta)}` : r.hasta == null ? `> ${fmt(r.desde)}` : `${fmt(r.desde)}–${fmt(r.hasta)}`;
+  const tabla = z && (z.fc || z.ritmo) ? `<table class="zonas-tabla"><thead><tr><th>${t("Zona")}</th>${z.fc ? `<th>${t("Pulso")}</th>` : ""}${z.ritmo ? `<th>${t("Ritmo")}</th>` : ""}</tr></thead><tbody>
+    ${[0, 1, 2, 3, 4].map((i) => `<tr><td><span class="zona-chip z${i + 1}">I${i + 1}</span><small>${t(ZONAS_TXT[i])}</small></td>
+      ${z.fc ? `<td>${rango(z.fc[i], num)} <small>ppm</small></td>` : ""}
+      ${z.ritmo ? `<td>${rango(z.ritmo[i], (s) => ritmo(s).replace(/\s*\/km/, ""))} <small>/km</small></td>` : ""}</tr>`).join("")}
+    </tbody></table>
+    <p class="nota-kpi">${[fuenteFc, fuenteRitmo].filter(Boolean).map(esc).join(" · ")}</p>
+    ${z.predicciones ? `<p class="nota-kpi">${t("Tiempos equivalentes")}: 5K ${hms(z.predicciones["5k"])} · 10K ${hms(z.predicciones["10k"])} · 21K ${hms(z.predicciones["21k"])} · 42K ${hms(z.predicciones["42k"])}</p>` : ""}`
+    : `<p class="pista">${t("Escribe tu FC máxima, tus mejores 10K/21K o tu ritmo umbral para calcular tus zonas.")}</p>`;
+  const campo = (k, et, ph, fmt = (v) => v ?? "") => `<label>${t(et)}<input id="aj-${k}" inputmode="${k.endsWith("_s") ? "text" : "numeric"}" value="${esc(String(fmt(a[k])))}" placeholder="${esc(ph)}"></label>`;
+  const forma = rev && !rev.vacia && { polarizada: t("Polarizada"), piramidal: t("Piramidal"), umbral: t("De umbral"), mixta: t("Mixta") }[rev.forma];
+  const umbral12 = rev?.semanas ? rev.semanas.reduce((s, w) => s + w.umbral, 0) : 0;
+  hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu entrenamiento")}</h2>
+    <p class="pista" style="margin-top:0">${t("Últimos 3 meses · filosofía del método noruego")}</p>
+    <div class="bloque" style="margin-top:8px"><h3>${t("Fase")}</h3>
+      <div class="fases" role="radiogroup" aria-label="${t("Fase")}">${FASES.map(([k, et]) =>
+        `<button type="button" class="chip${k === fase ? " on" : ""}" role="radio" aria-checked="${k === fase}" data-fase="${k}">${t(et)}</button>`).join("")}</div></div>
+    <div class="bloque"><h3>${t("Tus zonas")}</h3>${tabla}
+      <details class="ajustes-zonas"${z && (z.fc || z.ritmo) ? "" : " open"}><summary>${t("Ajustar mis datos")}</summary>
+        <form id="formZonas"><div class="rejilla">
+          ${campo("fc_max", "FC máxima", z?.fc_max_detectada ? t("detectada: {x}", { x: z.fc_max_detectada }) : "190")}
+          ${campo("fc_reposo", "FC de reposo", "50")}
+          ${campo("fc_umbral", "FC umbral", "170")}
+          ${campo("ritmo_umbral_s", "Ritmo umbral (/km)", "4:15", hms)}
+          ${campo("t10k_s", "Mejor 10K", "42:30", hms)}
+          ${campo("t21k_s", "Mejor 21K", "1:35:00", hms)}
+        </div><button type="submit">${t("Calcular mis zonas")}</button><p class="aviso" id="errorAjustes" style="margin:6px 0 0"></p></form>
+      </details></div>
+    <p class="pista" id="estadoEntreno">${esc(estadoEntreno)}</p>
+    ${stravaEntreno && !stravaEntreno.conectado ? `<div class="bloque"><h3>${t("Revisión")}</h3><p class="pista">${t("Conecta tu Strava para revisar cómo vienes entrenando: zonas, polarización y sesiones de umbral de los últimos 3 meses.")}</p>${STRAVA_CONECTAR()}${AVISO_BETA(stravaEntreno)}</div>`
+    : rev?.vacia ? `<p class="pista">${t("Aún no hay carreras de los últimos 3 meses en este teléfono.")}</p>`
+    : rev ? `
+    <div class="bloque"><h3>${t("Distribución")} · ${forma}</h3>
+      <p class="sub">${t("Índice de polarización {p}", { p: num(rev.polarizacion, 2) })} · ${t("El método noruego es piramidal: mucho suave, bastante umbral controlado y poco I5.")}</p>
+      <small class="sub">${t("Últimas 4 semanas")}</small>${barraZonas(rev.distribucion_4)}
+      <small class="sub">${t("Últimas 12 semanas")}</small>${barraZonas(rev.distribucion)}
+      <div class="leyenda-zonas">${[0, 1, 2, 3, 4].map((i) => `<span><i class="z${i + 1}"></i>I${i + 1}</span>`).join("")}</div></div>
+    <div class="bloque"><h3>${t("Revisión")}</h3><ul class="chequeos">${rev.chequeos.map((c) =>
+      `<li class="${c.estado}"><span class="ico" aria-hidden="true">${{ ok: "✓", ojo: "!", mal: "✕" }[c.estado]}</span><div><b>${esc(c.titulo)}</b><p>${esc(c.texto)}</p></div></li>`).join("")}</ul></div>
+    <div class="bloque"><h3>${t("Semana a semana")}</h3><p class="sub">${t("Horas por zona · {n} sesiones de umbral en 12 semanas", { n: umbral12 })}</p>
+      ${barrasZonas("g-entreno", rev.semanas)}</div>
+    <div class="bloque"><h3>${t("Sesiones recientes")}</h3><ul class="sesiones-entreno">${rev.sesiones.slice(0, 10).map((x) =>
+      `<li><span>${fechaCorta(new Date(x.fecha + "T12:00"))} · ${esc(x.nombre || "")} · ${num(x.km, 1)} km</span><span class="tipo-sesion ${x.tipo}">${t(TIPO_TXT[x.tipo])}</span></li>`).join("")}</ul>
+      <p class="nota-kpi">${t("Pulso segundo a segundo en el {p} % del tiempo; el resto, con el promedio de cada carrera.", { p: rev.detalle_pct })}
+        ${j.calculada ? " · " + t("Revisión del {f}", { f: new Date(j.calculada).toLocaleString(idioma === "en" ? "en-US" : "es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }) : ""}</p></div>` : ""}
+    ${stravaEntreno?.conectado ? POWERED_STRAVA() : ""}`);
+  if (rev?.semanas && !rev.vacia) activarGrafico("g-entreno", rev.semanas.map((w) => t("Semana del {f}: {h} h · {k} km · {u} de umbral",
+    { f: fechaCorta(new Date(w.inicio + "T12:00")), h: num(w.horas, 1), k: num(w.km, 1), u: w.umbral })));
+  document.querySelectorAll("[data-fase]").forEach((b) => { b.onclick = () => {
+    escribir("pp_fase", b.dataset.fase);
+    document.querySelectorAll("[data-fase]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-checked", String(x === b)); });
+    recalcularEntreno();
+  }; });
+  $("formZonas").onsubmit = (e) => {
+    e.preventDefault();
+    const nuevo = {};
+    for (const k of ["fc_max", "fc_reposo", "fc_umbral"]) { const v = parseFloat($(`aj-${k}`).value); if (Number.isFinite(v)) nuevo[k] = v; }
+    for (const k of ["ritmo_umbral_s", "t10k_s", "t21k_s"]) {
+      const v = aSegundos($(`aj-${k}`).value);
+      if (Number.isNaN(v)) { $("errorAjustes").textContent = t("Revisa el formato: tiempos como 42:30 o 1:35:00 y ritmos como 4:15."); return; }
+      if (v) nuevo[k] = v;
+    }
+    escribir("pp_entreno_ajustes", nuevo);
+    recalcularEntreno();
+  };
 }
 
 // ── Pasaporte: logros, puntos y nivel ───────────────────────────────────────
@@ -3130,7 +3422,7 @@ $("hoja").addEventListener("click", async (e) => {
 function contextoComentario() {
   const ua = navigator.userAgent, equipo = /iPhone|iPad/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : "computador";
   const app = window.matchMedia("(display-mode: standalone)").matches ? "app" : "navegador";
-  const cosas = [t("vista: {v}", { v: { hoy: t("Hoy"), ciudad: t("Mi ciudad"), perfil: t("Perfil") }[vista] || vista })];
+  const cosas = [t("vista: {v}", { v: { hoy: t("Hoy"), ciudad: t("Mis lugares"), perfil: t("Perfil") }[vista] || vista })];
   if (vista === "hoy") cosas.push(modo === "trazar" ? t("trazar a mano") : t("sesión «{s}»", { s: $("texto").value }));
   if (vista === "hoy" && $("desde").value) cosas.push(t("desde {d}", { d: $("desde").value }));
   cosas.push(`${equipo} · ${app} · ${idioma.toUpperCase()}`);
