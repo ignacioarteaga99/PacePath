@@ -19,7 +19,7 @@ jobs:
         run: pip install -q vendor/raceengine-*.whl -e .
       - name: Correr el banco
         env:
-          RACEENGINE_GRAPHS_URL: https://github.com/ignacioarteaga99/RaceEngine/releases/download/graphs
+          RACEENGINE_GRAPHS_URL: https://mapas.pacepathapp.com/graphs
           PACEPATH_NOMBRES_URL: ""
         run: |
           python scripts/banco.py --etiqueta actual --comparar base | grep -v '^\[context\]' | tail -120

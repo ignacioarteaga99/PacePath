@@ -15,7 +15,8 @@ _opener = urllib.request.build_opener()
 _opener.addheaders = [("User-Agent", "PacePath/0.1 (https://pacepathapp.com)")]
 urllib.request.install_opener(_opener)
 
-GRAPHS_URL = "https://github.com/ignacioarteaga99/RaceEngine/releases/download/graphs"
+# Grafos en Cloudflare R2 (los copia desde RaceEngine el workflow «Espejo de datos en R2»).
+GRAPHS_URL = "https://mapas.pacepathapp.com/graphs"
 
 os.environ.setdefault("RACEENGINE_GRAPHS_URL", GRAPHS_URL)
 os.environ.setdefault("RACEENGINE_DATA", str(Path(__file__).resolve().parents[1] / "data"))

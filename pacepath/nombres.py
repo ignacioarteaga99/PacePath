@@ -25,7 +25,7 @@ from raceengine_engine.context import GraphContext
 
 NOMBRES_URL = os.environ.get(
     "PACEPATH_NOMBRES_URL",
-    "https://github.com/ignacioarteaga99/PacePath/releases/download/nombres",
+    "https://mapas.pacepathapp.com/nombres",           # en R2 (workflow «Espejo de datos en R2»)
 ).rstrip("/")
 _DIR = Path(os.environ["RACEENGINE_DATA"]) / "nombres"
 _lock = threading.Lock()
