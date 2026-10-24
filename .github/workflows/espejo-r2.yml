@@ -63,3 +63,15 @@ jobs:
             || { echo "::error::No pude bajar la Release «nombres» de PacePath"; exit 1; }
           aws s3 cp nombres "s3://$BUCKET/nombres" --recursive --endpoint-url "$R2" --only-show-errors
           echo "Nombres: $(ls nombres | wc -l) archivos" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comprobar que el servidor puede bajarlos (como lo hace, con Python)
+        run: |
+          python3 - <<'EOF'
+          import json, urllib.request
+          base = "https://mapas.pacepathapp.com"
+          m = json.load(urllib.request.urlopen(f"{base}/graphs/manifest.json", timeout=20))
+          region = next(iter(k for k, v in m.items() if isinstance(v, dict) and "lat" in v))
+          r = urllib.request.urlopen(urllib.request.Request(f"{base}/graphs/{region}.pkl.gz", method="HEAD"), timeout=20)
+          n = urllib.request.urlopen(urllib.request.Request(f"{base}/nombres/{region}.nombres.json.gz", method="HEAD"), timeout=20)
+          print(f"ok: manifiesto con {len(m)} comunas · {region}.pkl.gz {r.headers.get('Content-Length')} bytes · nombres {n.status}")
+          EOF
