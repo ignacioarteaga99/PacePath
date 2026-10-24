@@ -87,3 +87,12 @@ def test_tolera_errores_de_tipeo(monkeypatch):
     assert lugares.buscar("pocurro")[0]["nombre"] == "Avenida Pocuro"
     assert lugares.buscar("pocro")[0]["nombre"] == "Avenida Pocuro"
     assert not [p for p in pedidos if "q" in p and p["q"] == "pocurro"]       # lo resolvió sin salir
+
+
+def test_zonas_resume_santiago(monkeypatch):
+    monkeypatch.setattr(comunas, "disponibles", lambda: [
+        {"id": "providencia", "nombre": "Providencia", "grupo": "Santiago"},
+        {"id": "maipu", "nombre": "Maipú y Cerrillos", "grupo": "Santiago"},
+        {"id": "valparaiso", "nombre": "Valparaíso", "grupo": "Chile"}])
+    assert comunas.zonas() == "el Gran Santiago, Valparaíso"
+    assert comunas.zonas(True) == "Greater Santiago, Valparaíso"

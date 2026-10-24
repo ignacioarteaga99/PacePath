@@ -7,7 +7,7 @@ on:
       comunas:
         description: "Comunas separadas por coma"
         required: true
-        default: "santiago_centro,providencia,las_condes,nunoa,vitacura,lo_barnechea"
+        default: "santiago_centro,providencia,las_condes,nunoa,vitacura,lo_barnechea,maipu,pudahuel,renca,huechuraba,la_cisterna,la_florida,penalolen,puente_alto,san_bernardo,san_bernardo_poniente"
   push:
     paths: [".github/workflows/nombres.yml", "scripts/ci_nombres.py"]
 
@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
-      COMUNAS: ${{ inputs.comunas || 'santiago_centro,providencia,las_condes,nunoa,vitacura,lo_barnechea' }}
+      COMUNAS: ${{ inputs.comunas || 'santiago_centro,providencia,las_condes,nunoa,vitacura,lo_barnechea,maipu,pudahuel,renca,huechuraba,la_cisterna,la_florida,penalolen,puente_alto,san_bernardo,san_bernardo_poniente' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

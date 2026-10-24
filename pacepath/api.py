@@ -1029,10 +1029,9 @@ def _fuera_de_mapa(lat: float, lon: float):
     lugar = ciudades.nombrar(lat, lon) or {}
     uso.registrar("fuera_de_mapa", lugar.get("pais"), comuna=lugar.get("barrio") or lugar.get("ciudad") or "?",
                   exito=False)
-    hay = ", ".join(c["nombre"] for c in comunas.disponibles())
-    raise HTTPException(422, tr(f"Todavía no hay mapa ahí. Por ahora PacePath funciona en: {hay}. "
+    raise HTTPException(422, tr(f"Todavía no hay mapa ahí. Por ahora PacePath funciona en: {comunas.zonas()}. "
                                 "Cuéntanos tu comuna en «Enviar comentario».",
-                                f"There's no map there yet. For now PacePath works in: {hay}. "
+                                f"There's no map there yet. For now PacePath works in: {comunas.zonas(True)}. "
                                 "Tell us your area with “Send feedback”."))
 
 

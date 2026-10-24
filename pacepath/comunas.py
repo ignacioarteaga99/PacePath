@@ -7,9 +7,10 @@ import pacepath  # noqa: F401 — fija las variables de entorno de RaceEngine
 from raceengine_engine.context import GraphContext, get_context
 from raceengine_geodata import remote
 
-# Las que Ignacio pidió para empezar. El manifiesto puede traer más.
+# El Gran Santiago (las 6 del comienzo y 10 que cubren el resto). Manda el manifiesto.
 COMUNAS = ("santiago_centro", "providencia", "las_condes", "nunoa", "vitacura",
-           "lo_barnechea")
+           "lo_barnechea", "maipu", "pudahuel", "renca", "huechuraba", "la_cisterna",
+           "la_florida", "penalolen", "puente_alto", "san_bernardo", "san_bernardo_poniente")
 
 
 def disponibles() -> list[dict]:
@@ -18,9 +19,23 @@ def disponibles() -> list[dict]:
     return [
         {"id": rid, "nombre": e.get("label", rid), "lat": e["lat"], "lon": e["lon"],
          "radio_m": e.get("radius_m", 7000), "mb": round(e.get("size_gz", 0) / 1e6, 1),
-         "version": e.get("version")}
+         "version": e.get("version"), "grupo": e.get("group")}
         for rid, e in man.items() if "lat" in e
     ]
+
+
+def zonas(en: bool = False) -> str:
+    """Dónde hay mapa, en una frase corta: los grafos de Santiago son ya 16 y
+    nombrarlos todos no le dice nada a nadie; se resumen en «el Gran Santiago»."""
+    nombres, santiago = [], False
+    for c in disponibles():
+        if c.get("grupo") == "Santiago":
+            santiago = True
+        else:
+            nombres.append(c["nombre"])
+    if santiago:
+        nombres.insert(0, "Greater Santiago" if en else "el Gran Santiago")
+    return ", ".join(nombres)
 
 
 def _dist_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
