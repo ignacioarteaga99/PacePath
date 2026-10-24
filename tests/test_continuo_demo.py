@@ -157,6 +157,21 @@ def test_radio_demasiado_chico_avisa(ctx):
         planificar(ctx, interpretar("fondo 20k"), D.lat, D.lon, radio_max_m=300)
 
 
+def test_radio_chico_da_vueltas_solas(ctx):
+    """Un fondo largo con radio máximo chico no cabe en una vuelta: en vez de una
+    ruta corta, vueltas automáticas que suman lo pedido."""
+    from pacepath.planificador import planificar
+    p = planificar(ctx, interpretar("fondo 20k"), D.lat, D.lon, radio_max_m=1000)
+    r = p["recorrido"]
+    assert r["forma"] == "vueltas" and r["vueltas"] >= 2
+    assert abs(p["totales"]["distancia_m"] - 20000) <= 0.06 * 20000
+    assert _max_dist(p) <= 1030
+    assert "vueltas de" in p["avisos"][0]
+    # Pidió 2 vueltas y no caben: se suben solas.
+    p = planificar(ctx, interpretar("fondo 20k"), D.lat, D.lon, radio_max_m=1000, forma="vueltas", n_vueltas=2)
+    assert p["recorrido"]["vueltas"] > 2 and "Con 2 vueltas" in p["avisos"][0]
+
+
 def test_fondo_en_circuito_repite_poco(ctx):
     from pacepath.planificador import planificar
     auto = planificar(ctx, interpretar("fondo 8k"), D.lat, D.lon)

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import math
 
 import numpy as np
 
@@ -244,6 +245,39 @@ def vuelta_de(ctx: GraphContext, casa: int, largo_m: float, req: Requisitos
                           "Ask for fewer laps."))
     aristas, med, _ = solo_circuito(ctx, casa, largo_m, req)
     return list(aristas), med
+
+
+CABE = 0.9                          # menos que esto de lo pedido: «no cabe» en una vuelta
+
+
+def vueltas_auto(ctx: GraphContext, casa: int, distancia_m: float, req: Requisitos,
+                 cabe_m: float, n_min: int = 2) -> tuple[list[int], Medida, int] | None:
+    """Lo pedido no cabe en una vuelta (radio máximo chico, poca calle alrededor):
+    n vueltas a un circuito que sí cabe, como haría el corredor. `cabe_m` es lo
+    más largo que se encontró; de ahí sale el primer n a probar. Devuelve
+    (aristas de una vuelta, su medida, n) o None si no hay circuito que sirva."""
+    n = max(n_min, math.ceil(distancia_m / max(cabe_m * 0.95, 1.0)))
+    while n <= 40 and distancia_m / n >= VUELTA_MIN_M:
+        revisar()
+        try:
+            una, m = vuelta_de(ctx, casa, distancia_m / n, req)
+        except SinTramo:
+            return None
+        total = m.distancia_m * n
+        if 0.95 * distancia_m <= total <= 1.06 * distancia_m:
+            return una, m, n
+        # Vuelta más corta de lo pedido: más vueltas; más larga: una más, más corta.
+        n = max(n + 1, math.ceil(distancia_m / max(m.distancia_m, 1.0))) if total < distancia_m else n + 1
+    return None
+
+
+def aviso_vueltas(n: int, vuelta_m: float, pedidas: int | None) -> str:
+    donde = tr(" dentro del radio máximo", " within the max radius") if radio_actual() is not None else ""
+    if pedidas:
+        return tr(f"Con {pedidas} vueltas cada una no cabía{donde}: son {n} vueltas de {vuelta_m / 1000:.1f} km.",
+                  f"With {pedidas} laps each one didn't fit{donde}: it's {n} laps of {vuelta_m / 1000:.1f} km.")
+    return tr(f"Lo pedido no cabía en una sola vuelta{donde}: son {n} vueltas de {vuelta_m / 1000:.1f} km.",
+              f"The distance didn't fit in a single loop{donde}: it's {n} laps of {vuelta_m / 1000:.1f} km.")
 
 
 def _radio_busqueda(distancia_m: float) -> float:
@@ -791,9 +825,13 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
     req = con_preferidas(requisitos(sesion), preferidas)
     casa = nodo_salida(ctx, lat, lon)
     D = req.distancia_m
-    pedida, vuelta_med = forma, None
+    pedida, vuelta_med, aviso_auto = forma, None, None
     if volver and pedida == "vueltas" and (n_vueltas or 0) >= 2:
         una, vuelta_med = vuelta_de(ctx, casa, D / n_vueltas, req)
+        if vuelta_med.distancia_m * n_vueltas < CABE * D:          # esas vueltas no caben: más vueltas
+            if (auto := vueltas_auto(ctx, casa, D, req, vuelta_med.distancia_m, n_vueltas + 1)) is not None:
+                aviso_auto = aviso_vueltas(auto[2], auto[1].distancia_m, n_vueltas)
+                una, vuelta_med, n_vueltas = auto
         aristas = una * n_vueltas
         med, otros, forma = medir(ctx, aristas, req.radio_agua_m), [], "vueltas"
     elif volver and pedida in ("circuito", "vueltas"):
@@ -818,6 +856,14 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
                               "area's map: try returning to the start."))
         cands.sort(key=lambda c: c[2])
         (aristas, med, _), otros = cands[0], cands[1:]
+    if volver and vuelta_med is None and med.distancia_m < CABE * D:
+        # No cabe en una vuelta (p. ej. radio máximo de 1 km para un fondo de
+        # 25): vueltas automáticas en vez de entregar una ruta corta.
+        if (auto := vueltas_auto(ctx, casa, D, req, med.distancia_m)) is not None:
+            una, vuelta_med, n_vueltas = auto
+            aristas = una * n_vueltas
+            med, otros, forma = medir(ctx, aristas, req.radio_agua_m), [], "vueltas"
+            aviso_auto = aviso_vueltas(n_vueltas, vuelta_med.distancia_m, None)
     # «Otra opción»: la siguiente ruta distinta (en el orden del puntaje).
     opciones = distintos(ctx, [(aristas, med, 0.0)] + list(otros))
     aristas, med, _ = opciones[opcion % len(opciones)]
@@ -834,7 +880,7 @@ def planificar_circuito(ctx: GraphContext, sesion: Sesion, lat: float, lon: floa
     if vuelta_med is not None:
         info |= {"vueltas": n_vueltas, "vuelta_m": round(vuelta_med.distancia_m),
                  "vuelta_repetido_pct": round(100 * vuelta_med.repetido)}
-    avisos = []
+    avisos = [aviso_auto] if aviso_auto else []
     if abs(med.distancia_m - D) > 0.05 * D:
         avisos.append(tr(f"El recorrido mide {med.distancia_m / 1000:.1f} km: no encontré uno "
                          "más ajustado a la distancia pedida.",
