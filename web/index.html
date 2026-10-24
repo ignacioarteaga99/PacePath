@@ -2761,7 +2761,10 @@ async function abrirEntreno() {
   stravaEntreno = await fetch("/api/strava/estado").then((r) => r.json()).catch(() => ({}));
   if (vista !== "entreno") return;
   if (stravaEntreno.conectado && necesitaSync()) { sincronizar(stravaEntreno); pintarEntreno(guardada); return; }  // al terminar, la revisión
+  // Sin sincronizar: se rehace igual con lo que ya está en el teléfono (no
+  // llama a Strava), para que una mejora del motor se vea al abrir la pestaña.
   if (!guardada) await prepararEntreno({ sinStrava: !stravaEntreno.conectado }).catch(() => {});
+  else await recalcularEntreno();
   pintarEntreno(leer("pp_revision", null));
 }
 // Rehacer con lo que hay en el teléfono (cambiaron las zonas o la fase).
