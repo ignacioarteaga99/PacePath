@@ -70,3 +70,9 @@ Imagen Docker (`Dockerfile`), salud en `/api/salud`, una comuna en memoria
 (~200 MB de 512). El disco se borra al dormir: grafos y nombres se vuelven a
 bajar solos de las Releases. La única variable secreta es `STRAVA_CLIENT_SECRET`
 (Render la pide al crear el servicio).
+
+## Licencia
+
+Copyright © 2026 Ignacio Arteaga. Todos los derechos reservados: el código es
+público sólo para leerlo; no se permite copiarlo ni usarlo sin permiso. Ver
+[`LICENSE`](LICENSE).

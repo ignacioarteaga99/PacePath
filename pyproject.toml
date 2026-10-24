@@ -1,6 +1,7 @@
 [project]
 name = "pacepath"
 version = "0.1.0"
+license = { file = "LICENSE" }
 description = "PacePath — la ruta para el entrenamiento de hoy, por calles reales"
 requires-python = ">=3.12"
 dependencies = [
