@@ -61,7 +61,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import acceso, cancelar, ciudades, comunas, correo, cuentas, entreno, momento, oauth, frecuencia, idioma, lugares, nombres, recientes, registro, rendimiento, strava, uso
+from . import acceso, cancelar, ciudades, comunas, correo, cuentas, entreno, momento, oauth, frecuencia, idioma, lugares, nombres, recientes, registro, rendimiento, strava, uso, zonas
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -76,6 +76,7 @@ WEB = Path(__file__).resolve().parents[1] / "web"
 @asynccontextmanager
 async def _vida(_app):
     threading.Thread(target=_precalentar, name="precalentar", daemon=True).start()
+    threading.Thread(target=zonas.reanudar, name="zonas", daemon=True).start()
     yield
     registro.vaciar(5)            # al apagarse (Render duerme): guardar lo que quede en la cola
 
@@ -1001,9 +1002,15 @@ def donde(body: PedidoDonde) -> list[dict | None]:
 
 
 @app.get("/api/lugares")
-def buscar_lugares(q: str, limite: int = 8) -> list[dict]:
-    """Calles, esquinas («Pocuro con Tobalaba») y parques para elegir la salida."""
-    r = lugares.buscar(q, min(max(limite, 1), 20))
+def buscar_lugares(q: str, limite: int = 8, cerca: str | None = None) -> list[dict]:
+    """Calles, esquinas («Pocuro con Tobalaba») y parques para elegir la salida.
+    `cerca` («lat,lon», el centro del mapa): fuera de Chile se busca alrededor."""
+    try:
+        la, lo = (float(x) for x in (cerca or "").split(","))
+        punto = (la, lo) if -90 <= la <= 90 and -180 <= lo <= 180 else None
+    except ValueError:
+        punto = None
+    r = lugares.buscar(q, min(max(limite, 1), 20), cerca=punto)
     # Para ver en el panel cuántas búsquedas fallan, sin guardar el texto (son direcciones de casas).
     _anotar(detalle=" · ".join(filter(None, [
         "con número" if re.search(r"\d", q) else "sin número", f"{len(r)} resultados",
@@ -1029,10 +1036,46 @@ def _fuera_de_mapa(lat: float, lon: float):
     lugar = ciudades.nombrar(lat, lon) or {}
     uso.registrar("fuera_de_mapa", lugar.get("pais"), comuna=lugar.get("barrio") or lugar.get("ciudad") or "?",
                   exito=False)
+    if zonas.activo():
+        raise HTTPException(422, tr("Todavía no hay mapa ahí. Pide una ruta saliendo desde ese punto y "
+                                    "preparamos el mapa de la zona en unos minutos.",
+                                    "There's no map there yet. Ask for a route starting from that point and "
+                                    "we'll prepare the area's map in a few minutes."))
     raise HTTPException(422, tr(f"Todavía no hay mapa ahí. Por ahora PacePath funciona en: {comunas.zonas()}. "
                                 "Cuéntanos tu comuna en «Enviar comentario».",
                                 f"There's no map there yet. For now PacePath works in: {comunas.zonas(True)}. "
                                 "Tell us your area with “Send feedback”."))
+
+
+def _comuna_o_zona(lat: float, lon: float) -> str:
+    """El grafo de la salida. Si no hay, se pide su zona (zonas.py): el
+    teléfono recibe un 409 con `preparando` y espera a que esté."""
+    if (comuna := comunas.comuna_para(lat, lon)) is not None:
+        return comuna
+    z = zonas.pedir(lat, lon)
+    if z["estado"] == "lista":
+        return z["id"]
+    if z["estado"] == "pedida":
+        raise HTTPException(409, {"preparando": z, "mensaje": tr(
+            f"Es la primera vez que alguien corre en {z['nombre']}: estamos preparando su mapa. Tarda unos minutos.",
+            f"This is the first time someone runs in {z['nombre']}: we're preparing its map. It takes a few minutes.")})
+    if z["estado"] == "fallida":
+        raise HTTPException(422, tr("No pudimos preparar el mapa de esa zona: puede que casi no tenga calles en "
+                                    "OpenStreetMap. Prueba saliendo desde un punto cercano.",
+                                    "We couldn't prepare the map for that area: it may have very few streets on "
+                                    "OpenStreetMap. Try starting from a nearby point."))
+    if z["estado"] == "limite":
+        raise HTTPException(429, tr("Hoy ya se prepararon muchas zonas nuevas. Vuelve a intentarlo mañana o "
+                                    "cuéntanos tu zona en «Enviar comentario».",
+                                    "Many new areas were prepared today already. Try again tomorrow or tell us "
+                                    "your area with “Send feedback”."))
+    _fuera_de_mapa(lat, lon)
+
+
+@app.get("/api/zona/{zid}")
+def zona_estado(zid: str) -> dict:
+    """¿Ya está el mapa de la zona que se está preparando? (el teléfono pregunta cada 15 s)"""
+    return zonas.estado(zid)
 
 
 def _plan(body: PedidoRuta) -> dict:
@@ -1043,9 +1086,7 @@ def _plan(body: PedidoRuta) -> dict:
         raise HTTPException(422, str(exc)) from exc
     if body.max_subida_m is not None:
         s = s.model_copy(update={"max_subida_m": body.max_subida_m})
-    comuna = body.comuna or comunas.comuna_para(body.lat, body.lon)
-    if comuna is None:
-        _fuera_de_mapa(body.lat, body.lon)
+    comuna = body.comuna or _comuna_o_zona(body.lat, body.lon)
     cuando = momento.momento_de(body.hora, body.lat, body.lon) if body.segun_hora else None
     detalle = (body.texto, body.forma if body.forma != "auto" else None,
                f"opción {body.opcion + 1}" if body.opcion else None, "sin volver" if not body.volver else None)

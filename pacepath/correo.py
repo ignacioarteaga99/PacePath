@@ -305,6 +305,22 @@ def aviso_registro(correo_: str, nombre: str | None, metodo: str, beta_pendiente
     enviar(para, f"PacePath · cuenta nueva: {correo_}" + (" (beta pendiente)" if beta_pendiente else ""), texto, h)
 
 
+def zona_lista(para: str, nombre: str | None, zona: str, lat: float, lon: float) -> None:
+    """Pidió una ruta donde aún no había mapa: ya está («preparando tu zona»)."""
+    enlace = f"{_base()}/?lat={lat:.5f}&lon={lon:.5f}"
+    texto, h = _correo(tr("Tu zona ya tiene mapa", "Your area is ready"),
+                       [_hola(nombre), tr(f"Terminamos de preparar el mapa de {zona}. Ya puedes armar tus rutas ahí: "
+                                          "la primera vez que alguien corre en una zona nueva hay que construir su mapa, "
+                                          "y desde ahora queda listo para ti y para todos.",
+                                          f"We finished preparing the map for {zona}. You can now plan your routes "
+                                          "there: the first time someone runs in a new area its map has to be built, "
+                                          "and from now on it's ready for you and everyone else.")],
+                       (tr("Armar mi ruta", "Plan my route"), enlace),
+                       motivo=tr("Te llega porque pediste una ruta en esa zona.",
+                                 "You're getting this because you asked for a route in that area."))
+    enviar(para, tr(f"El mapa de {zona} está listo", f"The map for {zona} is ready"), texto, h)
+
+
 def prueba(para: str) -> None:
     """Desde el panel: comprobar que el envío funciona."""
     texto, h = _correo("Prueba de correo", ["Si lees esto, PacePath ya puede mandar correos. 🎉"],

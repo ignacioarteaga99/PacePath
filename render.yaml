@@ -41,6 +41,13 @@ services:
       # Mapa propio de Chile en Cloudflare R2 (lo arma .github/workflows/mapa.yml).
       - key: PACEPATH_MAPA_URL
         value: https://mapas.pacepathapp.com
+      # «Preparando tu zona» (pacepath/zonas.py): token de GitHub «fine-grained»
+      # con Actions: Read and write en RaceEngine y PacePath. Sin él, fuera del
+      # mapa sólo se avisa que no hay mapa.
+      - key: PACEPATH_GITHUB_TOKEN
+        sync: false
+      - key: PACEPATH_RAMA
+        value: fase-0-1-series
       # Clave de mapas de Esri (ArcGIS Location Platform), sólo mapas base.
       - key: ESRI_API_KEY
         sync: false

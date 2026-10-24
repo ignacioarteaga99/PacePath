@@ -148,7 +148,19 @@ def limpiar(texto: str) -> tuple[str, str | None]:
     return calle.strip(), lugar
 
 
-def buscar(texto: str, limite: int = 8) -> list[dict]:
+def _en_chile(lat: float, lon: float) -> bool:
+    return -56.1 <= lat <= -17.4 and -76.0 <= lon <= -66.0
+
+
+def buscar(texto: str, limite: int = 8, cerca: tuple[float, float] | None = None) -> list[dict]:
+    """`cerca`: el centro del mapa. En Chile (o sin él) se busca como siempre,
+    sesgado a las comunas con mapa; fuera, en todo el mundo alrededor de ahí."""
+    if cerca and not _en_chile(*cerca):
+        calle, lugar = limpiar(texto)
+        if len(calle) < 3:
+            return []
+        q = f"{calle}, {lugar}" if lugar else calle
+        return direcciones(q, limite, calle=calle, lugar=lugar, cerca=cerca)
     calle, lugar = limpiar(texto)
     if len(calle) < 3:
         return []
@@ -196,9 +208,15 @@ def _nominatim_http(params: dict) -> list[dict]:
         return json.loads(r.read() or b"[]")
 
 
+def _curadas() -> list[dict]:
+    """Las comunas del catálogo (sin las celdas de la cuadrícula, que pueden estar
+    en cualquier parte del mundo y estirarían la caja de búsqueda)."""
+    return [c for c in comunas.disponibles() if c.get("grupo") != "Zonas"] or comunas.disponibles()
+
+
 def _caja() -> str:
     """viewbox de Nominatim que cubre todas las comunas con grafo."""
-    cs = comunas.disponibles()
+    cs = _curadas()
     k = 111_195.0
     oeste = min(c["lon"] - c["radio_m"] / (k * 0.83) for c in cs)
     este = max(c["lon"] + c["radio_m"] / (k * 0.83) for c in cs)
@@ -216,17 +234,26 @@ def _etiqueta(e: dict) -> str:
     return f"{primero}, {lugar}" if lugar and lugar not in primero else primero
 
 
-def direcciones(q: str, limite: int = 8, calle: str | None = None, lugar: str | None = None) -> list[dict]:
-    clave = normalizar(q)
+def direcciones(q: str, limite: int = 8, calle: str | None = None, lugar: str | None = None,
+                cerca: tuple[float, float] | None = None) -> list[dict]:
+    """Chile primero (sesgado a las comunas con mapa); si nada, el mundo. Con
+    `cerca` fuera de Chile, sólo el mundo, alrededor de ese punto."""
+    mundo = cerca if cerca and not _en_chile(*cerca) else None
+    clave = normalizar(q) + (f"@{round(mundo[0])},{round(mundo[1])}" if mundo else "")
     if clave in _CACHE:
         return _CACHE[clave][:limite]
     out: list[dict] = []
-    intentos = [lambda: _nominatim({"q": q})]
-    if calle and lugar:
-        intentos.append(lambda: _nominatim({"street": calle, "city": lugar}))
-    intentos.append(lambda: _photon(q))
+    intentos = []
+    if not mundo:
+        intentos.append(lambda: _nominatim({"q": q}))
+        if calle and lugar:
+            intentos.append(lambda: _nominatim({"street": calle, "city": lugar}))
+        intentos.append(lambda: _photon(q))
+    intentos += [lambda: _nominatim({"q": q}, mundo=mundo or True), lambda: _photon(q, mundo=mundo or True)]
     hubo_red = False
-    for intento in intentos:
+    for i, intento in enumerate(intentos):
+        if out and i >= len(intentos) - 2 and not mundo:
+            break                                 # en Chile hubo algo (aunque sin mapa): no buscar en el mundo
         try:
             nuevos = intento()
             hubo_red = True
@@ -253,10 +280,16 @@ def _resultado(nombre: str, la: float, lo: float, lugar: str = "") -> dict:
     return r
 
 
-def _nominatim(params: dict) -> list[dict]:
-    datos = _nominatim_http(params | {"format": "jsonv2", "addressdetails": 1, "limit": 8,
-                                      "countrycodes": "cl", "viewbox": _caja(), "bounded": 0,
-                                      "accept-language": "es"})
+def _nominatim(params: dict, mundo: tuple[float, float] | bool | None = None) -> list[dict]:
+    """En Chile, sesgado a las comunas con mapa; con `mundo`, en todas partes
+    (alrededor del punto, si es un punto)."""
+    base = {"format": "jsonv2", "addressdetails": 1, "limit": 8, "accept-language": "es,en"}
+    if not mundo:
+        base |= {"countrycodes": "cl", "viewbox": _caja(), "bounded": 0}
+    elif isinstance(mundo, tuple):
+        la, lo = mundo
+        base |= {"viewbox": f"{lo - 0.5:.4f},{la + 0.5:.4f},{lo + 0.5:.4f},{la - 0.5:.4f}", "bounded": 0}
+    datos = _nominatim_http(params | base)
     out, vistos = [], set()
     for e in datos if isinstance(datos, list) else []:
         nombre = _etiqueta(e)
@@ -272,13 +305,19 @@ def _nominatim(params: dict) -> list[dict]:
 PHOTON = "https://photon.komoot.io/api/"
 
 
-def _photon(q: str) -> list[dict]:
+def _photon(q: str, mundo: tuple[float, float] | bool | None = None) -> list[dict]:
     """Photon (komoot): busca sobre OpenStreetMap tolerando nombres a medias y
-    errores; sesgado a Santiago y limitado a Chile."""
-    cs = comunas.disponibles()
-    la0 = sum(c["lat"] for c in cs) / len(cs)
-    lo0 = sum(c["lon"] for c in cs) / len(cs)
-    params = {"q": q, "limit": 8, "lat": f"{la0:.4f}", "lon": f"{lo0:.4f}", "bbox": "-71.2,-34.0,-70.2,-33.0"}
+    errores; sesgado a Santiago y limitado a Chile, o con `mundo`, en todas
+    partes (cerca del punto, si es un punto)."""
+    if mundo:
+        params = {"q": q, "limit": 8}
+        if isinstance(mundo, tuple):
+            params |= {"lat": f"{mundo[0]:.4f}", "lon": f"{mundo[1]:.4f}"}
+    else:
+        cs = _curadas()
+        la0 = sum(c["lat"] for c in cs) / len(cs)
+        lo0 = sum(c["lon"] for c in cs) / len(cs)
+        params = {"q": q, "limit": 8, "lat": f"{la0:.4f}", "lon": f"{lo0:.4f}", "bbox": "-71.2,-34.0,-70.2,-33.0"}
     req = urllib.request.Request(PHOTON + "?" + urllib.parse.urlencode(params),
                                  headers={"User-Agent": "PacePath/0.1 (https://pacepathapp.com)"})
     from . import uso
@@ -288,7 +327,7 @@ def _photon(q: str) -> list[dict]:
     out, vistos = [], set()
     for f in datos.get("features", []):
         p = f.get("properties") or {}
-        if p.get("countrycode", "CL").upper() != "CL":
+        if not mundo and p.get("countrycode", "CL").upper() != "CL":
             continue
         lo, la = f["geometry"]["coordinates"][:2]
         via = p.get("street") or p.get("name") or ""

@@ -181,6 +181,9 @@
   #sync .progreso i { display: block; height: 100%; border-radius: 3px; background: var(--acento); transition: width .4s; }
   #sync .progreso.indef i { animation: indef 1.3s ease-in-out infinite; }
   @keyframes indef { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  .esperando-zona .progreso { display: block; height: 6px; border-radius: 3px; background: var(--gris); overflow: hidden; margin: 8px 0; }
+  .esperando-zona .progreso i { display: block; height: 100%; border-radius: 3px; background: var(--acento); transition: width .4s; }
+  .esperando-zona p { margin: 0 0 4px; }
   @media (prefers-reduced-motion: reduce) { #sync .progreso.indef i { animation: none; width: 100% !important; opacity: .4; } }
   .sync-fila { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
   .sync-fila .pista { flex: 1; font-size: 13px; margin: 0; }
@@ -731,7 +734,6 @@ const EN = {
   "Opciones": "Options", "Vuelve a la salida": "Back to start", "Hasta la meta": "To the finish",
   "Sin volver": "One way",
   "aún sin mapa en esa zona": "no map there yet", "la calle: toca el mapa en tu puerta": "the street: tap your door on the map",
-  "«{n}» queda fuera de las comunas con mapa por ahora. Cuéntanos tu comuna en «Enviar comentario».": "\"{n}\" is outside the areas with a map for now. Tell us your area with \"Send feedback\".",
   "Sin resultados: prueba «Pocuro 2500, Providencia», «Pocuro con Tobalaba» o toca el mapa en tu puerta": "No results: try \"Pocuro 2500, Providencia\", \"Pocuro con Tobalaba\" or tap your door on the map",
   "Según la hora": "By time of day", "A cualquier hora": "Any time of day",
   "De noche evita lo oscuro, con calor busca parques y en hora punta evita avenidas": "At night it avoids dark paths, in the heat it looks for parks and at rush hour it avoids avenues",
@@ -927,6 +929,16 @@ const EN = {
   "{p}: conecta tu Strava.": "{p}: connect your Strava.",
   "Perfil · {lo}–{hi} m s. n. m.": "Profile · {lo}–{hi} m above sea level",
   "Cambiar idioma": "Change language", "Borrar {x}": "Delete {x}",
+  "aún sin mapa: lo preparamos al crear la ruta": "no map yet: we'll prepare it when you create the route",
+  "Todavía no hay mapa en esa zona: al crear la ruta lo preparamos (tarda unos minutos la primera vez).":
+    "There's no map in that area yet: we'll prepare it when you create the route (it takes a few minutes the first time).",
+  "Preparando el mapa de {z}": "Preparing the map for {z}",
+  "Si cierras la app, te avisamos por correo.": "If you close the app, we'll email you.",
+  "Deja esta pantalla abierta: la ruta aparece sola.": "Keep this screen open: the route will appear on its own.",
+  "Dejar de esperar": "Stop waiting",
+  "Seguimos preparando el mapa. Vuelve a crear la ruta en unos minutos.": "We're still preparing the map. Create the route again in a few minutes.",
+  "No pudimos preparar el mapa de esa zona: puede que casi no tenga calles en OpenStreetMap. Prueba saliendo desde un punto cercano.":
+    "We couldn't prepare the map for that area: it may have very few streets on OpenStreetMap. Try starting from a nearby point.",
 };
 const DIAS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MESES_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -1350,7 +1362,10 @@ $("cerca").onclick = () => {
 // Buscador de lugares para un campo (salida o meta).
 // Con número («Pocuro 2500») responde el geocodificador, que pide calma: se
 // espera a que se deje de escribir. Enter elige la primera sugerencia.
-const buscarLugares = (q) => fetch("/api/lugares?q=" + encodeURIComponent(q)).then((x) => x.json()).catch(() => []);
+// Con el centro del mapa: fuera de Chile se busca alrededor de donde se está mirando.
+const buscarLugares = (q) => { const c = mapa.getCenter();
+  return fetch(`/api/lugares?q=${encodeURIComponent(q)}&cerca=${c.lat.toFixed(4)},${c.lng.toFixed(4)}`)
+    .then((x) => x.json()).catch(() => []); };
 function conectarBusqueda(campo, lista, alElegir) {
   let busqueda = 0, ultimos = [];
   $(campo).addEventListener("keydown", (e) => {
@@ -1369,15 +1384,15 @@ function conectarBusqueda(campo, lista, alElegir) {
       ultimos = r;
       $(lista).innerHTML = r.length
         ? r.map((l, i) => `<button type="button" data-i="${i}"${l.fuera ? ' class="fuera"' : ""}>${esc(l.nombre)}<small>${
-            l.fuera ? t("aún sin mapa en esa zona") : esc((l.comuna || "").replace("_", " ").replace(/\b[a-z]/g, (c) => c.toUpperCase()))
+            l.fuera ? t("aún sin mapa: lo preparamos al crear la ruta") : esc((l.comuna || "").replace("_", " ").replace(/\b[a-z]/g, (c) => c.toUpperCase()))
             + (/\d/.test(q) && l.tipo !== "direccion" ? " · " + t("la calle: toca el mapa en tu puerta") : "")}</small></button>`).join("")
         : `<button type="button" disabled>${t("Sin resultados: prueba «Pocuro 2500, Providencia», «Pocuro con Tobalaba» o toca el mapa en tu puerta")}</button>`;
       $(lista).style.display = "block";
       for (const b of $(lista).querySelectorAll("button[data-i]")) {
         b.onclick = () => {
           const l = r[+b.dataset.i]; $(lista).style.display = "none";
-          if (l.fuera) { mapa.setView([l.lat, l.lon], 15); hoja(`<p class="aviso">${t("«{n}» queda fuera de las comunas con mapa por ahora. Cuéntanos tu comuna en «Enviar comentario».", { n: esc(l.nombre) })}</p>`); return; }
           alElegir(l);
+          if (l.fuera) hoja(`<p class="pista">${t("Todavía no hay mapa en esa zona: al crear la ruta lo preparamos (tarda unos minutos la primera vez).")}</p>`);
         };
       }
     }, /\d/.test(q) ? 600 : 250);
@@ -2041,6 +2056,7 @@ $("form").onsubmit = async (e) => {
     fijarSalida(r[0].lat, r[0].lon, r[0].nombre, true);
   }
   if (!salida) return hoja(`<p class="aviso">${t("Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.")}</p>`);
+  esperaZona++;                                // otra ruta: deja de esperar la zona anterior
   $("armar").disabled = true;
   // «Cancelar»: corta la conexión y avisa al servidor (detrás del proxy el
   // corte no siempre le llega), que deja de calcular y atiende al siguiente.
@@ -2062,6 +2078,7 @@ $("form").onsubmit = async (e) => {
                                          headers: { "Content-Type": "application/json", "X-Pedido": idPedido },
                                          body: JSON.stringify(p) });
     const j = await r.json();
+    if (r.status === 409 && j.detail?.preparando) return esperarZona(j.detail);
     if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : t("No pude armar la ruta."));
     opcionPedida = j.opcion?.actual || 0;
     ultimaEntrada = entradaDe(p, j);
@@ -2074,6 +2091,47 @@ $("form").onsubmit = async (e) => {
   } finally { $("armar").disabled = false; }
 };
 revisarTipo();
+
+// ── «Preparando tu zona» ────────────────────────────────────────────────────
+// Donde todavía no hay mapa, el servidor lo manda a construir (unos minutos)
+// y responde 409 con `preparando`. Aquí se espera preguntando cada 15 s y,
+// cuando está, se vuelve a pedir la ruta sola. Si se cierra la app, quien
+// tiene cuenta recibe un correo con un enlace que vuelve a esta salida.
+let esperaZona = 0;
+function esperarZona(d) {
+  const yo = ++esperaZona;
+  const pintar = (z) => {
+    const pct = Math.min(95, Math.round(100 * z.lleva_s / Math.max(z.espera_s, 1)));
+    hoja(`<div class="esperando-zona"><p><b>${t("Preparando el mapa de {z}", { z: esc(z.nombre) })}</b></p>
+      <p class="pista">${esc(d.mensaje)} ${miCuenta ? t("Si cierras la app, te avisamos por correo.") : t("Deja esta pantalla abierta: la ruta aparece sola.")}</p>
+      <span class="progreso" role="progressbar" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span>
+      <button type="button" class="sec chico" id="dejarZona">${t("Dejar de esperar")}</button></div>`);
+    $("dejarZona").onclick = () => {
+      esperaZona++;
+      hoja(`<p class="aviso">${t("Seguimos preparando el mapa. Vuelve a crear la ruta en unos minutos.")}</p>`);
+    };
+  };
+  pintar(d.preparando);
+  const mirar = async () => {
+    if (yo !== esperaZona) return;
+    const e = await fetch(`/api/zona/${encodeURIComponent(d.preparando.id)}`).then((r) => r.json()).catch(() => null);
+    if (yo !== esperaZona) return;
+    if (e?.estado === "lista") { listaComunas = null; $("form").requestSubmit(); return; }
+    if (e?.estado === "fallida") return hoja(`<p class="aviso">${t("No pudimos preparar el mapa de esa zona: puede que casi no tenga calles en OpenStreetMap. Prueba saliendo desde un punto cercano.")}</p>`);
+    if (e?.estado === "pedida") pintar(e);
+    setTimeout(mirar, 15000);
+  };
+  setTimeout(mirar, 15000);
+}
+
+// Enlace del correo «tu zona está lista» (/?lat=…&lon=…): esa salida, ya puesta.
+setTimeout(() => {                             // cuando ya terminó de cargar el resto de la página
+  const q = new URLSearchParams(location.search), la = parseFloat(q.get("lat")), lo = parseFloat(q.get("lon"));
+  if (Math.abs(la) <= 90 && Math.abs(lo) <= 180) {
+    fijarSalida(la, lo, t("Punto en el mapa"), true);
+    history.replaceState(null, "", location.pathname);
+  }
+}, 0);
 
 // ── Preferencias: tramos favoritos y calles de siempre ──────────────────────
 // Todo vive en este teléfono. Los favoritos son rutas trazadas a mano; las

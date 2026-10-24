@@ -24,7 +24,7 @@ def test_metricas_protegidas_y_anonimas(monkeypatch):
 
 def test_fuera_del_mapa_dice_donde_hay_y_cuenta_la_comuna(monkeypatch):
     antes = sum(n for k, n in uso._CUENTA.items() if k[1] == "fuera_de_mapa")
-    r = cli.post("/api/ruta", json={"lat": -33.02, "lon": -71.55, "texto": "6x1k"})   # Viña del Mar
+    r = cli.post("/api/ruta", json={"lat": -29.905, "lon": -71.25, "texto": "6x1k"})   # La Serena
     assert r.status_code == 422 and "Todavía no hay mapa ahí" in r.json()["detail"]
     claves = [k for k in uso._CUENTA if k[1] == "fuera_de_mapa"]
     assert sum(uso._CUENTA[k] for k in claves) == antes + 1

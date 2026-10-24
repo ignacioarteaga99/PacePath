@@ -53,10 +53,10 @@ def test_cada_consulta_queda_registrada_con_usuario_anonimo(admin):
 
 def test_errores_quedan_con_su_mensaje(admin):
     cli = TestClient(app)
-    cli.post("/api/ruta", json={"lat": -33.02, "lon": -71.55, "texto": "6x1k"})      # Viña del Mar
+    cli.post("/api/ruta", json={"lat": -29.905, "lon": -71.25, "texto": "6x1k"})      # La Serena
     f = admin(usuario=cli.cookies.get("pp_u"), consulta="ruta")[0]
     assert f["exito"] == 0 and f["estado"] == 422 and f["evento"] == "fuera_de_mapa"
-    assert "Todavía no hay mapa" in f["error"] and f["comuna"] == "Viña del Mar"
+    assert "Todavía no hay mapa" in f["error"] and f["comuna"] == "La Serena"
 
     cli.post("/api/ruta", json={"lat": 999, "lon": 0, "texto": "6x1k"})
     f = admin(usuario=cli.cookies.get("pp_u"), consulta="ruta", estado=422, evento="ruta")[0]

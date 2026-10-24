@@ -8,7 +8,7 @@ dependencies = [
   # Motor de rutas y grafos de comunas. Se usa como dependencia, no se copia:
   # los cambios al motor van a RaceEngine. Fijado a un commit para que una
   # actualización del motor no cambie las rutas sin que lo sepamos.
-  "raceengine @ git+https://github.com/ignacioarteaga99/RaceEngine@a271967b0a9cd1df19060136e67ad16a707f5619",
+  "raceengine @ git+https://github.com/ignacioarteaga99/RaceEngine@cb61086f5d1a92b732d076429bcbae16cf67624a",
   "numpy>=1.26",
   "scipy>=1.11",          # Dijkstra en C para los fondos de ida y vuelta
   "cryptography>=42",     # cookie cifrada con el acceso a Strava

@@ -27,14 +27,18 @@ def disponibles() -> list[dict]:
 def zonas(en: bool = False) -> str:
     """Dónde hay mapa, en una frase corta: los grafos de Santiago son ya 16 y
     nombrarlos todos no le dice nada a nadie; se resumen en «el Gran Santiago»."""
-    nombres, santiago = [], False
+    nombres, santiago, celdas = [], False, 0
     for c in disponibles():
         if c.get("grupo") == "Santiago":
             santiago = True
+        elif c.get("grupo") == "Zonas":                 # celdas de la cuadrícula: sólo se cuentan
+            celdas += 1
         else:
             nombres.append(c["nombre"])
     if santiago:
         nombres.insert(0, "Greater Santiago" if en else "el Gran Santiago")
+    if celdas:
+        nombres.append(f"{celdas} more areas" if en else f"{celdas} zonas más")
     return ", ".join(nombres)
 
 

@@ -6,6 +6,8 @@ import pytest
 os.environ.setdefault("PACEPATH_NOMBRES_URL", "")
 # Sin cuenta obligatoria (las cuentas y la beta se prueban en test_acceso.py).
 os.environ.setdefault("PACEPATH_ACCESO_LIBRE", "1")
+# Nunca lanzar construcciones de verdad en GitHub (test_zonas.py lo simula).
+os.environ.pop("PACEPATH_GITHUB_TOKEN", None)
 
 import pacepath  # noqa: E402,F401 — fija las variables de entorno de RaceEngine
 
