@@ -1,0 +1,65 @@
+name: Espejo de datos en R2
+# Copia a Cloudflare R2 los grafos de las comunas (Release «graphs» de
+# RaceEngine) y los nombres de calle (Release «nombres» de PacePath). El
+# servidor los baja de R2 (RACEENGINE_GRAPHS_URL y PACEPATH_NOMBRES_URL en
+# https://mapas.pacepathapp.com), así los dos repositorios pueden ser privados.
+# Con RaceEngine privado hace falta el secreto RACEENGINE_TOKEN: un token de
+# GitHub (fine-grained) con permiso de sólo lectura de «Contents» en RaceEngine.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 7 * * *"            # todos los días: grafos nuevos de RaceEngine
+  workflow_run:
+    workflows: ["Nombres de calle"]
+    types: [completed]
+  push:
+    paths: [".github/workflows/espejo-r2.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: espejo-r2
+  cancel-in-progress: false
+
+jobs:
+  espejo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      BUCKET: ${{ secrets.R2_BUCKET }}
+      GH_TOKEN: ${{ github.token }}
+      RACEENGINE_TOKEN: ${{ secrets.RACEENGINE_TOKEN }}
+    steps:
+      - name: Revisar los secretos
+        run: |
+          [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ] && [ -n "$BUCKET" ] && [ "$R2" != "https://.r2.cloudflarestorage.com" ] \
+            || { echo "::error::Faltan los secretos R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY o R2_BUCKET"; exit 1; }
+
+      - name: Grafos de RaceEngine → R2 (graphs/)
+        run: |
+          mkdir -p graphs
+          GH_TOKEN="${RACEENGINE_TOKEN:-$GH_TOKEN}" gh release download graphs -R ignacioarteaga99/RaceEngine -D graphs --clobber \
+            || { echo "::error::No pude bajar la Release «graphs» de RaceEngine (¿privado sin el secreto RACEENGINE_TOKEN?)"; exit 1; }
+          ls -la graphs
+          # Primero los grafos y al final el manifiesto: el servidor nunca ve un
+          # manifiesto que apunte a un archivo que aún no subió.
+          for f in graphs/*; do [ "$(basename "$f")" = manifest.json ] && continue
+            aws s3 cp "$f" "s3://$BUCKET/graphs/$(basename "$f")" --endpoint-url "$R2" --only-show-errors; done
+          aws s3 cp graphs/manifest.json "s3://$BUCKET/graphs/manifest.json" --endpoint-url "$R2" \
+            --content-type application/json --cache-control "max-age=300" --only-show-errors
+          echo "Grafos: $(ls graphs | wc -l) archivos" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Nombres de calle → R2 (nombres/)
+        run: |
+          mkdir -p nombres
+          gh release download nombres -R "$GITHUB_REPOSITORY" -D nombres --clobber \
+            || { echo "::error::No pude bajar la Release «nombres» de PacePath"; exit 1; }
+          aws s3 cp nombres "s3://$BUCKET/nombres" --recursive --endpoint-url "$R2" --only-show-errors
+          echo "Nombres: $(ls nombres | wc -l) archivos" >> "$GITHUB_STEP_SUMMARY"
