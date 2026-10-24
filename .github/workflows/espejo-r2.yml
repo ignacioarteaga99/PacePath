@@ -66,6 +66,12 @@ jobs:
 
       - name: Comprobar que el servidor puede bajarlos (como lo hace, con Python)
         run: |
+          U=https://mapas.pacepathapp.com/graphs/manifest.json
+          for ua in "Python-urllib/3.12" "PacePath/0.1 (https://pacepathapp.com)" "curl/8"; do
+            printf '%-40s ' "$ua"; curl -s -o /dev/null -w '%{http_code}\n' -A "$ua" "$U"; done
+          printf '%-40s ' "con Referer pacepathapp.com"; curl -s -o /dev/null -w '%{http_code}\n' -e https://pacepathapp.com/ "$U"
+          printf '%-40s ' "mapa (chile.pmtiles, HEAD)"; curl -sI -o /dev/null -w '%{http_code}\n' https://mapas.pacepathapp.com/chile.pmtiles
+          curl -s -A "Python-urllib/3.12" "$U" | head -c 300; echo
           python3 - <<'EOF'
           import json, urllib.request
           base = "https://mapas.pacepathapp.com"
