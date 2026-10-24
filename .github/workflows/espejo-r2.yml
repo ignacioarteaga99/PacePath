@@ -74,8 +74,8 @@ jobs:
           urllib.request.install_opener(o)
           base = "https://mapas.pacepathapp.com"
           m = json.load(urllib.request.urlopen(f"{base}/graphs/manifest.json", timeout=20))
-          region = next(iter(k for k, v in m.items() if isinstance(v, dict) and "lat" in v))
+          region = m["regions"][0]["id"]
           r = urllib.request.urlopen(urllib.request.Request(f"{base}/graphs/{region}.pkl.gz", method="HEAD"), timeout=20)
           n = urllib.request.urlopen(urllib.request.Request(f"{base}/nombres/{region}.nombres.json.gz", method="HEAD"), timeout=20)
-          print(f"ok: manifiesto con {len(m)} comunas · {region}.pkl.gz {r.headers.get('Content-Length')} bytes · nombres {n.status}")
+          print(f"ok: manifiesto con {len(m['regions'])} comunas · {region}.pkl.gz {r.headers.get('Content-Length')} bytes · nombres {n.status}")
           EOF
