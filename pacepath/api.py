@@ -61,7 +61,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import acceso, cancelar, ciudades, comunas, correo, cuentas, entreno, momento, oauth, frecuencia, idioma, lugares, nombres, recientes, registro, rendimiento, strava, uso, zonas
+from . import acceso, cancelar, ciudades, coach, comunas, correo, cuentas, entreno, momento, oauth, frecuencia, idioma, lugares, nombres, recientes, registro, rendimiento, strava, uso, zonas
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -349,7 +349,7 @@ async def _strava_en_cuenta(request: Request, call_next):
 
 
 # Preferencias que viajan con la cuenta (lo del teléfono que no es de Strava).
-DATOS_CUENTA = {"pp_entreno_ajustes", "pp_fase", "pp_segun_hora", "pp_forma", "pp_radio", "pp_favoritos",
+DATOS_CUENTA = {"pp_coach", "pp_entreno_ajustes", "pp_fase", "pp_segun_hora", "pp_forma", "pp_radio", "pp_favoritos",
                 "pp_guardadas", "pp_recientes", "pp_usar_frec", "pp_lang", "pp_unidad", "pp_noche", "pp_logros_vistos",
                 "pp_pasaporte_abierto"}
 
@@ -1452,18 +1452,36 @@ class Ajustes(BaseModel):
     fase: Literal["basica", "especifica", "competencia"] = "basica"
 
 
+class PerfilCoach(BaseModel):
+    """El objetivo del Coach (pp_coach en el teléfono y en la cuenta)."""
+    objetivo: Literal["5k", "10k", "21k", "42k", "forma"]
+    fecha: date | None = None           # de la carrera (no en «forma»)
+    dias: int = Field(default=4, ge=3, le=6)
+    dia_largo: int = Field(default=6, ge=0, le=6)       # 0 = lunes
+    inicio: date | None = None          # desde cuándo vale el plan
+
+
 class PedidoRevision(BaseModel):
     ajustes: Ajustes
     carreras: list[dict] = Field(default_factory=list, max_length=600)
     hoy: date | None = None
+    coach: PerfilCoach | None = None
 
 
 @app.post("/api/entreno/revision")
 def entreno_revision(body: PedidoRevision) -> dict:
     """Zonas y revisión de los últimos 3 meses con las carreras que manda el
     teléfono (de Strava, guardadas allá). No se guarda nada."""
-    _anotar(tipo=body.ajustes.fase, detalle=f"{len(body.carreras)} carreras")
-    return entreno.revision(body.carreras, body.ajustes.model_dump(), hoy=body.hoy)
+    _anotar(tipo=body.ajustes.fase, detalle=f"{len(body.carreras)} carreras" + (f" · coach {body.coach.objetivo}" if body.coach else ""))
+    ajustes = body.ajustes.model_dump()
+    plan = coach.plan(body.coach.model_dump(mode="json"), body.carreras, ajustes, hoy=body.hoy) if body.coach else None
+    # Con el Coach activo, la fase la pone él (la de la semana en curso).
+    if plan and (plan.get("semana") or {}).get("fase"):
+        ajustes["fase"] = plan["semana"]["fase"]
+    out = entreno.revision(body.carreras, ajustes, hoy=body.hoy)
+    if plan:
+        out["coach"] = plan
+    return out
 
 
 @app.get("/api/strava/foto")
