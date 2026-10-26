@@ -32,7 +32,7 @@ from __future__ import annotations
 import math
 from datetime import date, datetime, timedelta
 
-from . import entreno
+from . import entreno, prediccion
 from .entreno import PESO_CARGA, segundos_por_zona, tipo_sesion, zonas
 from .idioma import en, tr
 
@@ -256,6 +256,15 @@ def _ritmo_zona(z: dict, i: int) -> str | None:
     return f"< {_ritmo(lento)}" if lento else f"> {_ritmo(rapido)}"
 
 
+def _ritmo_objetivo(perfil: dict, z: dict, dist: str) -> str | None:
+    """El ritmo de carrera: el del tiempo objetivo si se puso (y es esa
+    distancia); si no, el que sale de tus zonas."""
+    meta = perfil.get("tiempo_objetivo_s")
+    if meta and dist == perfil.get("objetivo") and dist in entreno.DISTANCIAS:
+        return _ritmo(meta / (entreno.DISTANCIAS[dist] / 1000))
+    return _ritmo_carrera(z, dist)
+
+
 def _ritmo_carrera(z: dict, dist: str) -> str | None:
     p = (z.get("predicciones") or {}).get(dist)
     return _ritmo(p / (entreno.DISTANCIAS[dist] / 1000)) if p else None
@@ -321,11 +330,11 @@ def _ritmo_sesion(perfil: dict, z: dict, s: dict) -> str | None:
             return f"{_ritmo(rz[1][0])}–{_ritmo(rz[1][0] * 1.12)}"
         return None
     if s["tipo"] == "intensa" and s["zona"] == 4:
-        return _ritmo_carrera(z, "5k") or _ritmo_zona(z, 4)
+        return _ritmo_objetivo(perfil, z, "5k") or _ritmo_zona(z, 4)
     if s["tipo"] == "intensa" and obj == "10k":
-        return _ritmo_carrera(z, "10k") or _ritmo_zona(z, 3)
+        return _ritmo_objetivo(perfil, z, "10k") or _ritmo_zona(z, 3)
     if s["tipo"] == "umbral" and s.get("objetivo_ritmo") in ("21k", "42k"):
-        return _ritmo_carrera(z, s["objetivo_ritmo"]) or _ritmo_zona(z, 2)
+        return _ritmo_objetivo(perfil, z, s["objetivo_ritmo"]) or _ritmo_zona(z, 2)
     return _ritmo_zona(z, s["zona"])
 
 
@@ -439,7 +448,7 @@ def plan_semana(perfil: dict, sem: dict, z: dict, km: float, fondo_prev: float, 
                                "Start controlled and pick it up in the second half. Enjoy it!",
                                "Comece controlado e acelere na segunda metade. Aproveite!")})
     for s in out:
-        s["ritmo"] = _ritmo_sesion(perfil, z, s) if s["tipo"] != "carrera" else _ritmo_carrera(z, obj if obj != "forma" else "10k")
+        s["ritmo"] = _ritmo_sesion(perfil, z, s) if s["tipo"] != "carrera" else _ritmo_objetivo(perfil, z, obj if obj != "forma" else "10k")
         trabajo = s.get("trabajo_km", 0)
         minutos = (s["km"] - trabajo) * _min_por_km(z, 1) + trabajo * _min_por_km(z, min(s["zona"], 4))
         s["minutos"] = round(minutos)
@@ -604,8 +613,12 @@ def plan(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date | None = N
     de_hoy = [s for s in (actual or {}).get("sesiones", []) if s["fecha"] == hoy.isoformat() and s["tipo"] != "extra"]
     hoy_s = de_hoy[0] if de_hoy else None
     i_act = next((i for i, w in enumerate(out) if w["lunes"] == lunes_hoy.isoformat()), len(out) - 1)
+    ult3 = [w for w in out[max(0, i_act - 3):i_act] if w.get("pedidas")]
+    cumplimiento = (sum(w["cumplidas"] for w in ult3) / sum(w["pedidas"] for w in ult3)) if ult3 else None
+    pred = prediccion.prediccion(perfil, carreras, ajustes, hoy, [{k: v for k, v in w.items() if k != "sesiones"} for w in out],
+                                 cumplimiento)
     return {"perfil": perfil, "objetivo": tr(*NOMBRE_OBJ[obj]), "carga": carga, "hoy": hoy_s,
-            "hoy_2": de_hoy[1] if len(de_hoy) > 1 else None,
+            "hoy_2": de_hoy[1] if len(de_hoy) > 1 else None, "prediccion": pred,
             "semana": actual, "mensajes": mensajes,
             "semanas": [{k: v for k, v in w.items() if k != "sesiones"} for w in out[max(0, i_act - 3):i_act + 6]],
             "faltan_semanas": actual["faltan"] if obj != "forma" and actual else None,

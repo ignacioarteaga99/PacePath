@@ -3545,6 +3545,24 @@ Object.assign(EN, {
   "Sáb": "Sat",
   "Dom": "Sun",
   "Guardar": "Save",
+  "Tiempo objetivo (opcional)": "Goal time (optional)",
+  "ej. 3:30:00 o 45:00": "e.g. 3:30:00 or 45:00",
+  "Con él, las sesiones a ritmo de carrera usan tu ritmo objetivo y el Coach te dice si vas en camino.": "With it, race-pace sessions use your goal pace and the Coach tells you if you're on track.",
+  "Revisa el tiempo objetivo: por ejemplo 3:30:00 o 45:00.": "Check the goal time: for example 3:30:00 or 45:00.",
+  "Ese tiempo objetivo no parece posible para la distancia.": "That goal time doesn't look possible for the distance.",
+  "En camino": "On track",
+  "Puedes apuntar más alto": "You can aim higher",
+  "Exigente": "Demanding",
+  "Muy exigente": "Very demanding",
+  "Cómo ha cambiado tu predicción": "How your prediction has changed",
+  "Tu predicción de hoy, semana a semana": "Your current prediction, week by week",
+  "línea punteada: tu objetivo": "dashed line: your goal",
+  "Predicción · {d}": "Prediction · {d}",
+  "Hoy podrías correr": "Today you could run",
+  "El {f}, si sigues el plan": "On {f}, if you follow the plan",
+  "Objetivo {t} ({r})": "Goal {t} ({r})",
+  "Basado en {d}.": "Based on {d}.",
+  "Es un rango: no sabe el clima, el recorrido ni cómo dosificarás.": "It's a range: it doesn't know the weather, the course or how you'll pace it.",
   "Dobles jornadas por semana": "Double days per week",
   "Días con dos salidas: la del día y otra suave y corta. Para volúmenes altos.": "Days with two runs: the day's session plus a short easy one. For high volume.",
   "2.ª salida": "2nd run", "rodaje suave de {k}": "easy run of {k}",
@@ -3604,6 +3622,24 @@ Object.assign(PT, {
   "Sáb": "Sáb",
   "Dom": "Dom",
   "Guardar": "Salvar",
+  "Tiempo objetivo (opcional)": "Tempo objetivo (opcional)",
+  "ej. 3:30:00 o 45:00": "ex.: 3:30:00 ou 45:00",
+  "Con él, las sesiones a ritmo de carrera usan tu ritmo objetivo y el Coach te dice si vas en camino.": "Com ele, as sessões no ritmo da prova usam seu ritmo objetivo e o Coach diz se você está no caminho.",
+  "Revisa el tiempo objetivo: por ejemplo 3:30:00 o 45:00.": "Confira o tempo objetivo: por exemplo 3:30:00 ou 45:00.",
+  "Ese tiempo objetivo no parece posible para la distancia.": "Esse tempo objetivo não parece possível para a distância.",
+  "En camino": "No caminho",
+  "Puedes apuntar más alto": "Dá para mirar mais alto",
+  "Exigente": "Exigente",
+  "Muy exigente": "Muito exigente",
+  "Cómo ha cambiado tu predicción": "Como sua previsão mudou",
+  "Tu predicción de hoy, semana a semana": "Sua previsão de hoje, semana a semana",
+  "línea punteada: tu objetivo": "linha tracejada: seu objetivo",
+  "Predicción · {d}": "Previsão · {d}",
+  "Hoy podrías correr": "Hoje você poderia correr",
+  "El {f}, si sigues el plan": "Em {f}, seguindo o plano",
+  "Objetivo {t} ({r})": "Objetivo {t} ({r})",
+  "Basado en {d}.": "Com base em {d}.",
+  "Es un rango: no sabe el clima, el recorrido ni cómo dosificarás.": "É uma faixa: não sabe o clima, o percurso nem como você vai dosar.",
   "Dobles jornadas por semana": "Dobras por semana",
   "Días con dos salidas: la del día y otra suave y corta. Para volúmenes altos.": "Dias com duas saídas: a do dia e outra leve e curta. Para volumes altos.",
   "2.ª salida": "2.ª saída", "rodaje suave de {k}": "rodagem leve de {k}",
@@ -3626,6 +3662,8 @@ function formCoach(p) {
     <label>${t("Tu objetivo")}<div class="fases">${OBJ_COACH.map(([k, et]) =>
       `<button type="button" class="chip${p?.objetivo === k ? " on" : ""}" data-obj="${k}">${t(et)}</button>`).join("")}</div></label>
     <label id="campoFechaCoach"${p?.objetivo === "forma" ? " hidden" : ""}>${t("Fecha de la carrera")}<input type="date" id="fechaCoach" min="${hoy}" value="${esc(p?.fecha || "")}"></label>
+    <label id="campoMetaCoach"${p?.objetivo === "forma" ? " hidden" : ""}>${t("Tiempo objetivo (opcional)")}<input id="metaCoach" inputmode="text" placeholder="${t("ej. 3:30:00 o 45:00")}" value="${esc(p?.tiempo_objetivo_s ? hms(p.tiempo_objetivo_s) : "")}">
+      <small style="font-weight:400">${t("Con él, las sesiones a ritmo de carrera usan tu ritmo objetivo y el Coach te dice si vas en camino.")}</small></label>
     <label>${t("Días para correr por semana")}<div class="fases">${[3, 4, 5, 6, 7].map((d) =>
       `<button type="button" class="chip${(p?.dias || 4) === d ? " on" : ""}" data-dias="${d}">${d}</button>`).join("")}</div></label>
     <label>${t("Dobles jornadas por semana")}<div class="fases">${[0, 1, 2, 3, 4].map((d) =>
@@ -3649,6 +3687,31 @@ function graficoCarga(serie) {
     <path d="${linea("fatiga")}" fill="none" stroke="var(--tinta)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
     <div class="leyenda-zonas"><span><i style="background:var(--acento)"></i>${t("Condición (6 sem.)")}</span>
       <span><i style="background:var(--tinta)"></i>${t("Fatiga (7 días)")}</span><span><i style="background:#f6c3ad"></i>${t("Esfuerzo del día")}</span></div>`;
+}
+// Predictor: el tiempo probable, hoy y el día de la carrera, como rango.
+function bloquePrediccion(pr) {
+  if (!pr) return "";
+  // Sobre una hora, sin segundos (el de abajo hacia abajo y el de arriba hacia arriba): cabe y es lo honesto.
+  const hm = (s, arriba) => { const m = (arriba ? Math.ceil : Math.floor)(s / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
+  const rango = (r) => r[1] >= 3600 ? `${hm(r[0])}–${hm(r[1], true)}` : `${hms(r[0])}–${hms(r[1])}`;
+  const o = pr.objetivo, ESTADO = { en_camino: ["verde", "En camino"], conservador: ["azul", "Puedes apuntar más alto"],
+    exigente: ["ambar", "Exigente"], muy_exigente: ["rojo", "Muy exigente"] };
+  const h = pr.historia || [], W = Math.max(240, $("hoja").clientWidth - 70), H = 46;
+  const ts = h.map((x) => x.t), lo = Math.min(...ts, o?.t ?? Infinity), hi = Math.max(...ts, o?.t ?? -Infinity), span = Math.max(hi - lo, 60);
+  const x = (i) => h.length > 1 ? i / (h.length - 1) * W : W / 2, y = (t) => 6 + (t - lo) / span * (H - 12);   // más rápido = más arriba
+  const linea = h.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.t).toFixed(1)}`).join("");
+  const graf = h.length > 1 && Math.max(...ts) - Math.min(...ts) >= 30 ? `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${t("Cómo ha cambiado tu predicción")}">
+      ${o ? `<line x1="0" x2="${W}" y1="${y(o.t)}" y2="${y(o.t)}" stroke="var(--suave)" stroke-dasharray="3 3"/>` : ""}
+      <path d="${linea}" fill="none" stroke="var(--acento)" stroke-width="2"/>
+      <circle cx="${x(h.length - 1)}" cy="${y(h[h.length - 1].t)}" r="3.5" fill="var(--acento)"/></svg>
+      <p class="nota-kpi">${t("Tu predicción de hoy, semana a semana")}${o ? " · " + t("línea punteada: tu objetivo") : ""}</p>` : "";
+  return `<div class="bloque"><h3>${t("Predicción · {d}", { d: { "5k": "5K", "10k": "10K", "21k": "21K", "42k": t("maratón") }[pr.distancia] })}</h3>
+    <div class="kpis umbrales"><div class="kpi"><span>${t("Hoy podrías correr")}</span><b>${rango(pr.hoy)}</b></div>
+      <div class="kpi"><span>${t("El {f}, si sigues el plan", { f: fechaCorta(new Date(pr.fecha + "T12:00")) })}</span><b>${rango(pr.dia)}</b></div></div>
+    ${o ? `<div class="semaforo"><span class="luz ${ESTADO[o.estado][0]}">${t(ESTADO[o.estado][1])}</span><p>${t("Objetivo {t} ({r})", { t: hms(o.t), r: ritmoCoach(hms(o.ritmo_s)) })} · ${esc(o.texto)}</p></div>` : ""}
+    ${graf}
+    <p class="nota-kpi">${t("Basado en {d}.", { d: esc(pr.detalle) })} ${t("Es un rango: no sabe el clima, el recorrido ni cómo dosificarás.")}</p>
+    ${pr.motivos.length ? `<ul class="coach-msgs">${pr.motivos.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}</div>`;
 }
 function bloqueCoach(j) {
   const p = leer("pp_coach", null), c = j?.coach;
@@ -3682,6 +3745,7 @@ function bloqueCoach(j) {
   return `<div class="coach">${cab(sub)}
     <ul class="coach-msgs">${c.mensajes.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>
     ${hoyHtml}
+    ${bloquePrediccion(c.prediccion)}
     <div class="bloque"><h3>${t("Índice de esfuerzo PacePath")}</h3>
       <div class="semaforo"><span class="luz ${k.nivel}">${k.acwr != null ? "×" + num(k.acwr, 2) : "–"}</span><p>${esc(k.texto)}</p></div>
       <div class="kpis"><div class="kpi"><span>${t("Condición")}</span><b>${num(k.condicion)}</b></div>
@@ -3710,7 +3774,7 @@ function activarCoach() {
   f.querySelectorAll("[data-obj]").forEach((b) => { b.onclick = () => {
     p.objetivo = b.dataset.obj;
     f.querySelectorAll("[data-obj]").forEach((x) => x.classList.toggle("on", x === b));
-    $("campoFechaCoach").hidden = p.objetivo === "forma";
+    $("campoFechaCoach").hidden = $("campoMetaCoach").hidden = p.objetivo === "forma";
   }; });
   f.querySelectorAll("[data-dias]").forEach((b) => { b.onclick = () => {
     p.dias = +b.dataset.dias;
@@ -3725,6 +3789,11 @@ function activarCoach() {
     if (!p.objetivo) return ($("errorCoach").textContent = t("Elige tu objetivo."));
     p.fecha = p.objetivo === "forma" ? null : $("fechaCoach").value || null;
     if (p.objetivo !== "forma" && !p.fecha) return ($("errorCoach").textContent = t("Elige la fecha de tu carrera."));
+    const meta = p.objetivo === "forma" ? null : aSegundos($("metaCoach").value);
+    if (Number.isNaN(meta)) return ($("errorCoach").textContent = t("Revisa el tiempo objetivo: por ejemplo 3:30:00 o 45:00."));
+    const km = { "5k": 5, "10k": 10, "21k": 21.0975, "42k": 42.195 }[p.objetivo];
+    if (meta && (meta / km < 150 || meta / km > 720)) return ($("errorCoach").textContent = t("Ese tiempo objetivo no parece posible para la distancia."));
+    p.tiempo_objetivo_s = meta || null;
     p.dias = p.dias || 4;
     p.dobles = Math.min(p.dobles || 0, p.dias - 1);
     p.doble_umbral = $("dobleUmbralCoach").checked;
