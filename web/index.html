@@ -3414,7 +3414,7 @@ function pintarEntreno(j) {
       ${z.ritmo ? `<td>${rango(z.ritmo[i], (s) => ritmo(s).replace(/\s*\/(km|mi)/, ""))} <small>/${uDist()}</small></td>` : ""}</tr>`).join("")}
     </tbody></table>
     <p class="nota-kpi">${[fuenteFc, fuenteRitmo].filter(Boolean).map(esc).join(" · ")}</p>
-    ${z.predicciones ? `<p class="nota-kpi">${t("Tiempos equivalentes")}: 5K ${hms(z.predicciones["5k"])} · 10K ${hms(z.predicciones["10k"])} · 21K ${hms(z.predicciones["21k"])} · 42K ${hms(z.predicciones["42k"])}</p>` : ""}`
+`
     : `<p class="pista">${t("Escribe tu FC máxima, tus mejores 10K/21K o tu ritmo umbral para calcular tus zonas.")}</p>`;
   // Cada dato dice si se está usando para calcular (y con qué valor).
   const marca = (txt, usa) => txt ? `<small class="usa${usa ? " si" : ""}">${usa ? "✓ " : ""}${esc(txt)}</small>` : "";
@@ -3440,6 +3440,7 @@ function pintarEntreno(j) {
             : z?.fuente_ritmo === "umbral" ? t("el que escribiste") : t("escribe un mejor tiempo")}</small></div>
         <div class="kpi"><span>${t("FC umbral")}</span><b>${z?.fc_umbral ? `${num(z.fc_umbral)} ppm` : "–"}</b>
           <small>${z?.fc_umbral ? t("frontera I3/I4 (~87 % de la FC máx.)") : t("escribe tu FC máxima")}</small></div></div>
+      ${bloqueTeorica(j?.teorica, leer("pp_coach", null)?.objetivo)}
       ${tabla}
       <details class="ajustes-zonas"${z && (z.fc || z.ritmo) ? "" : " open"}><summary>${t("Ajustar mis datos")}</summary>
         <form id="formZonas"><div class="rejilla">
@@ -3545,6 +3546,10 @@ Object.assign(EN, {
   "Sáb": "Sat",
   "Dom": "Sun",
   "Guardar": "Save",
+  "Predicción teórica por tu umbral": "Theoretical prediction from your threshold",
+  "Umbral {r} · VDOT {v}": "Threshold {r} · VDOT {v}",
+  "Maratón": "Marathon",
+  "Es lo que dicen las tablas para ese umbral si entrenaras para cada distancia: no considera tu volumen ni tus fondos.": "It's what the tables say for that threshold if you trained for each distance: it doesn't account for your volume or long runs.",
   "Rango ±{c} % hoy y ±{d} % el día de la carrera": "Range ±{c} % today and ±{d} % on race day",
   "(se angosta con: {x})": "(narrowed by: {x})",
   "Tiempo objetivo (opcional)": "Goal time (optional)",
@@ -3624,6 +3629,10 @@ Object.assign(PT, {
   "Sáb": "Sáb",
   "Dom": "Dom",
   "Guardar": "Salvar",
+  "Predicción teórica por tu umbral": "Previsão teórica pelo seu limiar",
+  "Umbral {r} · VDOT {v}": "Limiar {r} · VDOT {v}",
+  "Maratón": "Maratona",
+  "Es lo que dicen las tablas para ese umbral si entrenaras para cada distancia: no considera tu volumen ni tus fondos.": "É o que as tabelas dizem para esse limiar se você treinasse para cada distância: não considera seu volume nem seus longões.",
   "Rango ±{c} % hoy y ±{d} % el día de la carrera": "Faixa ±{c} % hoje e ±{d} % no dia da prova",
   "(se angosta con: {x})": "(mais estreita com: {x})",
   "Tiempo objetivo (opcional)": "Tempo objetivo (opcional)",
@@ -3716,6 +3725,16 @@ function bloquePrediccion(pr) {
     ${graf}
     <p class="nota-kpi">${t("Basado en {d}.", { d: esc(pr.detalle) })} ${t("Rango ±{c} % hoy y ±{d} % el día de la carrera", { c: num(pr.conf_pct, 1), d: num(pr.conf_dia_pct, 1) })}${pr.por_que_rango?.length ? " " + t("(se angosta con: {x})", { x: esc(pr.por_que_rango.join(", ")) }) : ""}. ${t("Es un rango: no sabe el clima, el recorrido ni cómo dosificarás.")}</p>
     ${pr.motivos.length ? `<ul class="coach-msgs">${pr.motivos.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}</div>`;
+}
+// Predicción teórica por el ritmo umbral (tablas de Daniels, sin ajustar por volumen).
+function bloqueTeorica(te, obj) {
+  if (!te) return "";
+  const D = [["5k", "5K"], ["10k", "10K"], ["21k", "21K"], ["42k", t("Maratón")]];
+  return `<details class="ajustes-zonas"><summary>${t("Predicción teórica por tu umbral")}</summary>
+    <p class="sub" style="margin:2px 0 8px">${t("Umbral {r} · VDOT {v}", { r: ritmoCoach(hms(te.umbral_s)), v: num(te.vdot, 1) })}</p>
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr)">${D.map(([k, et]) =>
+      `<div class="kpi"${k === obj ? ' style="outline:2px solid var(--acento)"' : ""}><span>${et}</span><b style="font-size:clamp(14px,4.2vw,18px)">${hms(te.tiempos[k])}</b></div>`).join("")}</div>
+    <p class="nota-kpi">${t("Basado en {d}.", { d: esc(te.fuente) })} ${t("Es lo que dicen las tablas para ese umbral si entrenaras para cada distancia: no considera tu volumen ni tus fondos.")}</p></details>`;
 }
 function bloqueCoach(j) {
   const p = leer("pp_coach", null), c = j?.coach;
