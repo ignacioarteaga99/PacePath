@@ -276,7 +276,8 @@
   .chequeos { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 8px; }
   /* PacePath Coach (opcional) */
   .coach { border: 1px solid var(--linea); border-radius: 16px; padding: 14px; margin-top: 12px; }
-  .coach-cab { display: flex; gap: 10px; align-items: center; }
+  .coach-x { margin-left: auto; background: none; border: 0; font-size: 18px; color: var(--suave, #777); padding: 4px 8px; cursor: pointer; }
+.coach-cab { display: flex; gap: 10px; align-items: center; }
   .coach-ava { width: 40px; height: 40px; border-radius: 50%; background: var(--acento); color: #fff; display: grid;
     place-items: center; font-weight: 900; font-size: 18px; flex: none; }
   .coach-cab b { display: block; font-size: 16px; } .coach-cab small { color: var(--suave); font-size: 12.5px; }
@@ -917,7 +918,7 @@ const EN = {
   "Ej.: la ruta de series me mandó por una calle con mucho tráfico…": "E.g.: the interval route sent me down a busy street…",
   "Incluir lo que estaba haciendo ({c})": "Include what I was doing ({c})",
   "Enviar por WhatsApp": "Send via WhatsApp",
-  "Cancelar": "Cancel",
+  "Cancelar": "Cancel", "Volver": "Back",
   "vista: {v}": "view: {v}",
   "trazar a mano": "drawing by hand",
   "sesión «{s}»": "session “{s}”",
@@ -1094,7 +1095,7 @@ const PT = {
   "Escribe otra calle, usa «Cerca de mí» o toca el mapa.": "Digite outra rua, use «Perto de mim» ou toque no mapa.",
   "Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.": "Primeiro escolha de onde você sai: digite uma rua, use «Perto de mim» ou toque no mapa.",
   "Buscando la mejor ruta para tu sesión…": "Buscando a melhor rota para o seu treino…",
-  "Cancelar": "Cancelar",
+  "Cancelar": "Cancelar", "Volver": "Voltar",
   "Cancelaste la ruta. Cambia lo que quieras y vuelve a armarla.": "Você cancelou a rota. Mude o que quiser e monte de novo.",
   "No pude armar la ruta.": "Não consegui montar a rota.",
   "Preferir mis calles de siempre al crear rutas": "Preferir minhas ruas de sempre ao criar rotas",
@@ -3686,7 +3687,8 @@ function formCoach(p) {
       <span>${t("Doble umbral (avanzado)")}<small style="display:block;font-weight:400">${t("Método noruego: en los días de umbral, una sesión controlada en la mañana y otra en la tarde. Requiere 5 días o más y una base sólida.")}</small></span></label>
     <label>${t("Día del fondo")}<select id="diaLargoCoach">${DIA_CORTO.map((d, i) =>
       `<option value="${i}"${(p?.dia_largo ?? 6) === i ? " selected" : ""}>${t(d)}</option>`).join("")}</select></label>
-    <button type="submit">${t(p ? "Guardar" : "Activar Coach")}</button>
+    <div style="display:flex;gap:8px"><button type="submit">${t(p ? "Guardar" : "Activar Coach")}</button>
+      <button type="button" class="sec" data-coach="cancelar">${t("Cancelar")}</button></div>
     <p class="aviso" id="errorCoach" style="margin:0"></p></form>`;
 }
 function graficoCarga(serie) {
@@ -3738,12 +3740,14 @@ function bloqueTeorica(te, obj) {
 }
 function bloqueCoach(j) {
   const p = leer("pp_coach", null), c = j?.coach;
-  const cab = (sub) => `<div class="coach-cab"><span class="coach-ava" aria-hidden="true">C</span><div><b>PacePath Coach</b><small>${sub}</small></div></div>`;
+  const cab = (sub, x) => `<div class="coach-cab"><span class="coach-ava" aria-hidden="true">C</span><div><b>PacePath Coach</b><small>${sub}</small></div>${x ? `<button type="button" class="coach-x" data-coach="cancelar" aria-label="${t("Cancelar")}">✕</button>` : ""}</div>`;
   if (!p && !editandoCoach) return `<div class="coach">${cab(t("Opcional · son sugerencias, tú decides"))}
     <p class="pista" style="margin:10px 0">${t("Te sugiere qué correr cada día según tu objetivo y lo recalcula con lo que de verdad corres. También vigila que tu carga se mantenga en rangos sanos.")}</p>
     <button type="button" data-coach="editar">${t("Activar Coach")}</button></div>`;
-  if (editandoCoach || !p) return `<div class="coach">${cab(t("¿Hacia dónde vamos?"))}${formCoach(p)}</div>`;
-  if (!c) return `<div class="coach">${cab(t("Preparando tus sugerencias…"))}</div>`;
+  if (editandoCoach || !p) return `<div class="coach">${cab(t("¿Hacia dónde vamos?"), true)}${formCoach(p)}</div>`;
+  if (!c) return `<div class="coach">${cab(t("Preparando tus sugerencias…"))}
+    <div class="coach-pie"><button type="button" data-coach="editar">${t("Cambiar objetivo")}</button>
+      <button type="button" data-coach="apagar">${t("Desactivar Coach")}</button></div></div>`;
   if (c.error) return `<div class="coach">${cab(esc(c.error))}${formCoach(p)}</div>`;
   const h = c.hoy, k = c.carga;
   const sub = c.faltan_semanas != null ? t("{o} · faltan {n} semanas", { o: esc(c.objetivo), n: c.faltan_semanas }) : t("Objetivo: {o}", { o: esc(c.objetivo) });
@@ -3788,7 +3792,7 @@ function activarCoach() {
       if (!confirm(t("¿Desactivar el Coach? Puedes volver a activarlo cuando quieras."))) return;
       try { localStorage.removeItem("pp_coach"); } catch {}
       editandoCoach = false;
-    } else editandoCoach = true;
+    } else editandoCoach = b.dataset.coach === "editar";       // «cancelar»: vuelve sin guardar
     pintarEntreno(leer("pp_revision", null));
   }; });
   const f = $("formCoach");
@@ -4458,7 +4462,17 @@ $("hoja").addEventListener("click", (e) => {
   hoja(`<h3>${t("Mis datos")}</h3>
     <p class="pista">${t("Descarga una copia de todo lo que PacePath guarda de tu cuenta, o bórrala para siempre. Tus carreras de Strava no están en el servidor: viven sólo en tu teléfono.")}</p>
     <p><button type="button" class="sec" onclick="location.href='/api/cuenta/exportar'">⬇ ${t("Descargar mis datos")}</button></p>
-    <p><button type="button" class="sec" data-borrar-cuenta>🗑 ${t("Borrar mi cuenta")}</button></p>`);
+    <p><button type="button" class="sec" data-borrar-cuenta>🗑 ${t("Borrar mi cuenta")}</button></p>
+    <p><button type="button" class="sec" data-volver-vista>← ${t("Volver")}</button></p>`);
+});
+// «Volver» desde una pantalla suelta (p. ej. Mis datos): a lo que había en la pestaña.
+$("hoja").addEventListener("click", (e) => {
+  if (!e.target.closest("[data-volver-vista]")) return;
+  if (vista === "ciudad") abrirCiudad();
+  else if (vista === "perfil") abrirPerfil(true, true);
+  else if (vista === "entreno") abrirEntreno();
+  else if (document.body.classList.contains("con-ruta") && planActual) mostrar(planActual);
+  else inicioHoja(t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa."));
 });
 $("hoja").addEventListener("click", async (e) => {
   if (!e.target.closest("[data-borrar-cuenta]")) return;
