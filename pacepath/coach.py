@@ -390,7 +390,28 @@ def plan_semana(perfil: dict, sem: dict, z: dict, km: float, fondo_prev: float, 
         n_dobles //= 2
     if sem["faltan"] is not None and sem["faltan"] == 0:
         n_dobles = 0
-    candidatos = [x for x in out if x["tipo"] in ("umbral", "intensa")] + [x for x in out if x["tipo"] == "suave"]
+    # Doble umbral (opción avanzada, método noruego): en los días de umbral, la
+    # tarde es otra sesión de umbral controlada en vez del trote. Con 5+ días,
+    # en fase básica o específica y nunca en descarga ni en el afinamiento.
+    doble_umbral = (perfil.get("doble_umbral") and len(dias) >= 5 and not sem["descarga"]
+                    and sem["fase"] in ("basica", "especifica"))
+    if doble_umbral:
+        for x in [x for x in out if x["tipo"] == "umbral"]:
+            n = 10 + 2 * min(3, n_fase // 2)
+            x["titulo"] = tr("Doble umbral · mañana", "Double threshold · AM", "Duplo limiar · manhã")
+            x["nota"] = tr("Primera de las dos sesiones de umbral del día: controlada, a un ritmo que podrías repetir en la tarde.",
+                           "First of the day's two threshold sessions: controlled, at a pace you could repeat in the afternoon.",
+                           "Primeira das duas sessões de limiar do dia: controlada, num ritmo que você repetiria à tarde.")
+            out.append({"tipo": "umbral", "zona": 2, "turno": 2, "fecha": x["fecha"], "texto": f"{n}x400",
+                        "trabajo_km": n * 0.4, "km": round(n * 0.4 + 3, 1),
+                        "titulo": tr("Doble umbral · tarde", "Double threshold · PM", "Duplo limiar · tarde"),
+                        "nota": tr("Pausas de 30″, mismo umbral controlado de la mañana: nunca a fondo. Si llegas cansado, cámbiala por un trote suave.",
+                                   "30″ rests, the same controlled threshold as the morning: never all-out. If you're tired, swap it for an easy jog.",
+                                   "Pausas de 30″, o mesmo limiar controlado da manhã: nunca no máximo. Se chegar cansado, troque por um trote leve.")})
+            n_dobles = max(0, n_dobles - 1)          # ocupa la doble de ese día
+    ya_doble = {x["fecha"] for x in out if x.get("turno") == 2}
+    candidatos = [x for x in out if x["tipo"] in ("umbral", "intensa") and x["fecha"] not in ya_doble] + \
+        [x for x in out if x["tipo"] == "suave"]
     for x in candidatos[:n_dobles]:
         out.append({"tipo": "suave", "zona": 1, "texto": None, "fecha": x["fecha"], "turno": 2,
                     "titulo": tr("Rodaje suave · 2.ª salida", "Easy run · 2nd run", "Rodagem leve · 2.ª saída"),
@@ -491,7 +512,8 @@ def _ajustar_semana(sesiones: list[dict], hoy: date, carga: dict) -> list[str]:
     futuras = [s for s in sesiones if s["estado"] in ("hoy", "pendiente")]
     # 1. Calidad saltada o hecha suave → al próximo día suave que no quede pegado a otra calidad ni al fondo.
     for s in sesiones:
-        if s["tipo"] in ("umbral", "intensa") and s["estado"] in ("saltada", "parcial") and not s.get("movida"):
+        if (s["tipo"] in ("umbral", "intensa") and s["estado"] in ("saltada", "parcial") and not s.get("movida")
+                and s.get("turno") != 2):            # la tarde del doble umbral no se recupera otro día
             duros = {x["fecha"] for x in sesiones if x["tipo"] in ("umbral", "intensa", "fondo", "carrera")
                      and x["estado"] in ("hoy", "pendiente")}
             for f in futuras:

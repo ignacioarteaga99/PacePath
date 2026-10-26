@@ -1458,6 +1458,7 @@ class PerfilCoach(BaseModel):
     fecha: date | None = None           # de la carrera (no en «forma»)
     dias: int = Field(default=4, ge=3, le=7)
     dobles: int = Field(default=0, ge=0, le=4)            # días con 2 salidas
+    doble_umbral: bool = False                            # avanzado: umbral mañana y tarde
     dia_largo: int = Field(default=6, ge=0, le=6)       # 0 = lunes
     inicio: date | None = None          # desde cuándo vale el plan
 

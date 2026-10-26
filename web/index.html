@@ -3548,6 +3548,10 @@ Object.assign(EN, {
   "Dobles jornadas por semana": "Double days per week",
   "Días con dos salidas: la del día y otra suave y corta. Para volúmenes altos.": "Days with two runs: the day's session plus a short easy one. For high volume.",
   "2.ª salida": "2nd run", "rodaje suave de {k}": "easy run of {k}",
+  "Doble umbral (avanzado)": "Double threshold (advanced)",
+  "Método noruego: en los días de umbral, una sesión controlada en la mañana y otra en la tarde. Requiere 5 días o más y una base sólida.":
+    "Norwegian method: on threshold days, a controlled session in the morning and another in the afternoon. Needs 5+ days and a solid base.",
+  "El doble umbral necesita 5 días o más por semana.": "Double threshold needs 5 or more days per week.",
   "Competencia": "Race",
   "La define tu Coach según la fecha de tu objetivo.": "Set by your Coach based on your goal date.",
 });
@@ -3603,6 +3607,10 @@ Object.assign(PT, {
   "Dobles jornadas por semana": "Dobras por semana",
   "Días con dos salidas: la del día y otra suave y corta. Para volúmenes altos.": "Dias com duas saídas: a do dia e outra leve e curta. Para volumes altos.",
   "2.ª salida": "2.ª saída", "rodaje suave de {k}": "rodagem leve de {k}",
+  "Doble umbral (avanzado)": "Duplo limiar (avançado)",
+  "Método noruego: en los días de umbral, una sesión controlada en la mañana y otra en la tarde. Requiere 5 días o más y una base sólida.":
+    "Método norueguês: nos dias de limiar, uma sessão controlada de manhã e outra à tarde. Exige 5 dias ou mais e uma base sólida.",
+  "El doble umbral necesita 5 días o más por semana.": "O duplo limiar exige 5 dias ou mais por semana.",
   "Competencia": "Competição",
   "La define tu Coach según la fecha de tu objetivo.": "Definida pelo seu Coach conforme a data do seu objetivo.",
 });
@@ -3623,6 +3631,8 @@ function formCoach(p) {
     <label>${t("Dobles jornadas por semana")}<div class="fases">${[0, 1, 2, 3, 4].map((d) =>
       `<button type="button" class="chip${(p?.dobles || 0) === d ? " on" : ""}" data-dobles="${d}">${d}</button>`).join("")}</div>
       <small style="font-weight:400">${t("Días con dos salidas: la del día y otra suave y corta. Para volúmenes altos.")}</small></label>
+    <label style="display:flex;gap:10px;align-items:flex-start;font-weight:700"><input type="checkbox" id="dobleUmbralCoach"${p?.doble_umbral ? " checked" : ""} style="width:22px;height:22px;margin:0">
+      <span>${t("Doble umbral (avanzado)")}<small style="display:block;font-weight:400">${t("Método noruego: en los días de umbral, una sesión controlada en la mañana y otra en la tarde. Requiere 5 días o más y una base sólida.")}</small></span></label>
     <label>${t("Día del fondo")}<select id="diaLargoCoach">${DIA_CORTO.map((d, i) =>
       `<option value="${i}"${(p?.dia_largo ?? 6) === i ? " selected" : ""}>${t(d)}</option>`).join("")}</select></label>
     <button type="submit">${t(p ? "Guardar" : "Activar Coach")}</button>
@@ -3717,6 +3727,8 @@ function activarCoach() {
     if (p.objetivo !== "forma" && !p.fecha) return ($("errorCoach").textContent = t("Elige la fecha de tu carrera."));
     p.dias = p.dias || 4;
     p.dobles = Math.min(p.dobles || 0, p.dias - 1);
+    p.doble_umbral = $("dobleUmbralCoach").checked;
+    if (p.doble_umbral && p.dias < 5) return ($("errorCoach").textContent = t("El doble umbral necesita 5 días o más por semana."));
     p.dia_largo = +$("diaLargoCoach").value;
     const antes = leer("pp_coach", null);
     if (!antes || antes.objetivo !== p.objetivo || antes.fecha !== p.fecha) p.inicio = new Date().toISOString().slice(0, 10);

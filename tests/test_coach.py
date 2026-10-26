@@ -101,3 +101,16 @@ def test_siete_dias_y_dobles():
     calidad = {s["fecha"] for s in ses if s["tipo"] in ("umbral", "intensa")}
     assert calidad <= {d["fecha"] for d in dobles}                                 # primero en los días de calidad
     assert all(d["km"] <= coach.DOBLE_MAX_KM for d in dobles)
+
+
+def test_doble_umbral():
+    runs = historial(8, km_dia=14, dias=range(7))
+    base = {"objetivo": "42k", "fecha": "2027-04-11", "dias": 6, "dobles": 2, "inicio": HOY.isoformat()}
+    p = coach.plan(base | {"doble_umbral": True}, runs, AJ, hoy=HOY)
+    ses = p["semana"]["sesiones"]
+    tardes = [s for s in ses if s.get("turno") == 2 and s["tipo"] == "umbral"]
+    assert tardes and all(any(m["fecha"] == t["fecha"] and m["tipo"] == "umbral" and m.get("turno", 1) == 1 for m in ses)
+                          for t in tardes)
+    # Con 4 días no aplica (el formulario tampoco lo deja).
+    p4 = coach.plan(base | {"dias": 4, "doble_umbral": True}, runs, AJ, hoy=HOY)
+    assert not any(s.get("turno") == 2 and s["tipo"] == "umbral" for s in p4["semana"]["sesiones"])
