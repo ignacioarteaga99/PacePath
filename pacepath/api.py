@@ -1482,8 +1482,8 @@ def entreno_revision(body: PedidoRevision) -> dict:
     if plan and (plan.get("semana") or {}).get("fase"):
         ajustes["fase"] = plan["semana"]["fase"]
     out = entreno.revision(body.carreras, ajustes, hoy=body.hoy)
-    # Predicción teórica por el ritmo umbral (va bajo los valores de umbral, con o sin Coach).
-    out["teorica"] = prediccion.teorica(body.carreras, out["zonas"], body.hoy or date.today())
+    # Predicción teórica por el ritmo umbral de tus datos (va bajo los valores de umbral, con o sin Coach).
+    out["teorica"] = prediccion.teorica(out["zonas"])
     if plan:
         out["coach"] = plan
     return out

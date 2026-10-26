@@ -29,9 +29,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from . import entreno
-import statistics
-
-from .entreno import ritmo_umbral_de_vdot, segundos_por_zona, tiempo_equivalente, tipo_sesion, vdot, zonas
+from .entreno import ritmo_umbral_de_vdot, tiempo_equivalente, vdot, zonas
 from .idioma import en, tr
 
 VENTANA_DIAS = 84
@@ -245,36 +243,11 @@ def _texto_objetivo(estado: str, meta: float, centro: float) -> str:
 
 
 # ── Predicción teórica por el ritmo umbral ─────────────────────────────────
-# Lo que dicen las tablas de Daniels para el ritmo umbral (el T) que se viene
-# sosteniendo, en todas las distancias y sin ajustar por volumen ni fondos: lo
-# que podrías correr si entrenaras para cada una. El umbral sale de las
-# sesiones de umbral de las últimas 8 semanas (lo más rápido que se sostuvo 20
-# min en cada una, la mediana); sin ese detalle, el de tus zonas.
-UMBRAL_TRAMO_S = 20 * 60
-
-
-def umbral_entrenado(carreras: list[dict], z: dict, hoy: date) -> tuple[float | None, int]:
-    """(s/km del umbral sostenido en tus sesiones de umbral, cuántas sesiones)."""
-    desde = (hoy - timedelta(weeks=8)).isoformat()
-    ritmos = []
-    for c in carreras:
-        h = (c.get("hist") or {}).get("ritmo")
-        if not h or not (desde <= _fecha(c) <= hoy.isoformat()) or not (z.get("fc") or z.get("ritmo")):
-            continue
-        seg, fuente = segundos_por_zona(c, z)
-        if tipo_sesion(c, seg, fuente) != "umbral":          # series en I5 serían más rápidas que el umbral
-            continue
-        acum = suma = 0.0
-        for r, sg in sorted(h):                               # de lo más rápido a lo más lento
-            tramo = min(sg, UMBRAL_TRAMO_S - acum)
-            suma += r * tramo
-            acum += tramo
-            if acum >= UMBRAL_TRAMO_S:
-                break
-        if acum >= UMBRAL_TRAMO_S:
-            ritmos.append(suma / acum)
-    return (statistics.median(ritmos), len(ritmos)) if ritmos else (None, 0)
-
+# Lo que dicen las tablas de Daniels, en todas las distancias, para el ritmo
+# umbral de tus zonas: el que se calcula con los datos que escribes en
+# Entreno («Ajustar mis datos»), el mismo que se muestra como «Ritmo umbral».
+# Sin ajustar por volumen ni fondos: lo que podrías correr si entrenaras para
+# cada distancia.
 
 def vdot_de_umbral(s_km: float) -> float:
     """La inversa de ritmo_umbral_de_vdot (bisección: más VDOT, umbral más rápido)."""
@@ -288,20 +261,15 @@ def vdot_de_umbral(s_km: float) -> float:
     return (lo + hi) / 2
 
 
-def teorica(carreras: list[dict], z: dict, hoy: date) -> dict | None:
-    umbral, n = umbral_entrenado(carreras, z, hoy)
-    if umbral:
-        fuente = tr(f"tu umbral en {n} sesiones de las últimas 8 semanas", f"your threshold in {n} sessions over the last 8 weeks",
-                    f"seu limiar em {n} sessões das últimas 8 semanas") if n > 1 else \
-            tr("tu umbral en tu última sesión de umbral", "your threshold in your last threshold session",
-               "seu limiar na sua última sessão de limiar")
-    elif z.get("ritmo_umbral_s"):
-        umbral = z["ritmo_umbral_s"]
-        fuente = tr("el ritmo umbral de tus zonas (sin sesiones de umbral con detalle todavía)",
-                    "the threshold pace from your zones (no detailed threshold sessions yet)",
-                    "o ritmo de limiar das suas zonas (ainda sem sessões de limiar com detalhe)")
-    else:
+def teorica(z: dict) -> dict | None:
+    umbral = z.get("ritmo_umbral_s")
+    if not umbral:
         return None
+    de = z.get("vdot_de")
+    fuente = (tr(f"el ritmo umbral de tus datos (tu mejor {_nombre_dist(entreno.DISTANCIAS[de])})",
+                 f"the threshold pace from your data (your best {_nombre_dist(entreno.DISTANCIAS[de])})",
+                 f"o ritmo de limiar dos seus dados (seu melhor {_nombre_dist(entreno.DISTANCIAS[de])})") if de
+              else tr("el ritmo umbral de tus datos", "the threshold pace from your data", "o ritmo de limiar dos seus dados"))
     v = vdot_de_umbral(umbral)
-    return {"umbral_s": round(umbral), "vdot": round(v, 1), "fuente": fuente, "de_sesiones": bool(n),
+    return {"umbral_s": round(umbral), "vdot": round(v, 1), "fuente": fuente,
             "tiempos": {k: round(tiempo_equivalente(v, d)) for k, d in entreno.DISTANCIAS.items()}}

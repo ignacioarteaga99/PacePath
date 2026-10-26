@@ -64,19 +64,11 @@ def test_el_rango_se_angosta_con_lo_cumplido():
 def test_teorica_por_umbral():
     from pacepath.entreno import ritmo_umbral_de_vdot, zonas
     assert abs(prediccion.vdot_de_umbral(ritmo_umbral_de_vdot(55)) - 55) < 0.01
-    z = zonas({"t10k_s": 40 * 60})
-    # Sin sesiones con detalle: el umbral de las zonas.
-    te = prediccion.teorica(semanas(60, 20), z, HOY)
-    assert not te["de_sesiones"] and abs(te["tiempos"]["10k"] - 2400) < 15
-    # Con sesiones de umbral (20+ min a 4:20, en I3, dentro de la sesión): manda lo entrenado.
-    runs = semanas(60, 20)
-    for i in range(3):
-        c = corrida(3 + 7 * i, 12, 270)
-        c["hist"] = {"ritmo": [[260, 1500], [330, 1700]], "fc": []}
-        runs.append(c)
-    te = prediccion.teorica(runs, z, HOY)
-    assert te["de_sesiones"] and te["umbral_s"] == 260
+    # El umbral de los datos escritos (un 10K en 40:00): la predicción teórica de 10K es ese 10K.
+    te = prediccion.teorica(zonas({"t10k_s": 40 * 60}))
+    assert abs(te["tiempos"]["10k"] - 2400) < 15 and "10K" in te["fuente"]
     assert te["tiempos"]["5k"] < te["tiempos"]["10k"] < te["tiempos"]["21k"] < te["tiempos"]["42k"]
+    assert prediccion.teorica(zonas({})) is None                 # sin datos, nada
 
 
 def test_la_revision_trae_la_teorica_sin_coach():
