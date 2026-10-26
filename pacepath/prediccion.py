@@ -14,8 +14,12 @@ de la carrera si se sigue el plan, siempre como rango.
    Vertosick, 2016, con números conservadores propios).
 3. Proyección: si se sigue el plan, el nivel sube poco a poco (menos mientras
    más alto es; a lo más ~3 VDOT) y el afinamiento da ~1,5 %.
-4. El rango: ±1 % con una carrera reciente, ±3 % sólo con entrenamientos, y
-   más ancho mientras más lejos está la carrera.
+4. El rango: ±1 % con una carrera reciente, ±2,5 % con los mejores tiempos,
+   ±3 % sólo con entrenamientos; más ancho mientras más lejos está la carrera,
+   y más angosto con evidencia de que el plan se está cumpliendo: sesiones
+   de calidad hechas (−0,1 % c/u, hasta −0,8 %), fondos largos completados
+   (−0,25 % c/u, hasta −0,75 %) y un cumplimiento del 80 % o más (−0,5 %; si
+   es bajo, +0,5 %). Nunca baja de ±1,5 % sin una carrera ni de ±1 % con ella.
 
 No sabe el clima, el recorrido, cómo se dosificará ni el estómago: por eso es
 un rango y la app lo dice.
@@ -122,8 +126,33 @@ def ajuste_distancia(obj: str, km_sem: float, largo: float) -> tuple[float, list
     return 1 + pen, motivos
 
 
+FONDO_CLAVE = {"42k": 30, "21k": 16, "10k": 14, "5k": 10}      # km de un fondo que cuenta como evidencia
+
+
+def confianza(base: float, fuente: str, evidencia: dict) -> tuple[float, list[str]]:
+    """El ± del rango de hoy, angostado (o ensanchado) por lo que se ha cumplido."""
+    calidad, fondos, cumpl = evidencia.get("calidad", 0), evidencia.get("fondos", 0), evidencia.get("cumplimiento")
+    c, por = base, []
+    if calidad:
+        c -= min(0.008, 0.001 * calidad)
+        por.append(tr(f"{calidad} sesiones de calidad cumplidas", f"{calidad} quality sessions done",
+                      f"{calidad} sessões de qualidade cumpridas") if calidad > 1 else
+                   tr("1 sesión de calidad cumplida", "1 quality session done", "1 sessão de qualidade cumprida"))
+    if fondos:
+        c -= min(0.0075, 0.0025 * fondos)
+        por.append(tr(f"{fondos} fondos largos", f"{fondos} long runs", f"{fondos} longões") if fondos > 1 else
+                   tr("1 fondo largo", "1 long run", "1 longão"))
+    if cumpl is not None and cumpl >= 0.8:
+        c -= 0.005
+        por.append(tr(f"{round(100 * cumpl)} % del plan cumplido", f"{round(100 * cumpl)} % of the plan done",
+                      f"{round(100 * cumpl)} % do plano cumprido"))
+    elif cumpl is not None and cumpl < 0.5:
+        c += 0.005
+    return max(0.01 if fuente == "carrera" else 0.015, c), por
+
+
 def prediccion(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date, plan_semanas: list[dict],
-               cumplimiento: float | None) -> dict | None:
+               cumplimiento: float | None, evidencia: dict | None = None) -> dict | None:
     obj = perfil.get("objetivo")
     if obj not in entreno.DISTANCIAS or not perfil.get("fecha"):
         return None
@@ -134,6 +163,7 @@ def prediccion(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date, pla
     km_sem, largo = _volumen(carreras, hoy)
     factor, motivos = ajuste_distancia(obj, km_sem, largo)
     t_hoy = tiempo_equivalente(n["vdot"], dist) * factor
+    conf, por_que = confianza(n["conf"], n["fuente"], (evidencia or {}) | {"cumplimiento": cumplimiento})
     # El día de la carrera, si se sigue el plan.
     carrera = date.fromisoformat(perfil["fecha"])
     semanas = max(0, (carrera - hoy).days // 7)
@@ -146,9 +176,10 @@ def prediccion(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date, pla
     largo_plan = max([largo] + [w.get("fondo_km", 0) for w in futuras])
     factor_dia, _ = ajuste_distancia(obj, km_plan, largo_plan)
     t_dia = tiempo_equivalente(n["vdot"] + ganancia, dist) * factor_dia * (AFINE if semanas >= 2 else 1)
-    conf_dia = min(0.04, n["conf"] + 0.005 * semanas / 4)
+    conf_dia = min(0.04, conf + 0.005 * semanas / 4)
     rango = lambda t, c: [round(t * (1 - c)), round(t * (1 + c))]  # noqa: E731
-    out = {"distancia": obj, "hoy": rango(t_hoy, n["conf"]), "dia": rango(t_dia, conf_dia), "fecha": perfil["fecha"],
+    out = {"distancia": obj, "hoy": rango(t_hoy, conf), "dia": rango(t_dia, conf_dia), "fecha": perfil["fecha"],
+           "conf_pct": round(100 * conf, 1), "conf_dia_pct": round(100 * conf_dia, 1), "por_que_rango": por_que,
            "fuente": n["fuente"], "detalle": n["detalle"], "vdot": round(n["vdot"], 1), "motivos": motivos,
            "ritmo_dia_s": round(t_dia / (dist / 1000))}
     # Historia: cómo ha cambiado la predicción de hoy, semana a semana.
@@ -163,9 +194,20 @@ def prediccion(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date, pla
     hist.append({"lunes": lunes.isoformat(), "t": round(t_hoy)})
     out["historia"] = hist
     if n["fuente"] != "carrera":
-        out["motivos"].append(tr("Una carrera de prueba (5K a 21K) en las próximas semanas haría la predicción mucho más precisa.",
-                                 "A tune-up race (5K to 21K) in the coming weeks would make the prediction much more precise.",
-                                 "Uma prova de teste (5K a 21K) nas próximas semanas deixaria a previsão bem mais precisa."))
+        # Cuándo conviene la carrera de prueba: 6–10 semanas antes de una maratón (un 21K), 3–6 antes de
+        # una media (un 10K); en 5K y 10K, cualquier carrera corta sirve.
+        ventana = {"42k": (6, 10, "21K"), "21k": (3, 6, "10K")}.get(obj)
+        if ventana and ventana[0] <= semanas <= ventana[1]:
+            out["motivos"].append(tr(f"Buen momento para un {ventana[2]} de prueba: afinaría la predicción y te daría el ritmo real.",
+                                     f"Good time for a tune-up {ventana[2]}: it would sharpen the prediction and give you your real pace.",
+                                     f"Bom momento para uma {ventana[2]} de teste: afinaria a previsão e daria seu ritmo real."))
+        else:
+            out["motivos"].append(tr("Una carrera de prueba (5K a 21K) haría la predicción mucho más precisa"
+                                     + (f": la ideal, un {ventana[2]} unas {ventana[0]}–{ventana[1]} semanas antes." if ventana else "."),
+                                     "A tune-up race (5K to 21K) would make the prediction much more precise"
+                                     + (f": ideally a {ventana[2]} about {ventana[0]}–{ventana[1]} weeks out." if ventana else "."),
+                                     "Uma prova de teste (5K a 21K) deixaria a previsão bem mais precisa"
+                                     + (f": o ideal, uma {ventana[2]} umas {ventana[0]}–{ventana[1]} semanas antes." if ventana else ".")))
     # Contra el tiempo objetivo.
     meta = perfil.get("tiempo_objetivo_s")
     if meta:

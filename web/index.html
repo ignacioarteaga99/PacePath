@@ -3545,6 +3545,8 @@ Object.assign(EN, {
   "Sáb": "Sat",
   "Dom": "Sun",
   "Guardar": "Save",
+  "Rango ±{c} % hoy y ±{d} % el día de la carrera": "Range ±{c} % today and ±{d} % on race day",
+  "(se angosta con: {x})": "(narrowed by: {x})",
   "Tiempo objetivo (opcional)": "Goal time (optional)",
   "ej. 3:30:00 o 45:00": "e.g. 3:30:00 or 45:00",
   "Con él, las sesiones a ritmo de carrera usan tu ritmo objetivo y el Coach te dice si vas en camino.": "With it, race-pace sessions use your goal pace and the Coach tells you if you're on track.",
@@ -3622,6 +3624,8 @@ Object.assign(PT, {
   "Sáb": "Sáb",
   "Dom": "Dom",
   "Guardar": "Salvar",
+  "Rango ±{c} % hoy y ±{d} % el día de la carrera": "Faixa ±{c} % hoje e ±{d} % no dia da prova",
+  "(se angosta con: {x})": "(mais estreita com: {x})",
   "Tiempo objetivo (opcional)": "Tempo objetivo (opcional)",
   "ej. 3:30:00 o 45:00": "ex.: 3:30:00 ou 45:00",
   "Con él, las sesiones a ritmo de carrera usan tu ritmo objetivo y el Coach te dice si vas en camino.": "Com ele, as sessões no ritmo da prova usam seu ritmo objetivo e o Coach diz se você está no caminho.",
@@ -3710,7 +3714,7 @@ function bloquePrediccion(pr) {
       <div class="kpi"><span>${t("El {f}, si sigues el plan", { f: fechaCorta(new Date(pr.fecha + "T12:00")) })}</span><b>${rango(pr.dia)}</b></div></div>
     ${o ? `<div class="semaforo"><span class="luz ${ESTADO[o.estado][0]}">${t(ESTADO[o.estado][1])}</span><p>${t("Objetivo {t} ({r})", { t: hms(o.t), r: ritmoCoach(hms(o.ritmo_s)) })} · ${esc(o.texto)}</p></div>` : ""}
     ${graf}
-    <p class="nota-kpi">${t("Basado en {d}.", { d: esc(pr.detalle) })} ${t("Es un rango: no sabe el clima, el recorrido ni cómo dosificarás.")}</p>
+    <p class="nota-kpi">${t("Basado en {d}.", { d: esc(pr.detalle) })} ${t("Rango ±{c} % hoy y ±{d} % el día de la carrera", { c: num(pr.conf_pct, 1), d: num(pr.conf_dia_pct, 1) })}${pr.por_que_rango?.length ? " " + t("(se angosta con: {x})", { x: esc(pr.por_que_rango.join(", ")) }) : ""}. ${t("Es un rango: no sabe el clima, el recorrido ni cómo dosificarás.")}</p>
     ${pr.motivos.length ? `<ul class="coach-msgs">${pr.motivos.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}</div>`;
 }
 function bloqueCoach(j) {

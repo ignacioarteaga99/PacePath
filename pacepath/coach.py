@@ -615,8 +615,13 @@ def plan(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date | None = N
     i_act = next((i for i, w in enumerate(out) if w["lunes"] == lunes_hoy.isoformat()), len(out) - 1)
     ult3 = [w for w in out[max(0, i_act - 3):i_act] if w.get("pedidas")]
     cumplimiento = (sum(w["cumplidas"] for w in ult3) / sum(w["pedidas"] for w in ult3)) if ult3 else None
+    # Evidencia para el rango del predictor: lo cumplido en las últimas 6 semanas.
+    ult6 = [x for w in out[max(0, i_act - 6):i_act + 1] for x in w["sesiones"] if x.get("estado") == "hecha"]
+    clave = prediccion.FONDO_CLAVE.get(obj, 99)
+    evidencia = {"calidad": sum(x["tipo"] in ("umbral", "intensa") for x in ult6),
+                 "fondos": sum(x["tipo"] == "fondo" and (x.get("real") or {}).get("km", 0) >= clave for x in ult6)}
     pred = prediccion.prediccion(perfil, carreras, ajustes, hoy, [{k: v for k, v in w.items() if k != "sesiones"} for w in out],
-                                 cumplimiento)
+                                 cumplimiento, evidencia)
     return {"perfil": perfil, "objetivo": tr(*NOMBRE_OBJ[obj]), "carga": carga, "hoy": hoy_s,
             "hoy_2": de_hoy[1] if len(de_hoy) > 1 else None, "prediccion": pred,
             "semana": actual, "mensajes": mensajes,

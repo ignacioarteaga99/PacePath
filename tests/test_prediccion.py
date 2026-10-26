@@ -48,3 +48,14 @@ def test_estado_del_objetivo_y_ritmo_en_el_plan():
     # En fase específica, la sesión a ritmo de 10K usa el ritmo objetivo (50:00 → 5:00/km).
     ses = [s for s in lento["semana"]["sesiones"] if s["tipo"] == "intensa"]
     assert ses and all(s["ritmo"] == "5:00" for s in ses)
+
+
+def test_el_rango_se_angosta_con_lo_cumplido():
+    runs = semanas(80, 30)
+    perfil = {"objetivo": "42k", "fecha": "2026-11-01"}                     # semana de la carrera
+    sin = prediccion.prediccion(perfil, runs, {}, HOY, [], None)
+    con = prediccion.prediccion(perfil, runs, {}, HOY, [], 0.9, {"calidad": 8, "fondos": 3})
+    poco = prediccion.prediccion(perfil, runs, {}, HOY, [], 0.3, {"calidad": 1})
+    assert sin["conf_pct"] == 3.0 and con["conf_pct"] == 1.5 and poco["conf_pct"] > 3.0
+    assert con["dia"][1] - con["dia"][0] < sin["dia"][1] - sin["dia"][0]
+    assert con["por_que_rango"]
