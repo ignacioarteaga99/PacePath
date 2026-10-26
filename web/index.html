@@ -274,6 +274,49 @@
   .ajustes-zonas input { font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--linea);
     background: var(--gris); color: var(--tinta); width: 100%; min-width: 0; }
   .chequeos { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 8px; }
+  /* PacePath Coach (opcional) */
+  .coach { border: 1px solid var(--linea); border-radius: 16px; padding: 14px; margin-top: 12px; }
+  .coach-cab { display: flex; gap: 10px; align-items: center; }
+  .coach-ava { width: 40px; height: 40px; border-radius: 50%; background: var(--acento); color: #fff; display: grid;
+    place-items: center; font-weight: 900; font-size: 18px; flex: none; }
+  .coach-cab b { display: block; font-size: 16px; } .coach-cab small { color: var(--suave); font-size: 12.5px; }
+  .coach-msgs { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
+  .coach-msgs li { background: var(--gris); border-radius: 4px 14px 14px 14px; padding: 9px 12px; font-size: 14px; line-height: 1.4; }
+  .coach-hoy { background: #fff4ee; border-radius: 14px; padding: 12px; margin-top: 12px; }
+  .coach-hoy .et { font-size: 11px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: var(--acento-osc); }
+  .coach-hoy b { display: block; font-size: 18px; margin: 2px 0; }
+  .coach-hoy .datos { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; margin: 4px 0; }
+  .coach-hoy .datos span { font-weight: 700; } .coach-hoy p { margin: 4px 0 0; font-size: 13.5px; color: var(--suave); line-height: 1.4; }
+  .semaforo { display: flex; align-items: center; gap: 10px; margin: 6px 0 8px; }
+  .semaforo .luz { padding: 5px 12px; border-radius: 999px; font-weight: 800; font-size: 14px; color: #fff; white-space: nowrap; }
+  .luz.verde { background: #1a8f3c; } .luz.ambar { background: #c98500; } .luz.rojo { background: #c92a2a; }
+  .luz.azul { background: #2b6cb0; } .luz.gris { background: #8a8a94; }
+  .semaforo p { margin: 0; font-size: 13px; color: var(--suave); line-height: 1.35; }
+  .coach-semana { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 4px; }
+  .coach-semana li { display: grid; grid-template-columns: 42px 1fr auto; gap: 8px; align-items: center; padding: 7px 8px;
+    border-radius: 10px; font-size: 14px; }
+  .coach-semana li.hoy { background: var(--gris); font-weight: 700; }
+  .coach-semana .d { color: var(--suave); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+  .coach-semana small { display: block; color: var(--suave); font-size: 12px; font-weight: 400; }
+  .coach-semana .e { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .e.hecha { background: #e3f4e8; color: #1a7a35; } .e.parcial { background: #fff1d6; color: #8a5a00; }
+  .e.saltada { background: #fde4e4; color: #a32020; } .e.extra { background: #e7eefb; color: #2b5797; }
+  .e.hoy, .e.pendiente { background: var(--gris); color: var(--suave); }
+  .tipo-c { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  .tipo-c.umbral { background: var(--z3); } .tipo-c.intensa { background: var(--z5); } .tipo-c.fondo { background: var(--z2); }
+  .tipo-c.suave, .tipo-c.extra { background: var(--z1); } .tipo-c.carrera { background: var(--acento); }
+  .coach-meses { display: grid; gap: 5px; margin-top: 6px; }
+  .coach-meses .fila { display: grid; grid-template-columns: 56px 1fr 52px; gap: 8px; align-items: center; font-size: 12.5px; }
+  .coach-meses .barra { position: relative; height: 16px; background: var(--gris); border-radius: 5px; overflow: hidden; }
+  .coach-meses .plan { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: #f6c3ad; }
+  .coach-meses .real { position: absolute; left: 0; top: 4px; bottom: 4px; border-radius: 3px; background: var(--acento); }
+  .coach-meses .fila.actual { font-weight: 800; } .coach-meses .f { color: var(--suave); }
+  .coach-form { display: grid; gap: 10px; margin-top: 10px; }
+  .coach-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--suave); }
+  .coach-form input, .coach-form select { font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 10px;
+    border: 1px solid var(--linea); background: #fff; }
+  .coach-pie { display: flex; gap: 14px; margin-top: 12px; font-size: 13px; }
+  .coach-pie button { background: none; border: 0; padding: 0; color: var(--suave); text-decoration: underline; font: inherit; cursor: pointer; }
   .chequeos li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: start; }
   .chequeos .ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 900;
     font-size: 13px; color: #fff; }
@@ -1663,7 +1706,7 @@ fetch("/api/cuenta").then((r) => r.json()).then((c) => {
 // Strava no: se vuelven a bajar de Strava (sus reglas limitan guardarlas en un
 // servidor), pero la conexión con Strava sí viaja con la cuenta, así que en
 // un aparato nuevo la descarga parte sola y después sólo trae lo nuevo.
-const DATOS_CUENTA = ["pp_entreno_ajustes", "pp_fase", "pp_segun_hora", "pp_forma", "pp_radio", "pp_favoritos",
+const DATOS_CUENTA = ["pp_coach", "pp_entreno_ajustes", "pp_fase", "pp_segun_hora", "pp_forma", "pp_radio", "pp_favoritos",
   "pp_guardadas", "pp_recientes", "pp_usar_frec", "pp_lang", "pp_unidad", "pp_noche", "pp_logros_vistos", "pp_pasaporte_abierto"];
 // Lo de Strava guardado en el teléfono: si entra otra cuenta en este aparato, se borra.
 const DATOS_STRAVA = ["pp_revision", "pp_sync", "pp_lugares", "pp_donde"];
@@ -3299,7 +3342,8 @@ async function calcularRevision(lista, hist) {
   });
   const d = new Date(), hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const r = await fetch("/api/entreno/revision", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ajustes: { ...ajustesEntreno(), fase: faseEntreno() }, carreras: carreras.slice(-600), hoy }) });
+    body: JSON.stringify({ ajustes: { ...ajustesEntreno(), fase: faseEntreno() }, carreras: carreras.slice(-600), hoy,
+                           coach: leer("pp_coach", null) }) });
   if (!r.ok) throw new Error(t("No pude calcular la revisión ahora."));
   const j = { ...(await r.json()), calculada: Date.now() };
   escribir("pp_revision", j);
@@ -3382,6 +3426,7 @@ function pintarEntreno(j) {
   const umbral12 = rev?.semanas ? rev.semanas.reduce((s, w) => s + w.umbral, 0) : 0;
   hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu entrenamiento")}</h2>
     <p class="pista" style="margin-top:0">${t("Últimos 3 meses · filosofía del método noruego")}</p>
+    ${bloqueCoach(j)}
     <div class="bloque" style="margin-top:8px"><h3>${t("Fase")}</h3>
       <div class="fases" role="radiogroup" aria-label="${t("Fase")}">${FASES.map(([k, et]) =>
         `<button type="button" class="chip${k === fase ? " on" : ""}" role="radio" aria-checked="${k === fase}" data-fase="${k}">${t(et)}</button>`).join("")}</div></div>
@@ -3436,6 +3481,124 @@ function pintarEntreno(j) {
       if (v) nuevo[k] = v;
     }
     escribir("pp_entreno_ajustes", nuevo);
+    recalcularEntreno();
+  };
+  activarCoach();
+}
+
+// ── PacePath Coach (opcional) ───────────────────────────────────────────────
+// Sugiere qué correr cada día hacia tu objetivo y lo recalcula con lo que
+// corres (el servidor, con las mismas carreras de la revisión). Todo es una
+// recomendación: se activa o desactiva aquí, y el perfil (pp_coach) viaja con
+// la cuenta. «Índice de esfuerzo»: 1 h a umbral = 100.
+const OBJ_COACH = [["5k", "5K"], ["10k", "10K"], ["21k", "21K"], ["42k", "42K"], ["forma", "En forma"]];
+const DIA_CORTO = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+let editandoCoach = false;
+const ritmoCoach = (txt) => !txt ? "" : unidad === "mi"            // «4:18–4:49» por km → por milla
+  ? txt.replace(/(\d+):(\d{2})/g, (_, m, s) => { const x = Math.round((+m * 60 + +s) * MILLA / 1000); return `${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}`; }) + " /mi"
+  : txt + " /km";
+function formCoach(p) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  return `<form class="coach-form" id="formCoach">
+    <label>${t("Tu objetivo")}<div class="fases">${OBJ_COACH.map(([k, et]) =>
+      `<button type="button" class="chip${p?.objetivo === k ? " on" : ""}" data-obj="${k}">${t(et)}</button>`).join("")}</div></label>
+    <label id="campoFechaCoach"${p?.objetivo === "forma" ? " hidden" : ""}>${t("Fecha de la carrera")}<input type="date" id="fechaCoach" min="${hoy}" value="${esc(p?.fecha || "")}"></label>
+    <label>${t("Días para correr por semana")}<div class="fases">${[3, 4, 5, 6].map((d) =>
+      `<button type="button" class="chip${(p?.dias || 4) === d ? " on" : ""}" data-dias="${d}">${d}</button>`).join("")}</div></label>
+    <label>${t("Día del fondo")}<select id="diaLargoCoach">${DIA_CORTO.map((d, i) =>
+      `<option value="${i}"${(p?.dia_largo ?? 6) === i ? " selected" : ""}>${t(d)}</option>`).join("")}</select></label>
+    <button type="submit">${t(p ? "Guardar" : "Activar Coach")}</button>
+    <p class="aviso" id="errorCoach" style="margin:0"></p></form>`;
+}
+function graficoCarga(serie) {
+  // La escala la ponen las líneas (un día enorme no las aplasta: su barra se corta arriba).
+  const W = Math.max(280, $("hoja").clientWidth - 70), H = 100, max = Math.max(30, 1.6 * Math.max(...serie.map((d) => Math.max(d.fatiga, d.condicion))));
+  const x = (i) => i / (serie.length - 1) * W, y = (v) => Math.max(2, H - 4 - v / max * (H - 10)), bw = W / serie.length;
+  const linea = (k) => serie.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(d[k]).toFixed(1)}`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${t("Condición y fatiga, últimas 6 semanas")}">
+    ${serie.map((d, i) => d.iep ? `<rect x="${(x(i) - bw * 0.35).toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" y="${y(d.iep).toFixed(1)}" height="${(H - 4 - y(d.iep)).toFixed(1)}" rx="2" fill="#f6c3ad"/>` : "").join("")}
+    <path d="${linea("condicion")}" fill="none" stroke="var(--acento)" stroke-width="2"/>
+    <path d="${linea("fatiga")}" fill="none" stroke="var(--tinta)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
+    <div class="leyenda-zonas"><span><i style="background:var(--acento)"></i>${t("Condición (6 sem.)")}</span>
+      <span><i style="background:var(--tinta)"></i>${t("Fatiga (7 días)")}</span><span><i style="background:#f6c3ad"></i>${t("Esfuerzo del día")}</span></div>`;
+}
+function bloqueCoach(j) {
+  const p = leer("pp_coach", null), c = j?.coach;
+  const cab = (sub) => `<div class="coach-cab"><span class="coach-ava" aria-hidden="true">C</span><div><b>PacePath Coach</b><small>${sub}</small></div></div>`;
+  if (!p && !editandoCoach) return `<div class="coach">${cab(t("Opcional · son sugerencias, tú decides"))}
+    <p class="pista" style="margin:10px 0">${t("Te sugiere qué correr cada día según tu objetivo y lo recalcula con lo que de verdad corres. También vigila que tu carga se mantenga en rangos sanos.")}</p>
+    <button type="button" data-coach="editar">${t("Activar Coach")}</button></div>`;
+  if (editandoCoach || !p) return `<div class="coach">${cab(t("¿Hacia dónde vamos?"))}${formCoach(p)}</div>`;
+  if (!c) return `<div class="coach">${cab(t("Preparando tus sugerencias…"))}</div>`;
+  if (c.error) return `<div class="coach">${cab(esc(c.error))}${formCoach(p)}</div>`;
+  const h = c.hoy, k = c.carga;
+  const sub = c.faltan_semanas != null ? t("{o} · faltan {n} semanas", { o: esc(c.objetivo), n: c.faltan_semanas }) : t("Objetivo: {o}", { o: esc(c.objetivo) });
+  const estado = { hecha: "✓ " + t("hecha"), parcial: "◐ " + t("a medias"), saltada: "✕ " + t("no se hizo"), extra: "+ " + t("extra"), hoy: t("hoy"), pendiente: "" };
+  const dia = (f) => t(DIA_CORTO[(new Date(f + "T12:00").getDay() + 6) % 7]);
+  const hoyHtml = h ? `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${esc(h.titulo)}${h.texto && h.tipo !== "suave" && h.tipo !== "fondo" ? ` · ${esc(h.texto)}` : ""}</b>
+      <div class="datos"><span>${fmtDistKm(h.km, 0)}</span>${h.ritmo ? `<span>${ritmoCoach(h.ritmo)}</span>` : ""}<span>~${num(h.minutos)} min</span><span>${t("esfuerzo {n}", { n: num(h.iep) })}</span></div>
+      <p>${esc(h.nota || "")}</p>${h.real ? `<p>✓ ${t("Ya corriste {k} hoy.", { k: fmtDistKm(h.real.km, 1) })}</p>` : ""}</div>`
+    : `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${t("Descanso")}</b><p>${t("El descanso también entrena: hoy el cuerpo asimila.")}</p></div>`;
+  const semana = (c.semana?.sesiones || []).map((s) => `<li class="${s.fecha === new Date().toISOString().slice(0, 10) ? "hoy" : ""}">
+      <span class="d">${dia(s.fecha)}</span>
+      <span><i class="tipo-c ${s.tipo}"></i>${esc(s.titulo)}${s.texto && !["suave", "fondo", "extra"].includes(s.tipo) ? ` · ${esc(s.texto)}` : ""}
+        <small>${fmtDistKm(s.real ? s.real.km : s.km, s.real ? 1 : 0)}${s.real && s.estado !== "extra" ? " / " + fmtDistKm(s.km, 0) : ""}${s.ritmo ? " · " + ritmoCoach(s.ritmo) : ""}${s.movida ? " · " + t("sugerida desde el {d}", { d: dia(s.movida) }) : ""}</small></span>
+      ${estado[s.estado] ? `<span class="e ${s.estado}">${estado[s.estado]}</span>` : "<span></span>"}</li>`).join("");
+  const maxKm = Math.max(...c.semanas.map((w) => Math.max(w.km, w.km_real || 0)), 1);
+  const FASE_TXT = { basica: "Básica", especifica: "Específica", competencia: "Competencia" };
+  const meses = c.semanas.map((w) => `<div class="fila${w.lunes === c.semana?.lunes ? " actual" : ""}">
+      <span>${fechaCorta(new Date(w.lunes + "T12:00"))}</span>
+      <span class="barra" title="${esc(t(FASE_TXT[w.fase]))}"><i class="plan" style="width:${(100 * w.km / maxKm).toFixed(1)}%"></i>${w.km_real != null ? `<i class="real" style="width:${(100 * Math.min(w.km_real, maxKm) / maxKm).toFixed(1)}%"></i>` : ""}</span>
+      <span class="f">${fmtDistKm(w.km, 0)}${w.descarga ? " ↓" : ""}</span></div>`).join("");
+  return `<div class="coach">${cab(sub)}
+    <ul class="coach-msgs">${c.mensajes.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>
+    ${hoyHtml}
+    <div class="bloque"><h3>${t("Índice de esfuerzo")}</h3>
+      <div class="semaforo"><span class="luz ${k.nivel}">${k.acwr != null ? "×" + num(k.acwr, 2) : "–"}</span><p>${esc(k.texto)}</p></div>
+      <div class="kpis"><div class="kpi"><span>${t("Condición")}</span><b>${num(k.condicion)}</b></div>
+        <div class="kpi"><span>${t("Fatiga")}</span><b>${num(k.fatiga)}</b></div>
+        <div class="kpi"><span>${t("Frescura")}</span><b>${k.frescura > 0 ? "+" : ""}${num(k.frescura)}</b></div></div>
+      ${graficoCarga(k.serie)}
+      <p class="nota-kpi">${t("1 hora a ritmo umbral = 100. Zona sana: carga de la semana entre ×0,8 y ×1,3 de tu condición.")}</p></div>
+    <div class="bloque"><h3>${t("Esta semana")}</h3><ul class="coach-semana">${semana}</ul></div>
+    <div class="bloque"><h3>${t("Tu plan, semana a semana")}</h3><p class="sub">${t("Barra clara: sugerido · naranja: corrido · ↓ semana de descarga")}</p>
+      <div class="coach-meses">${meses}</div></div>
+    <div class="coach-pie"><button type="button" data-coach="editar">${t("Cambiar objetivo")}</button>
+      <button type="button" data-coach="apagar">${t("Desactivar Coach")}</button></div></div>`;
+}
+function activarCoach() {
+  document.querySelectorAll("[data-coach]").forEach((b) => { b.onclick = () => {
+    if (b.dataset.coach === "apagar") {
+      if (!confirm(t("¿Desactivar el Coach? Puedes volver a activarlo cuando quieras."))) return;
+      try { localStorage.removeItem("pp_coach"); } catch {}
+      editandoCoach = false;
+    } else editandoCoach = true;
+    pintarEntreno(leer("pp_revision", null));
+  }; });
+  const f = $("formCoach");
+  if (!f) return;
+  const p = { ...(leer("pp_coach", null) || {}) };
+  f.querySelectorAll("[data-obj]").forEach((b) => { b.onclick = () => {
+    p.objetivo = b.dataset.obj;
+    f.querySelectorAll("[data-obj]").forEach((x) => x.classList.toggle("on", x === b));
+    $("campoFechaCoach").hidden = p.objetivo === "forma";
+  }; });
+  f.querySelectorAll("[data-dias]").forEach((b) => { b.onclick = () => {
+    p.dias = +b.dataset.dias;
+    f.querySelectorAll("[data-dias]").forEach((x) => x.classList.toggle("on", x === b));
+  }; });
+  f.onsubmit = (e) => {
+    e.preventDefault();
+    if (!p.objetivo) return ($("errorCoach").textContent = t("Elige tu objetivo."));
+    p.fecha = p.objetivo === "forma" ? null : $("fechaCoach").value || null;
+    if (p.objetivo !== "forma" && !p.fecha) return ($("errorCoach").textContent = t("Elige la fecha de tu carrera."));
+    p.dias = p.dias || 4;
+    p.dia_largo = +$("diaLargoCoach").value;
+    const antes = leer("pp_coach", null);
+    if (!antes || antes.objetivo !== p.objetivo || antes.fecha !== p.fecha) p.inicio = new Date().toISOString().slice(0, 10);
+    escribir("pp_coach", p);
+    editandoCoach = false;
+    pintarEntreno(leer("pp_revision", null));
     recalcularEntreno();
   };
 }
