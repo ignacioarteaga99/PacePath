@@ -62,7 +62,10 @@ PLANTILLAS = {
     4: {-6: "s", -5: "q", -3: "q2", 0: "f"},
     5: {-6: "s", -5: "q", -3: "q2", -2: "s", 0: "f"},
     6: {-6: "s", -5: "q", -4: "s", -3: "q2", -2: "s", 0: "f"},
+    7: {-6: "s", -5: "q", -4: "s", -3: "q2", -2: "s", -1: "s", 0: "f"},
 }
+DOBLE_MAX_KM = 10.0          # la 2.ª salida de un día doble: corta y muy suave
+PESO_DOBLE = 0.6             # cuánto de un rodaje normal le toca
 DIAS = [("lunes", "Monday", "segunda"), ("martes", "Tuesday", "terça"), ("miércoles", "Wednesday", "quarta"),
         ("jueves", "Thursday", "quinta"), ("viernes", "Friday", "sexta"), ("sábado", "Saturday", "sábado"),
         ("domingo", "Sunday", "domingo")]
@@ -336,9 +339,10 @@ def _min_por_km(z: dict, zona: int) -> float:
 
 
 def plan_semana(perfil: dict, sem: dict, z: dict, km: float, fondo_prev: float, n_fase: int) -> list[dict]:
-    """Las sesiones de una semana (una por día con entrenamiento)."""
+    """Las sesiones de una semana: una por día con entrenamiento, y en los días
+    dobles una 2.ª salida suave («turno» 2)."""
     obj = perfil["objetivo"]
-    dias = PLANTILLAS[min(6, max(3, int(perfil.get("dias") or 4)))]
+    dias = PLANTILLAS[min(7, max(3, int(perfil.get("dias") or 4)))]
     largo_dia = int(perfil.get("dia_largo", 6))
     q2_calidad = (sem["fase"] == "especifica" or (sem["fase"] == "basica" and len(dias) >= 5)) and not sem["descarga"]
     carrera = date.fromisoformat(perfil["fecha"]) if sem["faltan"] == 0 and perfil.get("fecha") else None
@@ -378,15 +382,32 @@ def plan_semana(perfil: dict, sem: dict, z: dict, km: float, fondo_prev: float, 
                             "Leve de verdade (I1–I2): recupera e soma volume sem cansar.")}
         s["fecha"] = d.isoformat()
         out.append(s)
+    # Dobles: una 2.ª salida suave y corta, primero en los días de calidad (series
+    # en la mañana, trote en la tarde) y después en los suaves; nunca el día del
+    # fondo ni en la semana de la carrera. En descarga, la mitad.
+    n_dobles = int(perfil.get("dobles") or 0)
+    if sem["descarga"]:
+        n_dobles //= 2
+    if sem["faltan"] is not None and sem["faltan"] == 0:
+        n_dobles = 0
+    candidatos = [x for x in out if x["tipo"] in ("umbral", "intensa")] + [x for x in out if x["tipo"] == "suave"]
+    for x in candidatos[:n_dobles]:
+        out.append({"tipo": "suave", "zona": 1, "texto": None, "fecha": x["fecha"], "turno": 2,
+                    "titulo": tr("Rodaje suave · 2.ª salida", "Easy run · 2nd run", "Rodagem leve · 2.ª saída"),
+                    "nota": tr("Corto y muy suave, con al menos 6 h entre una salida y otra: suma volumen casi sin cansar.",
+                               "Short and very easy, at least 6 h apart from the other run: adds volume with little fatigue.",
+                               "Curta e bem leve, com pelo menos 6 h entre uma saída e outra: soma volume quase sem cansar.")})
     # Los suaves reparten lo que falta para la meta de la semana, sin pasar de
-    # ~70 % del fondo (un rodaje no es otro fondo): si no cabe, la semana queda
-    # más corta y el Coach lo dice.
-    suaves = [s for s in out if s["tipo"] == "suave"]
-    resto = km - sum(s["km"] for s in out if s["tipo"] != "suave")
+    # ~70 % del fondo (un rodaje no es otro fondo) y los dobles con menos: si no
+    # cabe, la semana queda más corta y el Coach lo dice.
+    suaves = [x for x in out if x["tipo"] == "suave"]
+    resto = km - sum(x["km"] for x in out if x["tipo"] != "suave")
     tope = max(6.0, min(18.0, 0.7 * largo))
-    for s in suaves:
-        s["km"] = round(min(tope, max(4.0, resto / max(len(suaves), 1))))
-        s["texto"] = f"regenerativo {s['km']}k"
+    unidad = resto / max(sum(PESO_DOBLE if x.get("turno") == 2 else 1 for x in suaves), 1)
+    for x in suaves:
+        x["km"] = (round(min(DOBLE_MAX_KM, max(4.0, PESO_DOBLE * unidad))) if x.get("turno") == 2
+                   else round(min(tope, max(4.0, unidad))))
+        x["texto"] = f"regenerativo {x['km']}k"
     if carrera:
         dist = OBJETIVOS[obj]["dist_m"] / 1000
         out = [s for s in out if s["fecha"] != carrera.isoformat()]
@@ -406,7 +427,7 @@ def plan_semana(perfil: dict, sem: dict, z: dict, km: float, fondo_prev: float, 
         s["iep"] = round(peso * 100 / IEP_HORA_UMBRAL)
         s.pop("trabajo_km", None)
         s.pop("objetivo_ritmo", None)
-    return sorted(out, key=lambda s: s["fecha"])
+    return sorted(out, key=lambda s: (s["fecha"], s.get("turno", 1)))
 
 
 # ── Lo hecho contra lo pedido ───────────────────────────────────────────────
@@ -460,7 +481,7 @@ def _comparar(sesiones: list[dict], carreras: list[dict], z: dict, lunes: date, 
     extras = [{"fecha": r["f"].isoformat(), "tipo": "extra", "estado": "extra", "km": round(r["km"], 1), "zona": 1,
                "titulo": tr("Carrera extra", "Extra run", "Corrida extra"), "texto": None,
                "real": {"km": round(r["km"], 1), "tipo": r["tipo"], "iep": round(iep(r["c"], z))}} for r in libres]
-    return sorted(sesiones + extras, key=lambda s: s["fecha"])
+    return sorted(sesiones + extras, key=lambda s: (s["fecha"], s.get("turno", 1)))
 
 
 def _ajustar_semana(sesiones: list[dict], hoy: date, carga: dict) -> list[str]:
@@ -476,7 +497,7 @@ def _ajustar_semana(sesiones: list[dict], hoy: date, carga: dict) -> list[str]:
             for f in futuras:
                 d = date.fromisoformat(f["fecha"])
                 vecinos = {(d + timedelta(days=k)).isoformat() for k in (-1, 1)}
-                if f["tipo"] == "suave" and not (vecinos & duros):
+                if f["tipo"] == "suave" and f.get("turno") != 2 and not (vecinos & duros):
                     nueva = {k: v for k, v in s.items() if k not in ("estado", "real")}
                     nueva.update(fecha=f["fecha"], estado=f["estado"], movida=s["fecha"])
                     f.clear(); f.update(nueva)
@@ -558,9 +579,11 @@ def plan(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date | None = N
     actual = next((w for w in out if w["lunes"] == lunes_hoy.isoformat()), None)
     mensajes = _ajustar_semana(actual["sesiones"], hoy, carga) if actual else []
     mensajes = _resumen(out, lunes_hoy, carga, perfil) + mensajes
-    hoy_s = next((s for s in (actual or {}).get("sesiones", []) if s["fecha"] == hoy.isoformat()), None)
+    de_hoy = [s for s in (actual or {}).get("sesiones", []) if s["fecha"] == hoy.isoformat() and s["tipo"] != "extra"]
+    hoy_s = de_hoy[0] if de_hoy else None
     i_act = next((i for i, w in enumerate(out) if w["lunes"] == lunes_hoy.isoformat()), len(out) - 1)
     return {"perfil": perfil, "objetivo": tr(*NOMBRE_OBJ[obj]), "carga": carga, "hoy": hoy_s,
+            "hoy_2": de_hoy[1] if len(de_hoy) > 1 else None,
             "semana": actual, "mensajes": mensajes,
             "semanas": [{k: v for k, v in w.items() if k != "sesiones"} for w in out[max(0, i_act - 3):i_act + 6]],
             "faltan_semanas": actual["faltan"] if obj != "forma" and actual else None,
@@ -609,12 +632,15 @@ def _resumen(out: list[dict], lunes_hoy: date, carga: dict, perfil: dict) -> lis
                            f"Esta é uma semana de descarga ({actual['km']} km): o corpo assimila e volta mais forte."))
         else:
             if actual["km"] < 0.8 * actual["meta_km"]:
-                msgs.append(tr(f"Tu volumen sano sería ~{actual['meta_km']} km, pero con {perfil['dias']} días no caben "
-                               "sin rodajes demasiado largos: si puedes, suma un día.",
-                               f"Your healthy volume would be ~{actual['meta_km']} km, but with {perfil['dias']} days it "
-                               "doesn't fit without overly long easy runs: add a day if you can.",
-                               f"Seu volume saudável seria ~{actual['meta_km']} km, mas com {perfil['dias']} dias não cabe "
-                               "sem rodagens longas demais: se puder, some um dia."))
+                msgs.append(tr(f"Tu volumen sano sería ~{actual['meta_km']} km, pero con {perfil['dias']} días y "
+                               f"{perfil.get('dobles') or 0} dobles no cabe sin rodajes demasiado largos: si puedes, "
+                               "suma un día o una doble jornada.",
+                               f"Your healthy volume would be ~{actual['meta_km']} km, but with {perfil['dias']} days and "
+                               f"{perfil.get('dobles') or 0} doubles it doesn't fit without overly long easy runs: add a "
+                               "day or a double if you can.",
+                               f"Seu volume saudável seria ~{actual['meta_km']} km, mas com {perfil['dias']} dias e "
+                               f"{perfil.get('dobles') or 0} dobras não cabe sem rodagens longas demais: se puder, some "
+                               "um dia ou uma dobra."))
             msgs.append(tr(f"Fase {fase}: {actual['km']} km esta semana, con {actual['calidad']} de calidad y fondo de {actual['fondo_km']} km.",
                            f"{fase.capitalize()} phase: {actual['km']} km this week, with {actual['calidad']} quality "
                            f"session(s) and a {actual['fondo_km']} km long run.",

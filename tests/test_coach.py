@@ -87,3 +87,17 @@ def test_con_coach_la_revision_usa_su_fase():
     assert j["coach"]["semana"]["fase"] == "competencia" == j["revision"]["fase"]
     sin = cli.post("/api/entreno/revision", json={**cuerpo, "coach": None}).json()
     assert "coach" not in sin and sin["revision"]["fase"] == "basica"
+
+
+def test_siete_dias_y_dobles():
+    runs = historial(8, km_dia=14, dias=range(7))
+    perfil = {"objetivo": "42k", "fecha": "2027-04-11", "dias": 7, "dobles": 3, "inicio": HOY.isoformat()}
+    p = coach.plan(perfil, runs, AJ, hoy=HOY)
+    ses = [s for s in p["semana"]["sesiones"] if s["tipo"] != "extra"]
+    dobles = [s for s in ses if s.get("turno") == 2]
+    assert len({s["fecha"] for s in ses}) == 7 and len(dobles) == 3
+    fondo = next(s for s in ses if s["tipo"] == "fondo")
+    assert fondo["fecha"] not in {d["fecha"] for d in dobles}                     # nunca el día del fondo
+    calidad = {s["fecha"] for s in ses if s["tipo"] in ("umbral", "intensa")}
+    assert calidad <= {d["fecha"] for d in dobles}                                 # primero en los días de calidad
+    assert all(d["km"] <= coach.DOBLE_MAX_KM for d in dobles)

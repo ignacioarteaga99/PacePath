@@ -1456,7 +1456,8 @@ class PerfilCoach(BaseModel):
     """El objetivo del Coach (pp_coach en el teléfono y en la cuenta)."""
     objetivo: Literal["5k", "10k", "21k", "42k", "forma"]
     fecha: date | None = None           # de la carrera (no en «forma»)
-    dias: int = Field(default=4, ge=3, le=6)
+    dias: int = Field(default=4, ge=3, le=7)
+    dobles: int = Field(default=0, ge=0, le=4)            # días con 2 salidas
     dia_largo: int = Field(default=6, ge=0, le=6)       # 0 = lunes
     inicio: date | None = None          # desde cuándo vale el plan
 

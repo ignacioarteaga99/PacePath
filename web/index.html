@@ -3545,6 +3545,9 @@ Object.assign(EN, {
   "Sáb": "Sat",
   "Dom": "Sun",
   "Guardar": "Save",
+  "Dobles jornadas por semana": "Double days per week",
+  "Días con dos salidas: la del día y otra suave y corta. Para volúmenes altos.": "Days with two runs: the day's session plus a short easy one. For high volume.",
+  "2.ª salida": "2nd run", "rodaje suave de {k}": "easy run of {k}",
   "Competencia": "Race",
   "La define tu Coach según la fecha de tu objetivo.": "Set by your Coach based on your goal date.",
 });
@@ -3597,6 +3600,9 @@ Object.assign(PT, {
   "Sáb": "Sáb",
   "Dom": "Dom",
   "Guardar": "Salvar",
+  "Dobles jornadas por semana": "Dobras por semana",
+  "Días con dos salidas: la del día y otra suave y corta. Para volúmenes altos.": "Dias com duas saídas: a do dia e outra leve e curta. Para volumes altos.",
+  "2.ª salida": "2.ª saída", "rodaje suave de {k}": "rodagem leve de {k}",
   "Competencia": "Competição",
   "La define tu Coach según la fecha de tu objetivo.": "Definida pelo seu Coach conforme a data do seu objetivo.",
 });
@@ -3612,8 +3618,11 @@ function formCoach(p) {
     <label>${t("Tu objetivo")}<div class="fases">${OBJ_COACH.map(([k, et]) =>
       `<button type="button" class="chip${p?.objetivo === k ? " on" : ""}" data-obj="${k}">${t(et)}</button>`).join("")}</div></label>
     <label id="campoFechaCoach"${p?.objetivo === "forma" ? " hidden" : ""}>${t("Fecha de la carrera")}<input type="date" id="fechaCoach" min="${hoy}" value="${esc(p?.fecha || "")}"></label>
-    <label>${t("Días para correr por semana")}<div class="fases">${[3, 4, 5, 6].map((d) =>
+    <label>${t("Días para correr por semana")}<div class="fases">${[3, 4, 5, 6, 7].map((d) =>
       `<button type="button" class="chip${(p?.dias || 4) === d ? " on" : ""}" data-dias="${d}">${d}</button>`).join("")}</div></label>
+    <label>${t("Dobles jornadas por semana")}<div class="fases">${[0, 1, 2, 3, 4].map((d) =>
+      `<button type="button" class="chip${(p?.dobles || 0) === d ? " on" : ""}" data-dobles="${d}">${d}</button>`).join("")}</div>
+      <small style="font-weight:400">${t("Días con dos salidas: la del día y otra suave y corta. Para volúmenes altos.")}</small></label>
     <label>${t("Día del fondo")}<select id="diaLargoCoach">${DIA_CORTO.map((d, i) =>
       `<option value="${i}"${(p?.dia_largo ?? 6) === i ? " selected" : ""}>${t(d)}</option>`).join("")}</select></label>
     <button type="submit">${t(p ? "Guardar" : "Activar Coach")}</button>
@@ -3646,10 +3655,11 @@ function bloqueCoach(j) {
   const dia = (f) => t(DIA_CORTO[(new Date(f + "T12:00").getDay() + 6) % 7]);
   const hoyHtml = h ? `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${esc(h.titulo)}${h.texto && h.tipo !== "suave" && h.tipo !== "fondo" ? ` · ${esc(h.texto)}` : ""}</b>
       <div class="datos"><span>${fmtDistKm(h.km, 0)}</span>${h.ritmo ? `<span>${ritmoCoach(h.ritmo)}</span>` : ""}<span>~${num(h.minutos)} min</span><span>${t("esfuerzo {n}", { n: num(h.iep) })}</span></div>
-      <p>${esc(h.nota || "")}</p>${h.real ? `<p>✓ ${t("Ya corriste {k} hoy.", { k: fmtDistKm(h.real.km, 1) })}</p>` : ""}</div>`
+      <p>${esc(h.nota || "")}</p>${h.real ? `<p>✓ ${t("Ya corriste {k} hoy.", { k: fmtDistKm(h.real.km, 1) })}</p>` : ""}
+      ${c.hoy_2 ? `<p><b style="display:inline;font-size:14px">+ ${t("2.ª salida")}:</b> ${t("rodaje suave de {k}", { k: fmtDistKm(c.hoy_2.km, 0) })}${c.hoy_2.ritmo ? " · " + ritmoCoach(c.hoy_2.ritmo) : ""}${c.hoy_2.real ? " ✓" : ""}</p>` : ""}</div>`
     : `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${t("Descanso")}</b><p>${t("El descanso también entrena: hoy el cuerpo asimila.")}</p></div>`;
   const semana = (c.semana?.sesiones || []).map((s) => `<li class="${s.fecha === new Date().toISOString().slice(0, 10) ? "hoy" : ""}">
-      <span class="d">${dia(s.fecha)}</span>
+      <span class="d">${s.turno === 2 ? "+" : dia(s.fecha)}</span>
       <span><i class="tipo-c ${s.tipo}"></i>${esc(s.titulo)}${s.texto && !["suave", "fondo", "extra"].includes(s.tipo) ? ` · ${esc(s.texto)}` : ""}
         <small>${fmtDistKm(s.real ? s.real.km : s.km, s.real ? 1 : 0)}${s.real && s.estado !== "extra" ? " / " + fmtDistKm(s.km, 0) : ""}${s.ritmo ? " · " + ritmoCoach(s.ritmo) : ""}${s.movida ? " · " + t("sugerida desde el {d}", { d: dia(s.movida) }) : ""}</small></span>
       ${estado[s.estado] ? `<span class="e ${s.estado}">${estado[s.estado]}</span>` : "<span></span>"}</li>`).join("");
@@ -3696,12 +3706,17 @@ function activarCoach() {
     p.dias = +b.dataset.dias;
     f.querySelectorAll("[data-dias]").forEach((x) => x.classList.toggle("on", x === b));
   }; });
+  f.querySelectorAll("[data-dobles]").forEach((b) => { b.onclick = () => {
+    p.dobles = +b.dataset.dobles;
+    f.querySelectorAll("[data-dobles]").forEach((x) => x.classList.toggle("on", x === b));
+  }; });
   f.onsubmit = (e) => {
     e.preventDefault();
     if (!p.objetivo) return ($("errorCoach").textContent = t("Elige tu objetivo."));
     p.fecha = p.objetivo === "forma" ? null : $("fechaCoach").value || null;
     if (p.objetivo !== "forma" && !p.fecha) return ($("errorCoach").textContent = t("Elige la fecha de tu carrera."));
     p.dias = p.dias || 4;
+    p.dobles = Math.min(p.dobles || 0, p.dias - 1);
     p.dia_largo = +$("diaLargoCoach").value;
     const antes = leer("pp_coach", null);
     if (!antes || antes.objetivo !== p.objetivo || antes.fecha !== p.fecha) p.inicio = new Date().toISOString().slice(0, 10);
