@@ -74,3 +74,16 @@ def test_carga_en_rojo_cambia_calidad_por_suave():
 def test_sin_fecha_de_carrera_pide_la_fecha():
     assert "error" in coach.plan({"objetivo": "21k"}, [], AJ, hoy=HOY)
     assert coach.plan({"objetivo": "forma"}, [], AJ, hoy=HOY)["semana"] is not None
+
+
+def test_con_coach_la_revision_usa_su_fase():
+    from fastapi.testclient import TestClient
+    from pacepath.api import app
+    cli = TestClient(app)
+    runs = historial(8)
+    cuerpo = {"ajustes": {**AJ, "fase": "basica"}, "carreras": runs, "hoy": "2026-12-08",
+              "coach": {"objetivo": "10k", "fecha": "2026-12-20", "dias": 4, "inicio": "2026-10-19"}}
+    j = cli.post("/api/entreno/revision", json=cuerpo).json()
+    assert j["coach"]["semana"]["fase"] == "competencia" == j["revision"]["fase"]
+    sin = cli.post("/api/entreno/revision", json={**cuerpo, "coach": None}).json()
+    assert "coach" not in sin and sin["revision"]["fase"] == "basica"

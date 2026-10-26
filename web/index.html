@@ -3402,6 +3402,8 @@ function barrasZonas(id, semanas) {
 
 function pintarEntreno(j) {
   const a = ajustesEntreno(), z = j?.zonas, rev = j?.revision, fase = faseEntreno();
+  // Con el Coach activo, la fase es la suya (no se elige a mano).
+  const faseCoach = leer("pp_coach", null) && j?.coach?.semana?.fase;
   const fuenteFc = z && { umbral: t("Con tu FC umbral"), reserva: t("Con tu FC máxima y de reposo (Karvonen)"), fc_max: t("Con tu FC máxima"),
     fc_max_detectada: t("Con la FC más alta de tus carreras ({x}): escribe la tuya si la conoces", { x: z.fc_max_detectada }) }[z.fuente_fc];
   const fuenteRitmo = z && { umbral: t("Con tu ritmo umbral"), vdot: t("Con tus mejores tiempos (VDOT {v})", { v: num(z.vdot || 0, 1) }) }[z.fuente_ritmo];
@@ -3427,9 +3429,11 @@ function pintarEntreno(j) {
   hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu entrenamiento")}</h2>
     <p class="pista" style="margin-top:0">${t("Últimos 3 meses · filosofía del método noruego")}</p>
     ${bloqueCoach(j)}
-    <div class="bloque" style="margin-top:8px"><h3>${t("Fase")}</h3>
+    ${faseCoach ? `<div class="bloque" style="margin-top:8px"><h3>${t("Fase")}: ${t(FASES.find(([k]) => k === faseCoach)[1])}</h3>
+      <p class="sub">${t("La define tu Coach según la fecha de tu objetivo.")}</p></div>`
+    : `<div class="bloque" style="margin-top:8px"><h3>${t("Fase")}</h3>
       <div class="fases" role="radiogroup" aria-label="${t("Fase")}">${FASES.map(([k, et]) =>
-        `<button type="button" class="chip${k === fase ? " on" : ""}" role="radio" aria-checked="${k === fase}" data-fase="${k}">${t(et)}</button>`).join("")}</div></div>
+        `<button type="button" class="chip${k === fase ? " on" : ""}" role="radio" aria-checked="${k === fase}" data-fase="${k}">${t(et)}</button>`).join("")}</div></div>`}
     <div class="bloque"><h3>${t("Tus zonas")}</h3>
       <div class="kpis umbrales"><div class="kpi"><span>${t("Ritmo umbral")}</span><b>${z?.ritmo_umbral_s ? ritmo(z.ritmo_umbral_s) : "–"}</b>
           <small>${z?.vdot_de ? t("de tu mejor {d} (VDOT {v})", { d: { "5k": "5K", "10k": "10K", "21k": "21K", "42k": t("maratón") }[z.vdot_de], v: num(z.vdot, 1) })
@@ -3491,6 +3495,111 @@ function pintarEntreno(j) {
 // corres (el servidor, con las mismas carreras de la revisión). Todo es una
 // recomendación: se activa o desactiva aquí, y el perfil (pp_coach) viaja con
 // la cuenta. «Índice de esfuerzo»: 1 h a umbral = 100.
+// Textos del Coach en inglés y portugués.
+Object.assign(EN, {
+  "Tu objetivo": "Your goal",
+  "Fecha de la carrera": "Race date",
+  "Días para correr por semana": "Running days per week",
+  "Día del fondo": "Long run day",
+  "Condición y fatiga, últimas 6 semanas": "Fitness and fatigue, last 6 weeks",
+  "Condición (6 sem.)": "Fitness (6 wk)",
+  "Fatiga (7 días)": "Fatigue (7 days)",
+  "Esfuerzo del día": "Day's effort",
+  "Opcional · son sugerencias, tú decides": "Optional · just suggestions, you decide",
+  "Te sugiere qué correr cada día según tu objetivo y lo recalcula con lo que de verdad corres. También vigila que tu carga se mantenga en rangos sanos.": "It suggests what to run each day for your goal and recalculates with what you actually run. It also keeps an eye on your load staying in healthy ranges.",
+  "Activar Coach": "Turn on Coach",
+  "¿Hacia dónde vamos?": "Where are we headed?",
+  "Preparando tus sugerencias…": "Preparing your suggestions…",
+  "{o} · faltan {n} semanas": "{o} · {n} weeks to go",
+  "Objetivo: {o}": "Goal: {o}",
+  "hecha": "done",
+  "a medias": "partly",
+  "no se hizo": "not done",
+  "extra": "extra",
+  "hoy": "today",
+  "Sugerencia de hoy": "Today's suggestion",
+  "esfuerzo {n}": "effort {n}",
+  "Ya corriste {k} hoy.": "You already ran {k} today.",
+  "Descanso": "Rest",
+  "El descanso también entrena: hoy el cuerpo asimila.": "Rest is training too: today your body absorbs the work.",
+  "sugerida desde el {d}": "suggested from {d}",
+  "Índice de esfuerzo PacePath": "PacePath Effort Index",
+  "Condición": "Fitness",
+  "Fatiga": "Fatigue",
+  "Frescura": "Freshness",
+  "1 hora a ritmo umbral = 100. Zona sana: carga de la semana entre ×0,8 y ×1,3 de tu condición.": "1 hour at threshold pace = 100. Healthy zone: weekly load between ×0.8 and ×1.3 of your fitness.",
+  "Esta semana": "This week",
+  "Tu plan, semana a semana": "Your plan, week by week",
+  "Barra clara: sugerido · naranja: corrido · ↓ semana de descarga": "Light bar: suggested · orange: run · ↓ recovery week",
+  "Cambiar objetivo": "Change goal",
+  "Desactivar Coach": "Turn off Coach",
+  "¿Desactivar el Coach? Puedes volver a activarlo cuando quieras.": "Turn off the Coach? You can turn it back on anytime.",
+  "Elige tu objetivo.": "Pick your goal.",
+  "Elige la fecha de tu carrera.": "Pick your race date.",
+  "En forma": "Stay fit",
+  "Lun": "Mon",
+  "Mar": "Tue",
+  "Mié": "Wed",
+  "Jue": "Thu",
+  "Vie": "Fri",
+  "Sáb": "Sat",
+  "Dom": "Sun",
+  "Guardar": "Save",
+  "Competencia": "Race",
+  "La define tu Coach según la fecha de tu objetivo.": "Set by your Coach based on your goal date.",
+});
+Object.assign(PT, {
+  "Tu objetivo": "Seu objetivo",
+  "Fecha de la carrera": "Data da prova",
+  "Días para correr por semana": "Dias de corrida por semana",
+  "Día del fondo": "Dia do longão",
+  "Condición y fatiga, últimas 6 semanas": "Condição e fadiga, últimas 6 semanas",
+  "Condición (6 sem.)": "Condição (6 sem.)",
+  "Fatiga (7 días)": "Fadiga (7 dias)",
+  "Esfuerzo del día": "Esforço do dia",
+  "Opcional · son sugerencias, tú decides": "Opcional · são sugestões, você decide",
+  "Te sugiere qué correr cada día según tu objetivo y lo recalcula con lo que de verdad corres. También vigila que tu carga se mantenga en rangos sanos.": "Sugere o que correr a cada dia conforme o seu objetivo e recalcula com o que você realmente corre. Também cuida para que sua carga fique em faixas saudáveis.",
+  "Activar Coach": "Ativar o Coach",
+  "¿Hacia dónde vamos?": "Para onde vamos?",
+  "Preparando tus sugerencias…": "Preparando suas sugestões…",
+  "{o} · faltan {n} semanas": "{o} · faltam {n} semanas",
+  "Objetivo: {o}": "Objetivo: {o}",
+  "hecha": "feita",
+  "a medias": "pela metade",
+  "no se hizo": "não feita",
+  "extra": "extra",
+  "hoy": "hoje",
+  "Sugerencia de hoy": "Sugestão de hoje",
+  "esfuerzo {n}": "esforço {n}",
+  "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
+  "Descanso": "Descanso",
+  "El descanso también entrena: hoy el cuerpo asimila.": "O descanso também treina: hoje o corpo assimila.",
+  "sugerida desde el {d}": "sugerida a partir de {d}",
+  "Índice de esfuerzo PacePath": "Índice de esforço PacePath",
+  "Condición": "Condição",
+  "Fatiga": "Fadiga",
+  "Frescura": "Frescor",
+  "1 hora a ritmo umbral = 100. Zona sana: carga de la semana entre ×0,8 y ×1,3 de tu condición.": "1 hora no ritmo de limiar = 100. Zona saudável: carga da semana entre ×0,8 e ×1,3 da sua condição.",
+  "Esta semana": "Esta semana",
+  "Tu plan, semana a semana": "Seu plano, semana a semana",
+  "Barra clara: sugerido · naranja: corrido · ↓ semana de descarga": "Barra clara: sugerido · laranja: corrido · ↓ semana de descarga",
+  "Cambiar objetivo": "Mudar objetivo",
+  "Desactivar Coach": "Desativar o Coach",
+  "¿Desactivar el Coach? Puedes volver a activarlo cuando quieras.": "Desativar o Coach? Você pode ativá-lo de novo quando quiser.",
+  "Elige tu objetivo.": "Escolha seu objetivo.",
+  "Elige la fecha de tu carrera.": "Escolha a data da sua prova.",
+  "En forma": "Em forma",
+  "Lun": "Seg",
+  "Mar": "Ter",
+  "Mié": "Qua",
+  "Jue": "Qui",
+  "Vie": "Sex",
+  "Sáb": "Sáb",
+  "Dom": "Dom",
+  "Guardar": "Salvar",
+  "Competencia": "Competição",
+  "La define tu Coach según la fecha de tu objetivo.": "Definida pelo seu Coach conforme a data do seu objetivo.",
+});
 const OBJ_COACH = [["5k", "5K"], ["10k", "10K"], ["21k", "21K"], ["42k", "42K"], ["forma", "En forma"]];
 const DIA_CORTO = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 let editandoCoach = false;
@@ -3553,7 +3662,7 @@ function bloqueCoach(j) {
   return `<div class="coach">${cab(sub)}
     <ul class="coach-msgs">${c.mensajes.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>
     ${hoyHtml}
-    <div class="bloque"><h3>${t("Índice de esfuerzo")}</h3>
+    <div class="bloque"><h3>${t("Índice de esfuerzo PacePath")}</h3>
       <div class="semaforo"><span class="luz ${k.nivel}">${k.acwr != null ? "×" + num(k.acwr, 2) : "–"}</span><p>${esc(k.texto)}</p></div>
       <div class="kpis"><div class="kpi"><span>${t("Condición")}</span><b>${num(k.condicion)}</b></div>
         <div class="kpi"><span>${t("Fatiga")}</span><b>${num(k.fatiga)}</b></div>

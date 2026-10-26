@@ -1473,9 +1473,14 @@ def entreno_revision(body: PedidoRevision) -> dict:
     """Zonas y revisión de los últimos 3 meses con las carreras que manda el
     teléfono (de Strava, guardadas allá). No se guarda nada."""
     _anotar(tipo=body.ajustes.fase, detalle=f"{len(body.carreras)} carreras" + (f" · coach {body.coach.objetivo}" if body.coach else ""))
-    out = entreno.revision(body.carreras, body.ajustes.model_dump(), hoy=body.hoy)
-    if body.coach:
-        out["coach"] = coach.plan(body.coach.model_dump(mode="json"), body.carreras, body.ajustes.model_dump(), hoy=body.hoy)
+    ajustes = body.ajustes.model_dump()
+    plan = coach.plan(body.coach.model_dump(mode="json"), body.carreras, ajustes, hoy=body.hoy) if body.coach else None
+    # Con el Coach activo, la fase la pone él (la de la semana en curso).
+    if plan and (plan.get("semana") or {}).get("fase"):
+        ajustes["fase"] = plan["semana"]["fase"]
+    out = entreno.revision(body.carreras, ajustes, hoy=body.hoy)
+    if plan:
+        out["coach"] = plan
     return out
 
 
