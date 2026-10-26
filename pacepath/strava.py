@@ -146,13 +146,17 @@ def revisar_cupo() -> None:
         raise StravaEspera(tr("Strava ya recibió muchas consultas de PacePath hoy. Vuelve mañana: "
                               "tus carreras siguen guardadas en tu teléfono.",
                               "Strava has had a lot of requests from PacePath today. Come back tomorrow: "
-                              "your runs are still saved on your phone."))
+                              "your runs are still saved on your phone.",
+                              "O Strava recebeu muitos pedidos do PacePath hoje. Volte amanhã: "
+                              "suas corridas continuam salvas no seu celular."))
     if c["ventana"] == _ventana(ahora) and c["uso15"] >= FRENO * c["lim15"]:
         minutos = max(1, math.ceil(((c["ventana"] + 1) * 900 - ahora) / 60))
         raise StravaEspera(tr(f"Strava está con mucha demanda de PacePath en este momento. "
                               f"Vuelve en {minutos} min y sigue donde quedó.",
                               f"Strava is getting a lot of requests from PacePath right now. "
-                              f"Come back in {minutos} min to continue where it left off."))
+                              f"Come back in {minutos} min to continue where it left off.",
+                              f"O Strava está recebendo muitos pedidos do PacePath agora. "
+                              f"Volte em {minutos} min para continuar de onde parou."))
 
 
 # ── HTTP (una función, para poder simularla en los tests) ───────────────────
@@ -181,7 +185,9 @@ def _http(metodo: str, url: str, datos: dict | None = None,
             raise StravaEspera(tr("Strava pide esperar un poco (límite de uso de la API). "
                                  "Prueba en 15 minutos.",
                                  "Strava asks us to wait (API rate limit). Try again in "
-                                 "15 minutes.")) from exc
+                                 "15 minutes.",
+                                 "O Strava pede para esperar (limite da API). Tente de novo em "
+                                 "15 minutos.")) from exc
         if exc.code == 403:
             try:
                 cuerpo = exc.read().decode("utf-8", "replace").lower()
@@ -191,14 +197,19 @@ def _http(metodo: str, url: str, datos: dict | None = None,
                 raise StravaLimite(tr("Strava todavía limita cuántas personas pueden conectar "
                                       "PacePath (la app está en revisión).",
                                       "Strava still limits how many people can connect PacePath "
-                                      "(the app is under review).")) from exc
+                                      "(the app is under review).",
+                                      "O Strava ainda limita quantas pessoas podem conectar o PacePath "
+                                      "(o app está em revisão).")) from exc
         if exc.code in (401, 403):
             raise StravaSinAcceso(tr("Strava rechazó el acceso: vuelve a conectar.",
-                                 "Strava rejected access: please reconnect.")) from exc
+                                 "Strava rejected access: please reconnect.",
+                                 "O Strava recusou o acesso: conecte de novo.")) from exc
         raise StravaError(tr(f"Strava respondió {exc.code}.",
-                             f"Strava answered {exc.code}.")) from exc
+                             f"Strava answered {exc.code}.",
+                             f"O Strava respondeu {exc.code}.")) from exc
     except OSError as exc:
-        raise StravaError(tr("No pude hablar con Strava.", "I couldn't reach Strava.")) from exc
+        raise StravaError(tr("No pude hablar con Strava.", "I couldn't reach Strava.",
+                                                           "Não consegui falar com o Strava.")) from exc
 
 
 # ── OAuth ───────────────────────────────────────────────────────────────────
@@ -356,7 +367,8 @@ def foto(s: Sesion) -> tuple[bytes, str] | None:
             tipo = r.headers.get_content_type()
             datos = r.read(FOTO_MAX_BYTES + 1)
     except OSError as exc:
-        raise StravaError(tr("No pude traer tu foto de Strava.", "I couldn't get your Strava photo.")) from exc
+        raise StravaError(tr("No pude traer tu foto de Strava.", "I couldn't get your Strava photo.",
+                                                                 "Não consegui pegar sua foto do Strava.")) from exc
     if not tipo.startswith("image/") or len(datos) > FOTO_MAX_BYTES:
         return None
     return datos, tipo

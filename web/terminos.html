@@ -25,16 +25,16 @@
   .nota { border: 1px solid var(--linea); border-radius: 12px; padding: 12px 14px; color: var(--suave); font-size: 14.5px; }
   a { color: var(--acento); }
   /* Sólo los bloques de contenido (no <html>, que también lleva lang) */
-  main [lang="en"] { display: none; }
-  body.en main [lang="es"] { display: none; }
-  body.en main [lang="en"] { display: block; }
+  main [lang="en"], main [lang="pt"] { display: none; }
+  body.en main [lang="es"], body.pt main [lang="es"] { display: none; }
+  body.en main [lang="en"], body.pt main [lang="pt"] { display: block; }
 </style>
 </head>
 <body>
 <main>
   <header>
     <a class="marca" href="/"><img src="/icons/icono-192.png" alt="">PacePath</a>
-    <nav class="idiomas"><a href="?lang=es" id="es">ES</a><a href="?lang=en" id="en">EN</a></nav>
+    <nav class="idiomas"><a href="?lang=es" id="es">ES</a><a href="?lang=en" id="en">EN</a><a href="?lang=pt" id="pt">PT</a></nav>
   </header>
 
   <section lang="es">
@@ -181,16 +181,89 @@
     <h2>11. Governing law and contact</h2>
     <p>These terms are governed by the laws of Chile. For any question, use the "Send feedback" button in the app.</p>
   </section>
+
+  <section lang="pt">
+    <h1>Termos de uso</h1>
+    <p class="fecha">Versão beta · vigente desde 22 de outubro de 2026</p>
+    <p class="nota">Em resumo: o PacePath é gratuito e está em beta. Ele sugere rotas, mas quem decide por onde correr é você:
+      respeite as regras de trânsito e corra com cuidado. Use-o de forma razoável, não o use comercialmente sem permissão e,
+      se algo quebrar, avise a gente.</p>
+
+    <h2>1. O que é o PacePath</h2>
+    <p>O PacePath (pacepathapp.com) é um app web gratuito, feito em Santiago, Chile, que sugere rotas de corrida para o seu
+      treino e, se você conectar o Strava, mostra suas corridas, estatísticas e conquistas. Ao usá-lo você aceita estes termos e
+      a <a href="/privacidad?lang=pt">política de privacidade</a>. Se não concordar, por favor não o use.</p>
+
+    <h2>2. Corra com segurança: as rotas são sugestões</h2>
+    <ul>
+      <li>As rotas são calculadas automaticamente a partir de dados públicos de mapas (OpenStreetMap), que podem estar errados ou
+        desatualizados: ruas fechadas, obras, calçadas ruins, áreas inseguras ou semáforos que faltam.</li>
+      <li>O PacePath não garante que uma rota seja segura, transitável, permitida ou adequada para você. <b>Você é responsável</b>
+        por decidir por onde corre, respeitar a sinalização e as leis de trânsito, olhar antes de atravessar e adaptar a rota às
+        condições do momento.</li>
+      <li>Distâncias, desnível, semáforos e cruzamentos são estimativas.</li>
+      <li>O PacePath não dá conselhos médicos nem de treinador. Corra dentro da sua condição física e consulte um profissional de
+        saúde em caso de dúvida.</li>
+    </ul>
+
+    <h2>3. Strava</h2>
+    <ul>
+      <li>Conectar o Strava é opcional e você pode desconectar quando quiser em «Meus lugares». Ao conectar, os termos do Strava
+        também se aplicam.</li>
+      <li>O PacePath é um projeto independente: não é afiliado, patrocinado nem endossado pelo Strava. «Strava» e seus logotipos
+        são marcas da Strava, Inc.</li>
+    </ul>
+
+    <h2>4. Uso aceitável</h2>
+    <p>Você pode usar o PacePath para o seu próprio treino. Você não pode:</p>
+    <ul>
+      <li>Fazer pedidos em massa ou automatizados (bots, scripts) nem tentar sobrecarregar o serviço.</li>
+      <li>Tentar acessar partes não públicas, quebrar sua segurança ou usar o app para prejudicar outras pessoas.</li>
+      <li>Revender, copiar ou usar o app ou seus resultados comercialmente sem permissão por escrito.</li>
+    </ul>
+    <p>Podemos limitar ou bloquear o acesso de quem não cumprir estas regras, para proteger o serviço para todos.</p>
+
+    <h2>5. Mapas e dados de terceiros</h2>
+    <p>Mapas e ruas © colaboradores do OpenStreetMap (licença ODbL), blocos de mapa da Protomaps; relevo do Mapzen Terrain Tiles
+      no AWS Open Data; algumas camadas da Esri; cidades do GeoNames (CC BY 4.0); bandeiras no Windows do Twemoji (CC BY 4.0).
+      Cada um é usado conforme sua licença.</p>
+
+    <h2>6. Propriedade intelectual</h2>
+    <p>O nome, o logotipo, o design e o código do PacePath pertencem ao seu autor. As rotas e arquivos GPX que você cria são para
+      seu uso pessoal: você pode salvá-los, usá-los no seu relógio e compartilhá-los com amigos.</p>
+
+    <h2>7. Contribuições voluntárias</h2>
+    <p>Se você fizer uma contribuição (por exemplo no Ko-fi), ela é uma doação voluntária para ajudar a manter o projeto: não
+      compra funções nem dá direito a suporte especial. Ela é processada pela plataforma que você usar (Ko-fi, PayPal ou outra),
+      conforme os termos dela. Reembolsos seguem o que a lei exigir.</p>
+
+    <h2>8. Disponibilidade e beta</h2>
+    <p>O PacePath é oferecido «como está» e está em beta: pode ter erros, mudar, ficar temporariamente indisponível ou parar de
+      funcionar. As funções podem mudar sem aviso.</p>
+
+    <h2>9. Responsabilidade</h2>
+    <p>Na medida permitida pela lei, o PacePath e seu autor não se responsabilizam por danos, lesões, acidentes, multas ou perdas
+      decorrentes do uso do app ou das rotas sugeridas. Nada nestes termos limita seus direitos segundo a Lei chilena 19.496 de
+      proteção ao consumidor ou outros direitos irrenunciáveis.</p>
+
+    <h2>10. Mudanças nestes termos</h2>
+    <p>Podemos atualizar estes termos. A data acima indica a versão mais recente; se uma mudança for importante, avisaremos no
+      app. Continuar usando-o depois de uma mudança significa que você a aceita.</p>
+
+    <h2>11. Lei aplicável e contato</h2>
+    <p>Estes termos são regidos pelas leis do Chile. Para qualquer dúvida, use o botão «Enviar comentário» no app.</p>
+  </section>
 </main>
 <script>
   // Idioma: ?lang=, o el que eligió en la app, o el del navegador.
   const q = new URLSearchParams(location.search).get("lang");
   let app = null; try { app = JSON.parse(localStorage.getItem("pp_lang")); } catch {}
-  const en = (q || app || navigator.language || "es").toLowerCase().startsWith("en");
-  document.body.classList.toggle("en", en);
-  document.documentElement.lang = en ? "en" : "es";
-  document.title = en ? "Terms of use · PacePath" : "Términos de uso · PacePath";
-  document.getElementById(en ? "en" : "es").setAttribute("aria-current", "true");
+  let lang = (q || app || navigator.language || "es").toLowerCase().slice(0, 2);
+  if (!["es", "en", "pt"].includes(lang)) lang = "es";
+  document.body.classList.add(lang);
+  document.documentElement.lang = lang === "pt" ? "pt-BR" : lang;
+  document.title = { es: "Términos de uso", en: "Terms of use", pt: "Termos de uso" }[lang] + " · PacePath";
+  document.getElementById(lang).setAttribute("aria-current", "true");
 </script>
 </body>
 </html>

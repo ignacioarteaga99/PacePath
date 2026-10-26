@@ -237,7 +237,7 @@ async def _registrar(request: Request, call_next):
     lang = request.headers.get("x-idioma") or request.query_params.get("lang") \
         or request.headers.get("accept-language", "es")
     info: dict = {"consulta": consulta, "usuario": usuario, "strava": strava.COOKIE in request.cookies,
-                  "idioma": "en" if lang.lower().startswith("en") else "es",
+                  "idioma": idioma.normalizar(lang),
                   "disp": _dispositivo(request.headers.get("user-agent", ""))}
     cuenta = _usuario(request)
     info["cuenta"] = cuenta["id"] if cuenta else None
@@ -409,7 +409,8 @@ def cuenta_exportar(request: Request) -> Response:
         "cuenta": cuentas.publico(u) | {"idioma": u.get("idioma")},
         "strava": {"conectado": bool(cuentas.strava_de(u["id"])),
                    "nota": tr("El acceso a Strava se guarda cifrado; tus carreras viven sólo en tu teléfono.",
-                              "Strava access is stored encrypted; your runs live only on your phone.")},
+                              "Strava access is stored encrypted; your runs live only on your phone.",
+                              "O acesso ao Strava é guardado criptografado; suas corridas ficam só no seu celular.")},
         "preferencias": {"datos": datos, "actualizado": ts},
         "uso": [dict(zip(("ts", "consulta", "evento", "tipo", "comuna", "detalle", "exito"), f)) for f in eventos],
         "zonas_pedidas": [dict(zip(("id", "nombre", "estado", "pedida"), f)) for f in pedidas],
@@ -682,36 +683,38 @@ def admin_eventos(request: Request, desde: str | None = None, hasta: str | None 
 
 # ── Cuentas: registro e inicio de sesión ───────────────────────────────────
 _MENSAJES = {
-    "correo_invalido": ("Ese correo no parece válido.", "That email doesn't look valid."),
-    "correo_existe": ("Ya hay una cuenta con ese correo: entra con ella.", "There's already an account with that email: sign in."),
+    "correo_invalido": ("Ese correo no parece válido.", "That email doesn't look valid.", "Esse e-mail não parece válido."),
+    "correo_existe": ("Ya hay una cuenta con ese correo: entra con ella.", "There's already an account with that email: sign in.", "Já existe uma conta com esse e-mail: entre com ela."),
     "correo_existe_otro_metodo": ("Ya hay una cuenta con ese correo: entra con el método que usaste al crearla.",
-                                  "There's already an account with that email: sign in the way you created it."),
+                                  "There's already an account with that email: sign in the way you created it.", "Já existe uma conta com esse e-mail: entre do jeito que você a criou."),
     "clave_corta": (f"La clave debe tener al menos {cuentas.CLAVE_MIN} caracteres.",
-                    f"The password must be at least {cuentas.CLAVE_MIN} characters."),
-    "clave_incorrecta": ("Correo o clave incorrectos.", "Wrong email or password."),
-    "demasiados_intentos": ("Demasiados intentos: espera unos minutos.", "Too many attempts: wait a few minutes."),
-    "bloqueada": ("Esta cuenta está desactivada.", "This account is disabled."),
-    "sin_correo": ("Tu cuenta no compartió un correo: prueba otro método.", "Your account didn't share an email: try another method."),
-    "no_existe": ("Esa cuenta no existe.", "That account doesn't exist."),
+                    f"The password must be at least {cuentas.CLAVE_MIN} characters.", f"A senha precisa ter pelo menos {cuentas.CLAVE_MIN} caracteres."),
+    "clave_incorrecta": ("Correo o clave incorrectos.", "Wrong email or password.", "E-mail ou senha incorretos."),
+    "demasiados_intentos": ("Demasiados intentos: espera unos minutos.", "Too many attempts: wait a few minutes.", "Muitas tentativas: espere alguns minutos."),
+    "bloqueada": ("Esta cuenta está desactivada.", "This account is disabled.", "Esta conta está desativada."),
+    "sin_correo": ("Tu cuenta no compartió un correo: prueba otro método.", "Your account didn't share an email: try another method.", "Sua conta não compartilhou um e-mail: tente outro método."),
+    "no_existe": ("Esa cuenta no existe.", "That account doesn't exist.", "Essa conta não existe."),
     "usa_google": ("Esta cuenta se creó con Google: entra con «Continuar con Google» (tu clave de Gmail se escribe "
                    "en Google, nunca aquí). Si también quieres una clave para PacePath, usa «¿Olvidaste tu clave?».",
                    "This account was created with Google: use “Continue with Google” (your Gmail password is typed "
-                   "on Google, never here). If you also want a PacePath password, use “Forgot your password?”."),
+                   "on Google, never here). If you also want a PacePath password, use “Forgot your password?”.", "Esta conta foi criada com o Google: use “Continuar com o Google” (sua senha do Gmail é digitada "
+                   "no Google, nunca aqui). Se também quiser uma senha do PacePath, use “Esqueceu sua senha?”."),
     "usa_microsoft": ("Esta cuenta se creó con Microsoft: entra con «Continuar con Microsoft» (tu clave de Outlook se "
                       "escribe en Microsoft, nunca aquí). Si también quieres una clave para PacePath, usa «¿Olvidaste tu clave?».",
                       "This account was created with Microsoft: use “Continue with Microsoft” (your Outlook password "
-                      "is typed on Microsoft, never here). If you also want a PacePath password, use “Forgot your password?”."),
+                      "is typed on Microsoft, never here). If you also want a PacePath password, use “Forgot your password?”.", "Esta conta foi criada com a Microsoft: use “Continuar com a Microsoft” (sua senha do Outlook "
+                      "é digitada na Microsoft, nunca aqui). Se também quiser uma senha do PacePath, use “Esqueceu sua senha?”."),
     "datos_grandes": ("Tus preferencias guardadas superan el máximo: borra rutas guardadas antiguas.",
-                      "Your saved preferences are over the limit: delete some old saved routes."),
-    "codigo_invalido": ("El enlace venció o ya se usó: pide uno nuevo.", "The link expired or was already used: ask for a new one."),
+                      "Your saved preferences are over the limit: delete some old saved routes.", "Suas preferências salvas passaram do limite: apague algumas rotas salvas antigas."),
+    "codigo_invalido": ("El enlace venció o ya se usó: pide uno nuevo.", "The link expired or was already used: ask for a new one.", "O link expirou ou já foi usado: peça um novo."),
     "correo_apagado": ("La recuperación por correo todavía no está disponible: escríbenos y te ayudamos.",
-                       "Email recovery isn't available yet: write to us and we'll help."),
+                       "Email recovery isn't available yet: write to us and we'll help.", "A recuperação por e-mail ainda não está disponível: escreva para nós e ajudamos você."),
 }
 
 
 def _error_cuenta(exc: cuentas.ErrorCuenta, codigo: int = 400) -> HTTPException:
-    es, en_ = _MENSAJES.get(str(exc), (str(exc), str(exc)))
-    return HTTPException(codigo, {"codigo": str(exc), "mensaje": tr(es, en_)})
+    es, en_, *pt = _MENSAJES.get(str(exc), (str(exc), str(exc)))
+    return HTTPException(codigo, {"codigo": str(exc), "mensaje": tr(es, en_, *pt)})
 
 
 def _con_sesion(u: dict, request: Request, resp: Response) -> Response:
@@ -864,7 +867,8 @@ COOKIE_IDIOMA_OAUTH = "pp_idioma_oauth"
 @app.get("/api/auth/{proveedor}", include_in_schema=False)
 def auth_ir(proveedor: Literal["google", "microsoft"], request: Request, correo: str = "") -> Response:
     if not oauth.configurados()[proveedor]:
-        raise HTTPException(503, tr("Ese inicio de sesión no está configurado.", "That sign-in isn't configured."))
+        raise HTTPException(503, tr("Ese inicio de sesión no está configurado.", "That sign-in isn't configured.",
+                                                                                 "Essa forma de entrar não está configurada."))
     pista = correo.strip()[:200] if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", correo.strip()) else None
     url, estado = oauth.iniciar(proveedor, f"{_base(request)}/api/auth/{proveedor}/vuelta", pista)
     resp = RedirectResponse(url)
@@ -1096,11 +1100,15 @@ def _fuera_de_mapa(lat: float, lon: float):
         raise HTTPException(422, tr("Todavía no hay mapa ahí. Pide una ruta saliendo desde ese punto y "
                                     "preparamos el mapa de la zona en unos minutos.",
                                     "There's no map there yet. Ask for a route starting from that point and "
-                                    "we'll prepare the area's map in a few minutes."))
+                                    "we'll prepare the area's map in a few minutes.",
+                                    "Ainda não há mapa aí. Peça uma rota saindo desse ponto e "
+                                    "preparamos o mapa da região em alguns minutos."))
     raise HTTPException(422, tr(f"Todavía no hay mapa ahí. Por ahora PacePath funciona en: {comunas.zonas()}. "
                                 "Cuéntanos tu comuna en «Enviar comentario».",
                                 f"There's no map there yet. For now PacePath works in: {comunas.zonas(True)}. "
-                                "Tell us your area with “Send feedback”."))
+                                "Tell us your area with “Send feedback”.",
+                                f"Ainda não há mapa aí. Por enquanto o PacePath funciona em: {comunas.zonas('pt')}. "
+                                "Conte qual é a sua região em “Enviar comentário”."))
 
 
 def _comuna_o_zona(lat: float, lon: float) -> str:
@@ -1114,17 +1122,22 @@ def _comuna_o_zona(lat: float, lon: float) -> str:
     if z["estado"] == "pedida":
         raise HTTPException(409, {"preparando": z, "mensaje": tr(
             f"Es la primera vez que alguien corre en {z['nombre']}: estamos preparando su mapa. Tarda unos minutos.",
-            f"This is the first time someone runs in {z['nombre']}: we're preparing its map. It takes a few minutes.")})
+            f"This is the first time someone runs in {z['nombre']}: we're preparing its map. It takes a few minutes.",
+            f"É a primeira vez que alguém corre em {z['nombre']}: estamos preparando o mapa. Leva alguns minutos.")})
     if z["estado"] == "fallida":
         raise HTTPException(422, tr("No pudimos preparar el mapa de esa zona: puede que casi no tenga calles en "
                                     "OpenStreetMap. Prueba saliendo desde un punto cercano.",
                                     "We couldn't prepare the map for that area: it may have very few streets on "
-                                    "OpenStreetMap. Try starting from a nearby point."))
+                                    "OpenStreetMap. Try starting from a nearby point.",
+                                    "Não conseguimos preparar o mapa dessa região: talvez ela tenha poucas ruas no "
+                                    "OpenStreetMap. Tente sair de um ponto próximo."))
     if z["estado"] == "limite":
         raise HTTPException(429, tr("Hoy ya se prepararon muchas zonas nuevas. Vuelve a intentarlo mañana o "
                                     "cuéntanos tu zona en «Enviar comentario».",
                                     "Many new areas were prepared today already. Try again tomorrow or tell us "
-                                    "your area with “Send feedback”."))
+                                    "your area with “Send feedback”.",
+                                    "Muitas regiões novas já foram preparadas hoje. Tente de novo amanhã ou conte "
+                                    "qual é a sua região em “Enviar comentário”."))
     _fuera_de_mapa(lat, lon)
 
 
@@ -1176,7 +1189,8 @@ def _plan(body: PedidoRuta) -> dict:
         raise HTTPException(404, str(exc)) from exc
     except cancelar.Cancelado as exc:
         uso.registrar("ruta_cancelada", body.texto, tipo=s.tipo.value, comuna=comuna, exito=False)
-        raise HTTPException(499, tr("Cancelaste la ruta.", "You cancelled the route.")) from exc
+        raise HTTPException(499, tr("Cancelaste la ruta.", "You cancelled the route.",
+                                                           "Você cancelou a rota.")) from exc
 
 
 def _preferidas(ctx, body: PedidoRuta) -> tuple[np.ndarray | None, dict]:
@@ -1333,7 +1347,8 @@ def _poner_cookie(resp: Response, request: Request, nombre: str, valor: str,
 def strava_conectar(request: Request) -> Response:
     if not strava.configurado():
         raise HTTPException(503, tr("Strava no está configurado en el servidor.",
-                                    "Strava isn't configured on the server."))
+                                    "Strava isn't configured on the server.",
+                                    "O Strava não está configurado no servidor."))
     estado = strava.nuevo_estado()
     resp = RedirectResponse(strava.url_autorizar(f"{_base(request)}/api/strava/vuelta", estado))
     _poner_cookie(resp, request, strava.COOKIE_ESTADO, estado, 600)
@@ -1390,7 +1405,8 @@ def strava_actividades(request: Request, pagina: int = 1, despues: int | None = 
     s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
     if s is None:
         raise HTTPException(401, tr("Conecta tu cuenta de Strava.",
-                                    "Connect your Strava account."))
+                                    "Connect your Strava account.",
+                                    "Conecte sua conta do Strava."))
     try:
         s, renovada = strava.vigente(s)
         lista, crudas, cinta = strava.carreras(s, max(1, pagina), despues)
@@ -1411,7 +1427,8 @@ def strava_histograma(request: Request, id: int) -> Response:
     entrenamiento). No se guarda: va directo al teléfono."""
     s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
     if s is None:
-        raise HTTPException(401, tr("Conecta tu cuenta de Strava.", "Connect your Strava account."))
+        raise HTTPException(401, tr("Conecta tu cuenta de Strava.", "Connect your Strava account.",
+                                                                    "Conecte sua conta do Strava."))
     try:
         s, renovada = strava.vigente(s)
         h = strava.histograma(s, id)
@@ -1454,14 +1471,16 @@ def strava_foto(request: Request) -> Response:
     """Tu foto de perfil de Strava, servida desde aquí (para la tarjeta del Pasaporte)."""
     s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
     if s is None:
-        raise HTTPException(401, tr("Conecta tu cuenta de Strava.", "Connect your Strava account."))
+        raise HTTPException(401, tr("Conecta tu cuenta de Strava.", "Connect your Strava account.",
+                                                                    "Conecte sua conta do Strava."))
     try:
         s, renovada = strava.vigente(s)
         f = strava.foto(s)
     except strava.StravaError as exc:
         raise _error_strava(exc) from exc
     if f is None:
-        raise HTTPException(404, tr("No tienes foto de perfil en Strava.", "You don't have a Strava profile photo."))
+        raise HTTPException(404, tr("No tienes foto de perfil en Strava.", "You don't have a Strava profile photo.",
+                                                                           "Você não tem foto de perfil no Strava."))
     resp = Response(f[0], media_type=f[1], headers={"Cache-Control": "private, max-age=3600"})
     if renovada:
         _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
@@ -1473,7 +1492,8 @@ def strava_perfil(request: Request) -> Response:
     s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
     if s is None:
         raise HTTPException(401, tr("Conecta tu cuenta de Strava.",
-                                    "Connect your Strava account."))
+                                    "Connect your Strava account.",
+                                    "Conecte sua conta do Strava."))
     try:
         s, renovada = strava.vigente(s)
         datos = strava.perfil(s)

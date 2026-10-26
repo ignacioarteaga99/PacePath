@@ -80,26 +80,32 @@ class Sesion(BaseModel):
         if t is TipoSesion.SERIES and self.escalera_m:
             km = all(x >= 1000 and x % 100 == 0 for x in self.escalera_m)
             pasos = "-".join(f"{x / 1000:g}".replace(".", ",") if km else f"{x:.0f}" for x in self.escalera_m)
-            return tr(f"pirámide {pasos} {'km' if km else 'm'}", f"pyramid {pasos} {'km' if km else 'm'}")
+            return tr(f"pirámide {pasos} {'km' if km else 'm'}", f"pyramid {pasos} {'km' if km else 'm'}",
+                                                                 f"pirâmide {pasos} {'km' if km else 'm'}")
         if t is TipoSesion.SERIES and self.rep_s:
-            pausa = (tr(f" / {_tiempo(self.pausa_s)} suave", f" / {_tiempo(self.pausa_s)} easy")
+            pausa = (tr(f" / {_tiempo(self.pausa_s)} suave", f" / {_tiempo(self.pausa_s)} easy",
+                                                             f" / {_tiempo(self.pausa_s)} leve")
                      if self.pausa_s else "")
             return (f"fartlek {self.repeticiones}×{_tiempo(self.rep_s)}{pausa}"
                     f" (≈ {_m(self.distancia_rep_m)})")
         if t is TipoSesion.SERIES:
             # La pausa sólo si el corredor la escribió: no se inventa.
-            pausa = (tr(f" (pausa {self.pausa_s} s)", f" ({self.pausa_s} s rest)")
+            pausa = (tr(f" (pausa {self.pausa_s} s)", f" ({self.pausa_s} s rest)",
+                                                      f" ({self.pausa_s} s de descanso)")
                      if self.pausa_s else "")
             return f"{self.repeticiones}×{_m(self.distancia_rep_m)}{pausa}"
         if t is TipoSesion.CUESTAS:
             return tr(f"cuestas {self.repeticiones}×{_m(self.distancia_rep_m)}"
                       f" al {self.pendiente_pct:g} %",
                       f"hills {self.repeticiones}×{_m(self.distancia_rep_m)}"
-                      f" at {self.pendiente_pct:g} %")
-        tope = tr(f" (máx. +{self.max_subida_m:.0f} m)", f" (max +{self.max_subida_m:.0f} m)") \
+                      f" at {self.pendiente_pct:g} %",
+                      f"subidas {self.repeticiones}×{_m(self.distancia_rep_m)}"
+                      f" a {self.pendiente_pct:g} %")
+        tope = tr(f" (máx. +{self.max_subida_m:.0f} m)", f" (max +{self.max_subida_m:.0f} m)",
+                                                         f" (máx. +{self.max_subida_m:.0f} m)") \
             if self.max_subida_m is not None else ""
-        nombre = {TipoSesion.TEMPO: ("tempo", "tempo"), TipoSesion.FONDO: ("fondo", "long run"),
-                  TipoSesion.REGENERATIVO: ("regenerativo", "easy run")}[t]
+        nombre = {TipoSesion.TEMPO: ("tempo", "tempo", "tempo"), TipoSesion.FONDO: ("fondo", "long run", "longão"),
+                  TipoSesion.REGENERATIVO: ("regenerativo", "easy run", "regenerativo")}[t]
         if self.duracion_s:
             return f"{tr(*nombre)} {_tiempo(self.duracion_s)} (≈ {_m(self.distancia_m)}){tope}"
         return f"{tr(*nombre)} {_m(self.distancia_m)}{tope}"
@@ -140,7 +146,7 @@ def _m(metros: float | None) -> str:
 # ── Escritura rápida: «6x1k», «8x400 r60», «fondo 18k», «cuestas 8x300 6%» ──
 
 # Millas («10 mi», «6x1 mile», «10 millas»): para quien corre en Estados Unidos o el Reino Unido.
-_DIST = r"(\d+(?:[.,]\d+)?)\s*(mi(?:llas?|les?)?(?![a-z])|k|km|m)?"
+_DIST = r"(\d+(?:[.,]\d+)?)\s*(mi(?:llas?|les?|lhas?)?(?![a-z])|k|km|m)?"
 MILLA_M = 1609.344
 _TIPOS = {
     "series": TipoSesion.SERIES, "serie": TipoSesion.SERIES,
@@ -156,6 +162,11 @@ _TIPOS = {
     "threshold": TipoSesion.TEMPO, "long": TipoSesion.FONDO,
     "hills": TipoSesion.CUESTAS, "hill": TipoSesion.CUESTAS,
     "easy": TipoSesion.REGENERATIVO, "recovery": TipoSesion.REGENERATIVO,
+    # Português
+    "tiros": TipoSesion.SERIES, "intervalado": TipoSesion.SERIES, "intervalados": TipoSesion.SERIES,
+    "limiar": TipoSesion.TEMPO, "longão": TipoSesion.FONDO, "longao": TipoSesion.FONDO,
+    "longo": TipoSesion.FONDO, "subidas": TipoSesion.CUESTAS,
+    "leve": TipoSesion.REGENERATIVO, "rodagem": TipoSesion.REGENERATIVO,
 }
 
 
@@ -183,8 +194,8 @@ _PLANO = re.compile(r"\b(?:plano|llano|flat)\b")
 PLANO_M_POR_KM = 5.0
 
 
-# Pirámide o escalera: «pirámide 200-400-600-400-200», «piramide 1-2-3-2-1 km».
-_PIRAMIDE = re.compile(r"\b(?:pir[aá]mide|pyramid|escalera|ladder)\b")
+# Pirámide o escalera: «pirámide 200-400-600-400-200», «piramide 1-2-3-2-1 km», «pirâmide…».
+_PIRAMIDE = re.compile(r"\b(?:pir[aáâ]mide|pyramid|escalera|escada|ladder)\b")
 _PASOS = re.compile(r"(\d+(?:[.,]\d+)?)(?:\s*(?:-|–|,\s|/|\s)\s*(?=\d))?")
 # Repeticiones por tiempo (fartlek): «10x1'», «8x3 min r2'», «6x30s».
 _REPS_TIEMPO = re.compile(r"(\d+)\s*x\s*(\d+(?:[.,]\d+)?)\s*(min(?:utos?|s)?\b|'|’|s\b|seg\b|\"|″)")
@@ -272,7 +283,10 @@ def interpretar(texto: str, ritmo_s_km: float | None = None) -> Sesion:
                             "«pirámide 200-400-600-400-200» o «fartlek 10x1'».",
                             f"I don't understand «{texto}». Try «6x1k», «tempo 8k», "
                             "«long run 18k», «easy 45 min», «hills 8x300 6%», "
-                            "«pyramid 200-400-600-400-200» or «fartlek 10x1'»."))
+                            "«pyramid 200-400-600-400-200» or «fartlek 10x1'».",
+                            f"Não entendi «{texto}». Tente «6x1k», «tempo 8k», "
+                            "«longão 18k», «leve 45 min», «subidas 8x300 6%», "
+                            "«pirâmide 200-400-600-400-200» ou «fartlek 10x1'»."))
     s = Sesion(tipo=tipo, distancia_m=_metros(dist.group(1), dist.group(2) or "k"),
                max_subida_m=float(tope.group(1)) if tope else None)
     if s.max_subida_m is None and _PLANO.search(t):

@@ -321,7 +321,8 @@ def _chequeos(semanas: list[dict], dist: list[float], dist4: list[float], fase: 
     suave = dist4[0] + dist4[1]
     lo, hi = obj["suave"]
     out.append(_chequeo("suave", "ok" if lo <= suave <= hi else "ojo" if suave >= lo - 8 else "mal",
-        tr(f"{suave:.0f} % suave (I1–I2)", f"{suave:.0f} % easy (I1–I2)"),
+        tr(f"{suave:.0f} % suave (I1–I2)", f"{suave:.0f} % easy (I1–I2)",
+                                           f"{suave:.0f} % leve (I1–I2)"),
         tr(f"En esta fase conviene {lo}–{hi} % del tiempo suave. " + (
             "Bien: la base aeróbica se construye aquí." if lo <= suave <= hi else
             "Te falta suave: baja el ritmo de los rodajes para que lo duro rinda." if suave < lo else
@@ -329,35 +330,48 @@ def _chequeos(semanas: list[dict], dist: list[float], dist4: list[float], fase: 
            f"In this phase aim for {lo}–{hi} % of the time easy. " + (
             "Good: this is where the aerobic base is built." if lo <= suave <= hi else
             "Not enough easy running: slow your easy runs so the hard days pay off." if suave < lo else
-            "Almost everything is easy: there's room for one more threshold session."))))
+            "Almost everything is easy: there's room for one more threshold session."),
+           f"Nesta fase busque {lo}–{hi} % do tempo leve. " + (
+           "Bom: é aqui que se constrói a base aeróbica." if lo <= suave <= hi else
+           "Pouco treino leve: corra mais devagar nos leves para aproveitar os dias fortes." if suave < lo else
+           "Quase tudo é leve: há espaço para mais uma sessão de limiar."))))
     # 2. Sesiones de umbral por semana (el corazón del método noruego)
     por_sem = sum(s["umbral"] for s in ult4) / 4
     lo, hi = obj["sesiones_umbral"]
     out.append(_chequeo("umbral", "ok" if lo <= por_sem <= hi + 0.5 else "ojo" if por_sem >= lo - 0.75 else "mal",
-        tr(f"{_n(por_sem)} sesiones de umbral por semana", f"{_n(por_sem)} threshold sessions per week"),
+        tr(f"{_n(por_sem)} sesiones de umbral por semana", f"{_n(por_sem)} threshold sessions per week",
+                                                           f"{_n(por_sem)} sessões de limiar por semana"),
         tr(f"El método noruego se apoya en {lo}–{hi} sesiones de umbral controlado por semana: intervalos "
            "en I3–I4 (p. ej. 5×6′ o 10×1 km) a un ritmo que podrías repetir, sin terminar fundido.",
            f"The Norwegian method relies on {lo}–{hi} controlled threshold sessions per week: intervals in "
-           "I3–I4 (e.g. 5×6′ or 10×1 km) at a pace you could repeat, without finishing wrecked.")))
+           "I3–I4 (e.g. 5×6′ or 10×1 km) at a pace you could repeat, without finishing wrecked.",
+           f"O método norueguês se apoia em {lo}–{hi} sessões de limiar controladas por semana: tiros em "
+           "I3–I4 (ex.: 5×6′ ou 10×1 km) a um ritmo que você conseguiria repetir, sem terminar destruído.")))
     # 3. I5
     i5 = dist4[4]
     out.append(_chequeo("i5", "ok" if i5 <= obj["i5_max"] else "ojo" if i5 <= obj["i5_max"] * 2 else "mal",
-        tr(f"{i5:.0f} % en I5", f"{i5:.0f} % in I5"),
+        tr(f"{i5:.0f} % en I5", f"{i5:.0f} % in I5",
+                                f"{i5:.0f} % em I5"),
         tr(f"Hasta {obj['i5_max']} % en esta fase. " + ("Bien dosificado." if i5 <= obj["i5_max"] else
            "Demasiado tiempo muy intenso: cuesta recuperarse y le quita calidad al umbral."),
            f"Up to {obj['i5_max']} % in this phase. " + ("Well dosed." if i5 <= obj["i5_max"] else
-           "Too much very hard running: it's costly to recover from and hurts threshold quality."))))
+           "Too much very hard running: it's costly to recover from and hurts threshold quality."),
+           f"Até {obj['i5_max']} % nesta fase. " + ("Bem dosado." if i5 <= obj["i5_max"] else
+           "Muito treino muito forte: custa recuperar e prejudica a qualidade do limiar."))))
     # 4. Zona gris en los rodajes
     suaves = sum(s["suaves"] for s in ult4)
     rapidos = sum(s["suaves_rapidos"] for s in ult4)
     if suaves:
         p = 100 * rapidos / suaves
         out.append(_chequeo("zona_gris", "ok" if p <= 15 else "ojo" if p <= 35 else "mal",
-            tr(f"{p:.0f} % de rodajes suaves demasiado rápidos", f"{p:.0f} % of easy runs too fast"),
+            tr(f"{p:.0f} % de rodajes suaves demasiado rápidos", f"{p:.0f} % of easy runs too fast",
+                                                                 f"{p:.0f} % dos leves rápidos demais"),
             tr("Un rodaje suave debe ser I1–I2 de principio a fin. Correrlo en la «zona gris» cansa casi como "
                "una sesión de calidad y no entrena lo que debería.",
                "An easy run should be I1–I2 from start to finish. Running it in the \"grey zone\" tires you "
-               "almost like a quality session without training what it should.")))
+               "almost like a quality session without training what it should.",
+               "Um leve deve ser I1–I2 do começo ao fim. Corrê-lo na \"zona cinzenta\" cansa "
+               "quase como um treino de qualidade sem treinar o que deveria.")))
     # 5. Carga: últimos 7 días contra el promedio de las 4 semanas anteriores
     previas = [s["carga"] for s in semanas[-5:-1]]
     if any(previas):
@@ -366,26 +380,33 @@ def _chequeos(semanas: list[dict], dist: list[float], dist4: list[float], fase: 
         if fase == "competencia":
             estado = "ok" if 0.5 <= ratio <= 0.8 else "ojo"
             texto = tr("Antes de competir, la carga baja a 50–70 % manteniendo un par de estímulos cortos e intensos.",
-                       "Before racing, load drops to 50–70 % while keeping a couple of short, sharp sessions.")
+                       "Before racing, load drops to 50–70 % while keeping a couple of short, sharp sessions.",
+                       "Antes da prova, a carga cai para 50–70 % mantendo um par de sessões curtas e vivas.")
         else:
             estado = "ok" if 0.8 <= ratio <= 1.3 else "ojo" if ratio <= 1.5 else "mal"
             texto = tr("Entre 0,8 y 1,3 la carga sube a un ritmo asimilable; sobre 1,5 aumenta el riesgo de lesión.",
-                       "Between 0.8 and 1.3 load builds at a pace you can absorb; above 1.5 injury risk rises.")
-        out.append(_chequeo("carga", estado, tr(f"Carga de esta semana: ×{_n(ratio, 2)}", f"This week's load: ×{_n(ratio, 2)}"),
+                       "Between 0.8 and 1.3 load builds at a pace you can absorb; above 1.5 injury risk rises.",
+                       "Entre 0,8 e 1,3 a carga sobe num ritmo que dá para absorver; acima de 1,5 sobe o risco de lesão.")
+        out.append(_chequeo("carga", estado, tr(f"Carga de esta semana: ×{_n(ratio, 2)}", f"This week's load: ×{_n(ratio, 2)}",
+                                                                                          f"Carga desta semana: ×{_n(ratio, 2)}"),
                             texto))
     # 6. Fondo largo
     largas = [s for s in ult4 if s["km"] >= 15]
     if largas:
         p = max(100 * s["fondo_km"] / s["km"] for s in largas)
         out.append(_chequeo("fondo", "ok" if p <= 35 else "ojo",
-            tr(f"Fondo más largo: {p:.0f} % de su semana", f"Longest run: {p:.0f} % of its week"),
+            tr(f"Fondo más largo: {p:.0f} % de su semana", f"Longest run: {p:.0f} % of its week",
+                                                           f"Corrida mais longa: {p:.0f} % da sua semana"),
             tr("Que el fondo no pase de ~30–35 % del volumen semanal: más que eso se paga en recuperación.",
-               "Keep the long run under ~30–35 % of weekly volume: more than that costs recovery.")))
+               "Keep the long run under ~30–35 % of weekly volume: more than that costs recovery.",
+               "Mantenha o longão abaixo de ~30–35 % do volume semanal: mais que isso custa recuperação.")))
     # 7. Constancia
     if activas:
         semanas_ok = sum(s["carreras"] >= 3 for s in semanas)
         out.append(_chequeo("constancia", "ok" if semanas_ok >= 9 else "ojo" if semanas_ok >= 6 else "mal",
-            tr(f"{semanas_ok} de {len(semanas)} semanas con 3+ carreras", f"{semanas_ok} of {len(semanas)} weeks with 3+ runs"),
+            tr(f"{semanas_ok} de {len(semanas)} semanas con 3+ carreras", f"{semanas_ok} of {len(semanas)} weeks with 3+ runs",
+                                                                          f"{semanas_ok} de {len(semanas)} semanas com 3+ corridas"),
             tr("La constancia es la base del método: volumen suave repetido semana a semana.",
-               "Consistency is the method's foundation: easy volume repeated week after week.")))
+               "Consistency is the method's foundation: easy volume repeated week after week.",
+               "A constância é a base do método: volume leve repetido semana após semana.")))
     return out

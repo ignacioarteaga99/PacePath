@@ -24,7 +24,7 @@ def disponibles() -> list[dict]:
     ]
 
 
-def zonas(en: bool = False) -> str:
+def zonas(en: bool | str = False) -> str:
     """Dónde hay mapa, en una frase corta: los grafos de Santiago son ya 16 y
     nombrarlos todos no le dice nada a nadie; se resumen en «el Gran Santiago»."""
     nombres, santiago, celdas = [], False, 0
@@ -36,9 +36,9 @@ def zonas(en: bool = False) -> str:
         else:
             nombres.append(c["nombre"])
     if santiago:
-        nombres.insert(0, "Greater Santiago" if en else "el Gran Santiago")
+        nombres.insert(0, "a Grande Santiago" if en == "pt" else "Greater Santiago" if en else "el Gran Santiago")
     if celdas:
-        nombres.append(f"{celdas} more areas" if en else f"{celdas} zonas más")
+        nombres.append(f"mais {celdas} regiões" if en == "pt" else f"{celdas} more areas" if en else f"{celdas} zonas más")
     return ", ".join(nombres)
 
 

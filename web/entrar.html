@@ -135,7 +135,7 @@
   </footer>
 </main>
 <script>
-// ── Textos (español / inglés) ──
+// ── Textos (español / inglés / portugués) ──
 const T = {
   es: { tag: "Beta privada", h1: "La ruta perfecta para tu entrenamiento <em>de hoy</em>.",
     sub: "PacePath está en <b>beta</b>: mientras la afinamos, sólo entran los testers. Entra con tu cuenta; si te invitaron, usa el correo con que te invitaron.",
@@ -175,13 +175,34 @@ const T = {
     hola: "Hi, {n}",
     salir: "Sign out", cancelada: "You cancelled the sign-in.", fallo: "Couldn't sign in. Try again.",
     hecho: "Made in Santiago, Chile", guia: "Beta guide", privacidad: "Privacy", terminos: "Terms",
-    datos: ["No-lights intervals", "Outdoor map", "Your Strava as a heatmap"], otro: "ES",
+    datos: ["No-lights intervals", "Outdoor map", "Your Strava as a heatmap"], otro: "PT",
     alt: "Two animated runners jump over traffic lights and cones" },
+  pt: { tag: "Beta fechado", h1: "A rota perfeita para o seu treino <em>de hoje</em>.",
+    sub: "O PacePath está em <b>beta</b>: enquanto o ajustamos, só os testers entram. Entre com sua conta; se você foi convidado, use o e-mail do convite.",
+    subAbierta: "Entre ou crie sua conta para montar a rota do seu treino.",
+    espera: "Sua conta já foi criada, mas ainda não está liberada para o beta. Avise o PacePath com o e-mail da sua conta e liberamos.",
+    esperaCorreo: "Enviamos um e-mail para confirmar sua conta: abra o link e volte aqui.",
+    esperaCorreoBeta: "Enviamos um e-mail para confirmar sua conta. O PacePath está em beta fechado: depois de confirmar você fica na lista de espera, e avisamos por e-mail assim que for liberado.",
+    reenviar: "Enviar o e-mail de novo", reenviado: "Pronto: confira seu e-mail (e a pasta de spam).",
+    olvide: "Esqueceu sua senha?", recTitulo: "Recuperar sua senha",
+    recTexto: "Digite o e-mail da sua conta e enviamos um link para escolher uma senha nova.",
+    recBoton: "Enviar link", recEnviado: "Se houver uma conta com esse e-mail, um link chegará em alguns minutos.",
+    volver: "Voltar", nuevaTitulo: "Escolha sua senha nova", nuevaBoton: "Salvar e entrar",
+    verificado: "Pronto! Seu e-mail foi confirmado.", codigo_invalido: "O link expirou ou já foi usado: peça um novo.",
+    toca: "Toque para pular", google: "Continuar com o Google", microsoft: "Continuar com a Microsoft", o: "ou com seu e-mail",
+    entrar: "Entrar", crear: "Criar conta", nombre: "Nome", correo: "E-mail", clave: "Senha (mínimo 8 caracteres)", verClave: "Mostrar senha", ocultarClave: "Ocultar senha",
+    entrando: "Um momento…", red: "Não consegui conectar. Tente de novo em alguns segundos.",
+    hola: "Olá, {n}",
+    salir: "Sair", cancelada: "Você cancelou o login.", fallo: "Não foi possível entrar. Tente de novo.",
+    hecho: "Feito em Santiago, Chile", guia: "Guia beta", privacidad: "Privacidade", terminos: "Termos",
+    datos: ["Tiros sem semáforos", "Mapa outdoor", "Seu Strava em mapa de calor"], otro: "ES",
+    alt: "Dois corredores animados pulam semáforos e cones" },
 };
 const $ = (id) => document.getElementById(id);
 let idioma = new URLSearchParams(location.search).get("lang");
 if (!T[idioma]) { try { idioma = JSON.parse(localStorage.getItem("pp_lang")); } catch {} }
-if (!T[idioma]) idioma = (navigator.language || "es").toLowerCase().startsWith("en") ? "en" : "es";
+if (!T[idioma]) idioma = (navigator.language || "es").toLowerCase().slice(0, 2);
+if (!T[idioma]) idioma = "es";
 function textos() {
   const t = T[idioma];
   document.documentElement.lang = idioma;
@@ -195,7 +216,7 @@ function textos() {
   for (const a of document.querySelectorAll("footer a")) a.href = a.getAttribute("href").split("?")[0] + "?lang=" + idioma;
 }
 $("idioma").onclick = () => {
-  idioma = idioma === "es" ? "en" : "es";
+  idioma = { es: "en", en: "pt", pt: "es" }[idioma];
   try { localStorage.setItem("pp_lang", JSON.stringify(idioma)); } catch {}
   textos();
   pestana(creando);
@@ -255,6 +276,8 @@ const MENSAJE_VUELTA = {
         bloqueada: "Esta cuenta está desactivada.", sin_correo: "Tu cuenta no compartió un correo: prueba otro método." },
   en: { correo_existe_otro_metodo: "There's already an account with that email: sign in the way you created it.",
         bloqueada: "This account is disabled.", sin_correo: "Your account didn't share an email: try another method." },
+  pt: { correo_existe_otro_metodo: "Já existe uma conta com esse e-mail: entre do jeito que você a criou.",
+        bloqueada: "Esta conta está desativada.", sin_correo: "Sua conta não compartilhou um e-mail: tente outro método." },
 };
 const ver = (id) => ["ingreso", "esperando", "recuperar", "nuevaClave"].forEach((x) => { $(x).hidden = x !== id; });
 const postJson = (url, cuerpo) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "X-Idioma": idioma },
@@ -447,7 +470,7 @@ function pintar() {
     dibujar(c.spr[cuadroSpr], c.x, suelo - c.spr[0].length + c.y);
   }
   // los km, como el puntaje del dinosaurio
-  const texto = km.toFixed(2).replace(".", idioma === "es" ? "," : ".") + " km";
+  const texto = km.toFixed(2).replace(".", idioma === "en" ? "." : ",") + " km";
   ctx.fillStyle = "#8a8a94"; ctx.font = `700 ${Math.round(4 * P)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText(texto, lienzo.width - 6 * P, 2 * P);
 }

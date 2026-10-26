@@ -536,7 +536,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
         <path d="m12 3.5 8.5 4.6L12 12.7 3.5 8.1z"/><path d="m3.5 12.1 8.5 4.6 8.5-4.6"/><path d="m3.5 16 8.5 4.6 8.5-4.6"/></svg></button>
     <button type="button" id="botonNoche" aria-label="Modo noche" title="Modo día / noche"></button>
-    <button type="button" id="botonIdioma" aria-label="Cambiar idioma" title="Español / English"></button>
+    <button type="button" id="botonIdioma" aria-label="Cambiar idioma" title="Español / English / Português"></button>
     <button type="button" id="botonUnidad" title="km / mi"></button>
   </div>
   <div id="menuCapas" role="menu" aria-label="Capas del mapa">
@@ -572,11 +572,11 @@
     <small id="comuna" hidden></small>
   </div>
   <div class="chips solo-sesion" id="chips">
-    <button class="chip on" type="button" data-t="6x1k" data-t-en="6x1k" data-i18n>Series</button>
-    <button class="chip" type="button" data-t="tempo 8k" data-t-en="tempo 8k" data-i18n>Tempo</button>
-    <button class="chip" type="button" data-t="fondo 18k" data-t-en="long run 18k" data-i18n>Fondo largo</button>
-    <button class="chip" type="button" data-t="cuestas 8x300 6%" data-t-en="hills 8x300 6%" data-i18n>Cuestas</button>
-    <button class="chip" type="button" data-t="regenerativo 6k" data-t-en="easy 6k" data-i18n>Regenerativo</button>
+    <button class="chip on" type="button" data-t="6x1k" data-t-en="6x1k" data-t-pt="tiros 6x1k" data-i18n>Series</button>
+    <button class="chip" type="button" data-t="tempo 8k" data-t-en="tempo 8k" data-t-pt="tempo 8k" data-i18n>Tempo</button>
+    <button class="chip" type="button" data-t="fondo 18k" data-t-en="long run 18k" data-t-pt="longão 18k" data-i18n>Fondo largo</button>
+    <button class="chip" type="button" data-t="cuestas 8x300 6%" data-t-en="hills 8x300 6%" data-t-pt="subidas 8x300 6%" data-i18n>Cuestas</button>
+    <button class="chip" type="button" data-t="regenerativo 6k" data-t-en="easy 6k" data-t-pt="leve 6k" data-i18n>Regenerativo</button>
   </div>
   <div class="plegado"><span id="resumenForm"></span>
     <button class="sec" type="button" id="editar" data-i18n>Editar</button></div>
@@ -665,15 +665,18 @@
 <script>
 const $ = (id) => document.getElementById(id);
 
-// ── Idioma: español / inglés con un botón ───────────────────────────────────
+// ── Idioma: español / inglés / portugués con un botón ───────────────────────
 // t("texto en español", {variables}) → el texto en el idioma actual. Las claves
-// son las frases en español; lo que no esté en EN queda en español.
+// son las frases en español; lo que no esté en EN queda en español, y lo que no
+// esté en PT sale en inglés.
+const IDIOMAS = ["es", "en", "pt"];
 let idioma = (() => {
-  // ?lang=en|es (p. ej. desde la guía beta) manda y queda guardado.
+  // ?lang=en|es|pt (p. ej. desde la guía beta) manda y queda guardado.
   const q = new URLSearchParams(location.search).get("lang");
-  if (q === "en" || q === "es") { try { localStorage.setItem("pp_lang", JSON.stringify(q)); } catch {} return q; }
-  try { const v = JSON.parse(localStorage.getItem("pp_lang")); if (v) return v; } catch {}
-  return (navigator.language || "es").toLowerCase().startsWith("en") ? "en" : "es"; })();
+  if (IDIOMAS.includes(q)) { try { localStorage.setItem("pp_lang", JSON.stringify(q)); } catch {} return q; }
+  try { const v = JSON.parse(localStorage.getItem("pp_lang")); if (IDIOMAS.includes(v)) return v; } catch {}
+  const n = (navigator.language || "es").toLowerCase().slice(0, 2);
+  return IDIOMAS.includes(n) ? n : "es"; })();
 const EN = {
   "Tipo de mapa": "Map type", "Plano": "Flat", "Plano: máx. 5 m de subida por km": "Flat: max 5 m of climb per km", "Claro": "Light", "Calles": "Streets", "Relieve": "Terrain",
   "Híbrido": "Hybrid", "Satélite": "Satellite", "veces": "times",
@@ -949,10 +952,468 @@ const EN = {
   "No pudimos preparar el mapa de esa zona: puede que casi no tenga calles en OpenStreetMap. Prueba saliendo desde un punto cercano.":
     "We couldn't prepare the map for that area: it may have very few streets on OpenStreetMap. Try starting from a nearby point.",
 };
+// Português (Brasil): mismas claves; lo que falte sale en inglés.
+const PT = {
+  "Tipo de mapa": "Tipo de mapa",
+  "Plano": "Plano",
+  "Plano: máx. 5 m de subida por km": "Plano: máx. 5 m de subida por km",
+  "Claro": "Claro",
+  "Calles": "Ruas",
+  "Relieve": "Relevo",
+  "Híbrido": "Híbrido",
+  "Satélite": "Satélite",
+  "veces": "vezes",
+  "Para mi sesión": "Para o meu treino",
+  "Trazar a mano": "Desenhar à mão",
+  "Mis lugares": "Meus lugares",
+  "Perfil": "Perfil",
+  "Hoy": "Hoje",
+  "Series": "Tiros",
+  "Tempo": "Tempo",
+  "Serie": "Tiro",
+  "Fondo largo": "Longão",
+  "Cuestas": "Subidas",
+  "Regenerativo": "Regenerativo",
+  "Editar": "Editar",
+  "Desde": "Saída",
+  "Calle, esquina o lugar": "Rua, esquina ou lugar",
+  "Sesión": "Treino",
+  "6x1k · tempo 8k · fondo 18k": "6x1k · tempo 8k · longão 18k",
+  "Crear ruta": "Criar rota",
+  "Volver a la salida": "Voltar à saída",
+  "Desnivel máx.": "Subida máx.",
+  "Radio máx.": "Raio máx.",
+  "Distancia máxima desde la salida, en km": "Distância máxima a partir da saída, em km",
+  "sin límite": "sem limite",
+  "Meta": "Chegada",
+  "Opcional: dónde terminar": "Opcional: onde terminar",
+  "En el mapa": "No mapa",
+  "Toca el mapa…": "Toque no mapa…",
+  "Capas del mapa": "Camadas do mapa",
+  "Modo día": "Modo dia",
+  "Modo noche": "Modo noite",
+  "Plegar o desplegar": "Recolher ou expandir",
+  "Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa.": "Escolha de onde você sai: digite uma rua ou esquina, use «Perto de mim» ou toque no mapa.",
+  "Salida marcada. Toca el mapa para agregar puntos.": "Saída marcada. Toque no mapa para adicionar pontos.",
+  "Salida lista. Elige la sesión y pulsa «Crear ruta». Puedes arrastrar el punto.": "Saída pronta. Escolha o treino e toque em «Criar rota». Você pode arrastar o ponto.",
+  "Punto en el mapa": "Ponto no mapa",
+  "Mi ubicación": "Minha localização",
+  "Pasaste <b>{n}</b> veces por aquí": "Você já correu aqui <b>{n}</b> vezes",
+  "Pasaste <b>{n}</b> vez por aquí": "Você já correu aqui <b>{n}</b> vez",
+  "Por aquí todavía no has corrido": "Você ainda não correu aqui",
+  "Este navegador no da la ubicación: escribe una calle o toca el mapa.": "Este navegador não compartilha a localização: digite uma rua ou toque no mapa.",
+  "Buscando tu ubicación…": "Buscando sua localização…",
+  "No pude leer tu ubicación (revisa el permiso). Escribe una calle o toca el mapa.": "Não consegui ler sua localização (verifique a permissão). Digite uma rua ou toque no mapa.",
+  "Sin resultados: prueba «Pocuro 2500» o «Pocuro con Tobalaba», o toca el mapa": "Sem resultados: tente «Pocuro 2500» ou «Pocuro con Tobalaba», ou toque no mapa",
+  "No encontré «{q}». Prueba con calle y número, una esquina («Pocuro con Tobalaba») o toca el mapa.": "Não encontrei «{q}». Tente rua e número, uma esquina («Pocuro con Tobalaba») ou toque no mapa.",
+  "Toca el mapa para ir marcando por dónde quieres pasar. El primer punto es la salida; puedes arrastrar cualquier punto.": "Toque no mapa para marcar por onde quer ir. O primeiro ponto é a saída; você pode arrastar qualquer ponto.",
+  "No pude unir ese punto.": "Não consegui ligar esse ponto.",
+  "Ruta trazada": "Rota desenhada",
+  "vuelve a la salida": "voltando à saída",
+  "termina en el último punto": "termina no último ponto",
+  "Distancia": "Distância",
+  "Semáforos": "Semáforos",
+  "Cruces": "Cruzamentos",
+  "Subida": "Subida",
+  "Desnivel": "Desn.",
+  "Repetición": "Tiro",
+  "Tramo": "Trecho",
+  "Bloque": "Bloco",
+  "Pendiente": "Inclinação",
+  "Nombre del tramo favorito (por ejemplo, «Ribera Balmaceda–Forestal»):": "Nome do seu trecho favorito (ex.: «Parque da orla»):",
+  "★ Guardado": "★ Salvo",
+  "☆ Guardar como favorito": "☆ Salvar como favorito",
+  "Descargar GPX": "Baixar GPX",
+  "Enviar al reloj": "Enviar para o relógio",
+  "Serie {n} · inicio": "Tiro {n} · início",
+  "Serie {n} · fin": "Tiro {n} · fim",
+  "ruta trazada": "rota desenhada",
+  "Toca el mapa para seguir marcando.": "Toque no mapa para continuar adicionando pontos.",
+  "Toca el mapa para marcar la salida.": "Toque no mapa para marcar a saída.",
+  "Inicio de la repetición": "Início do tiro",
+  "Fin de la repetición": "Fim do tiro",
+  "Llegada": "Chegada",
+  "Semáforo": "Semáforo",
+  "Cruce": "Cruzamento",
+  "Fuente de agua": "Bebedouro",
+  "Baño": "Banheiro",
+  "Altimetría": "Altimetria",
+  "subida": "de subida",
+  "bajada": "de descida",
+  "en total": "no total",
+  "de series": "de tiros",
+  "de subida": "subindo",
+  "sin volver a la salida": "só de ida",
+  "Cambiar salida": "Mudar a saída",
+  "Entrar": "Entrar",
+  "Salir": "Sair",
+  "Otra opción": "Outra opção",
+  "Escribe otra calle, usa «Cerca de mí» o toca el mapa.": "Digite outra rua, use «Perto de mim» ou toque no mapa.",
+  "Primero elige desde dónde sales: escribe una calle, usa «Cerca de mí» o toca el mapa.": "Primeiro escolha de onde você sai: digite uma rua, use «Perto de mim» ou toque no mapa.",
+  "Buscando la mejor ruta para tu sesión…": "Buscando a melhor rota para o seu treino…",
+  "Cancelar": "Cancelar",
+  "Cancelaste la ruta. Cambia lo que quieras y vuelve a armarla.": "Você cancelou a rota. Mude o que quiser e monte de novo.",
+  "No pude armar la ruta.": "Não consegui montar a rota.",
+  "Preferir mis calles de siempre al crear rutas": "Preferir minhas ruas de sempre ao criar rotas",
+  "Tramos favoritos": "Trechos favoritos",
+  "Traza a mano un tramo que te guste (en «Trazar a mano») y guárdalo: los fondos y regenerativos lo van a preferir.": "Desenhe um trecho de que você gosta (em «Desenhar à mão») e salve: os longões e regenerativos vão preferi-lo.",
+  "Elige desde dónde sales y la sesión de hoy.": "Escolha de onde você sai e o treino de hoje.",
+  "Sesiones guardadas": "Treinos salvos",
+  "Recientes": "Recentes",
+  "Borrar": "Limpar",
+  "Guardar sesión": "Salvar treino",
+  "Quitar de guardadas": "Tirar dos salvos",
+  "desde {d}": "desde {d}",
+  "Opciones": "Opções",
+  "Vuelve a la salida": "Voltar à saída",
+  "Hasta la meta": "Até a chegada",
+  "Sin volver": "Só de ida",
+  "aún sin mapa en esa zona": "ainda sem mapa nessa região",
+  "la calle: toca el mapa en tu puerta": "a rua: toque na sua porta no mapa",
+  "Sin resultados: prueba «Pocuro 2500, Providencia», «Pocuro con Tobalaba» o toca el mapa en tu puerta": "Sem resultados: tente \"Pocuro 2500, Providencia\", \"Pocuro con Tobalaba\" ou toque na sua porta no mapa",
+  "Según la hora": "Conforme o horário",
+  "A cualquier hora": "Qualquer horário",
+  "De noche evita lo oscuro, con calor busca parques y en hora punta evita avenidas": "À noite evita caminhos escuros, no calor busca parques e no horário de pico evita avenidas",
+  "Dónde has corrido": "Onde você já correu",
+  "{n} carrera": "{n} corrida",
+  "{n} carreras": "{n} corridas",
+  "Otros lugares": "Outros lugares",
+  "cerca de {c}": "perto de {c}",
+  "Sin ciudad cerca": "Nenhuma cidade por perto",
+  "Ciudades: GeoNames (CC BY 4.0)": "Cidades: GeoNames (CC BY 4.0)",
+  "Guía beta": "Guia beta",
+  "Términos": "Termos",
+  "Apoya PacePath": "Apoie o PacePath",
+  "Banderas: Twemoji (CC BY 4.0)": "Bandeiras: Twemoji (CC BY 4.0)",
+  "Trayendo tu historial de Strava… {p} % ({n} de {t} carreras)": "Trazendo seu histórico do Strava… {p}% ({n} de {t} corridas)",
+  "Trayendo tu historial de Strava… {n} carreras": "Trazendo seu histórico do Strava… {n} corridas",
+  "La descarga se cortó ({n} carreras traídas): {e} Toca «Actualizar» para seguir donde quedó.": "A descarga parou ({n} corridas trazidas): {e} Toque em “Atualizar” para continuar de onde parou.",
+  "Trotador": "Trotador",
+  "Corredor": "Corredor",
+  "Fondista": "Fundista",
+  "Maratonista": "Maratonista",
+  "Ultra": "Ultra",
+  "Leyenda": "Lenda",
+  "ciudades": "cidades",
+  "Viajero": "Viajante",
+  "Trotamundos": "Trotamundos",
+  "Nómada": "Nômade",
+  "países": "países",
+  "Pasaporte sellado": "Passaporte carimbado",
+  "Ciudadano del mundo": "Cidadão do mundo",
+  "Embajador": "Embaixador",
+  "continentes": "continentes",
+  "Intercontinental": "Intercontinental",
+  "Cuatro continentes": "Quatro continentes",
+  "Los seis continentes": "Os seis continentes",
+  "Turista en {p}": "Turista em {p}",
+  "Conoce {p}": "Conhece {p}",
+  "{p} de punta a punta": "{p} de ponta a ponta",
+  "Conoce tu país": "Conheça seu país",
+  "ciudades en un país": "cidades em um país",
+  "Antártica": "Antártida",
+  "Vecino de {b}": "Vizinho de {b}",
+  "Leyenda local de {b}": "Lenda local de {b}",
+  "Ícono de {b}": "Ícone de {b}",
+  "Vecino": "Vizinho",
+  "Leyenda local": "Lenda local",
+  "Ícono del barrio": "Ícone do bairro",
+  "carreras en {b}": "corridas em {b}",
+  "carreras en tu barrio": "corridas no seu bairro",
+  "Corredor de {c}": "Corredor de {c}",
+  "Dueño de {c}": "Dono de {c}",
+  "{c} es tuyo": "{c} é sua",
+  "Corredor local": "Corredor local",
+  "Dueño de tu ciudad": "Dono da sua cidade",
+  "Tu ciudad es tuya": "Sua cidade é sua",
+  "carreras en {c}": "corridas em {c}",
+  "carreras en tu ciudad": "corridas na sua cidade",
+  "Habitual de {s}": "Frequentador da {s}",
+  "Experto en {s}": "Especialista na {s}",
+  "Rey de {s}": "Rei da {s}",
+  "Tu calle": "Sua rua",
+  "veces por {s}": "vezes na {s}",
+  "veces por tu calle": "vezes na sua rua",
+  "Mil kilómetros": "Mil quilômetros",
+  "Cinco mil": "Cinco mil",
+  "Vuelta al mundo": "A volta ao mundo",
+  "Constante": "Constante",
+  "Imparable": "Imparável",
+  "Un año sin parar": "Um ano sem parar",
+  "semanas seguidas": "semanas seguidas",
+  "Madrugador": "Madrugador",
+  "carreras antes de las 7:00": "corridas antes das 7:00",
+  "Nocturno": "Coruja",
+  "carreras después de las 21:00": "corridas depois das 21:00",
+  "Te faltan {n} {u} para «{l}».": "Faltam {n} {u} para «{l}».",
+  "África": "África",
+  "Asia": "Ásia",
+  "Europa": "Europa",
+  "Norteamérica": "América do Norte",
+  "Sudamérica": "América do Sul",
+  "Oceanía": "Oceania",
+  "bronce": "bronze",
+  "plata": "prata",
+  "oro": "ouro",
+  "calculando…": "calculando…",
+  "Pasaporte": "Passaporte",
+  "Nivel {n}": "Nível {n}",
+  "puntos": "pontos",
+  "Logros": "Conquistas",
+  "Ocultar": "Ocultar",
+  "Ver todo": "Ver todas",
+  "{p} países · {c} ciudades · {l} logros": "{p} países · {c} cidades · {l} conquistas",
+  "Explorador": "Explorador",
+  "Local": "Local",
+  "Constancia": "Constância",
+  "Cómo se ganan los puntos": "Como se ganham os pontos",
+  "1 punto por km · 25 por ciudad nueva · 100 por país · 500 por continente · 50, 150 y 400 por logro de bronce, plata y oro.": "1 ponto por km · 25 por cidade nova · 100 por país · 500 por continente · 50, 150 e 400 por conquista de bronze, prata e ouro.",
+  "Tus puntos: {km} por km, {c} por ciudades, {p} por países, {o} por continentes y {l} por logros.": "Seus pontos: {km} por km, {c} por cidades, {p} por países, {o} por continentes e {l} por conquistas.",
+  "hace un momento": "agora mesmo",
+  "hace {n} min": "há {n} min",
+  "hace {n} h": "há {n} h",
+  "hace {n} días": "há {n} dias",
+  "No pude sincronizar: {e}": "Não deu para sincronizar: {e}",
+  "Última sincronización con Strava: {h}.": "Última sincronização com o Strava: {h}.",
+  "Sin conexión con PacePath.": "Sem conexão com o PacePath.",
+  "El servidor respondió {c}.": "O servidor respondeu {c}.",
+  "Buscando carreras nuevas en Strava…": "Buscando corridas novas no Strava…",
+  "Sincronizando con Strava…": "Sincronizando com o Strava…",
+  "¿Volver a traer todas tus carreras de Strava? Sirve si faltan carreras antiguas; puede tardar un minuto.": "Trazer de novo todas as suas corridas do Strava? Útil se faltam corridas antigas; pode levar um minuto.",
+  "¿Faltan carreras? Traer todo de nuevo": "Faltam corridas? Trazer tudo de novo",
+  "Cuando lleguen tus carreras de Strava verás aquí tu volumen, ritmo, récords y hábitos.": "Quando suas corridas do Strava chegarem, você verá aqui seu volume, ritmo, recordes e hábitos.",
+  "Compartir mi pasaporte": "Compartilhar meu passaporte",
+  "Armando tu pasaporte…": "Montando seu passaporte…",
+  "No pude armar tu pasaporte ({e}). Toca «Perfil» para intentarlo de nuevo.": "Não consegui montar seu passaporte ({e}). Toque em “Perfil” para tentar de novo.",
+  "¡Nuevo logro!": "Nova conquista!",
+  "¡Nuevos logros!": "Novas conquistas!",
+  "PASAPORTE DEL CORREDOR": "PASSAPORTE DO CORREDOR",
+  "Mi pasaporte PacePath": "Meu passaporte PacePath",
+  "Ciudades distintas donde has corrido.": "Cidades diferentes onde você correu.",
+  "Países donde has corrido.": "Países onde você correu.",
+  "Continentes habitados donde has corrido: África, Asia, Europa, Norteamérica, Sudamérica y Oceanía.": "Continentes habitados onde você correu: África, Ásia, Europa, América do Norte, América do Sul e Oceania.",
+  "Ciudades distintas dentro de un mismo país (el tuyo con más ciudades).": "Cidades diferentes dentro de um país (aquele onde você tem mais).",
+  "Logro secreto: correr en la Antártica.": "Conquista secreta: correr na Antártida.",
+  "Carreras que empiezan en tu comuna o barrio más corrido.": "Corridas que começam no seu bairro ou distrito mais corrido.",
+  "Carreras en tu ciudad más corrida.": "Corridas na sua cidade mais corrida.",
+  "Veces que pasaste por el tramo más corrido de tu calle favorita.": "Vezes que você correu o trecho mais movimentado da sua rua favorita.",
+  "Kilómetros totales corridos (el total de Strava).": "Quilômetros corridos no total (seu total do Strava).",
+  "Tu racha más larga de semanas seguidas con al menos una carrera.": "Sua maior sequência de semanas seguidas com pelo menos uma corrida.",
+  "Carreras que empiezan antes de las 7:00.": "Corridas que começam antes das 7:00.",
+  "Carreras que empiezan a las 21:00 o después.": "Corridas que começam às 21:00 ou mais tarde.",
+  "¡Oro conseguido!": "Ouro conquistado!",
+  "Te faltan {n} para {nivel}: «{l}».": "Faltam {n} para o {nivel}: «{l}».",
+  "Bronce {b} · Plata {p} · Oro {o}": "Bronze {b} · Prata {p} · Ouro {o}",
+  "Tienes {v}.": "Você tem {v}.",
+  "{n} carreras · {k}": "{n} corridas · {k}",
+  "Ciudades: {c}": "Cidades: {c}",
+  "Primera vez: {f}": "Primeira vez: {f}",
+  "Cada país nuevo suma 100 puntos.": "Cada país novo soma 100 pontos.",
+  "Has corrido en {p}.": "Você correu em {p}.",
+  "Continente conseguido: +500 puntos.": "Continente desbloqueado: +500 pontos.",
+  "Aún no corres aquí. La primera carrera en este continente suma 500 puntos.": "Você ainda não correu aqui. Sua primeira corrida neste continente soma 500 pontos.",
+  "Nivel {n} · {nombre}": "Nível {n} · {nombre}",
+  "Subes de nivel con puntos: 1 por km, 25 por ciudad nueva, 100 por país, 500 por continente y 50, 150 o 400 por cada logro de bronce, plata u oro.": "Você sobe de nível com pontos: 1 por km, 25 por cidade nova, 100 por país, 500 por continente e 50, 150 ou 400 por cada conquista de bronze, prata ou ouro.",
+  "Te faltan {n} puntos para el nivel {s}.": "Faltam {n} pontos para o nível {s}.",
+  "Beta:": "Beta:",
+  "mientras Strava revisa PacePath, la conexión con Strava está habilitada sólo para algunas cuentas. Las rutas funcionan para todos, sin conectar nada.": "enquanto o Strava revisa o PacePath, conectar o Strava só está liberado para algumas contas. As rotas funcionam para todos sem conectar nada.",
+  "Strava todavía no deja que más personas conecten PacePath: la app está en revisión. Mientras tanto, las rutas funcionan sin conectar nada.": "O Strava ainda não deixa mais pessoas conectarem o PacePath: o app está em revisão. Enquanto isso, as rotas funcionam sem conectar nada.",
+  "Enviar comentario": "Enviar comentário",
+  "Privacidad": "Privacidade",
+  "¿Qué funcionó, qué no, qué te gustaría? Se abre WhatsApp con tu mensaje: elige el grupo de la beta.": "O que funcionou, o que não, o que você gostaria? O WhatsApp abre com sua mensagem: escolha o grupo do beta.",
+  "Ej.: la ruta de series me mandó por una calle con mucho tráfico…": "Ex.: a rota de tiros me mandou por uma rua movimentada…",
+  "Incluir lo que estaba haciendo ({c})": "Incluir o que eu estava fazendo ({c})",
+  "Enviar por WhatsApp": "Enviar pelo WhatsApp",
+  "vista: {v}": "tela: {v}",
+  "trazar a mano": "desenhando à mão",
+  "sesión «{s}»": "treino «{s}»",
+  "Todo": "Total",
+  "Año": "Ano",
+  "vs {a}": "vs {a}",
+  "{k} en {a}": "{k} em {a}",
+  "{k} a esta fecha en {a}": "{k} até esta data em {a}",
+  "sin carreras en {a}": "sem corridas em {a}",
+  "Por semana": "Por semana",
+  "{n} carreras por semana": "{n} corridas por semana",
+  "Tus carreras con GPS guardadas en este teléfono.": "Suas corridas com GPS salvas neste celular.",
+  "Semanas de {a} · promedio {x} por semana": "Semanas de {a} · média de {x} por semana",
+  "Por mes, ponderado por distancia (más arriba, más rápido)": "Por mês, ponderado pela distância (mais alto é mais rápido)",
+  "Ritmo del año": "Ritmo do ano",
+  "el mapa": "o mapa",
+  "sin volver": "só de ida",
+  "Auto": "Auto",
+  "Circuito": "Circuito",
+  "Vueltas": "Voltas",
+  "circuito": "circuito",
+  "{n} vueltas": "{n} voltas",
+  "Forma de la ruta": "Forma da rota",
+  "Número de vueltas": "Número de voltas",
+  "Ya tienes {n} sesiones guardadas: quita alguna primero.": "Você já tem {n} treinos salvos: tire um primeiro.",
+  "Revisando tu conexión con Strava…": "Verificando sua conexão com o Strava…",
+  "Las calles que ya corriste": "As ruas que você correu",
+  "Conecta tu Strava y PacePath dibuja todas tus carreras como un mapa de calor: lo que más repites se ve más intenso.": "Conecte o Strava e o PacePath desenha todas as suas corridas como um mapa de calor: o que você mais repete brilha mais.",
+  "Strava no está configurado en el servidor.": "O Strava não está configurado no servidor.",
+  "Conectar con Strava": "Conectar com o Strava",
+  "Se leen tus carreras sólo para mostrártelas a ti; quedan guardadas en este teléfono. Al desconectar se borra todo y se revoca el acceso.": "Suas corridas são lidas só para mostrar a você; ficam neste celular. Desconectar apaga tudo e revoga o acesso.",
+  "Tus carreras": "Suas corridas",
+  "Carreras": "Corridas",
+  "Kilómetros": "Quilômetros",
+  "Toca el mapa para ver cuántas veces pasaste por ahí.": "Toque no mapa para ver quantas vezes você correu ali.",
+  "Sólo veo tus actividades públicas: al conectar no se dio permiso para las privadas.": "Só consigo ver suas atividades públicas: as privadas não foram permitidas ao conectar.",
+  "Actualizar": "Atualizar",
+  "Desconectar": "Desconectar",
+  "Con datos de Strava": "Powered by Strava",
+  "¿Desconectar Strava? Se borran tus carreras de este teléfono y se revoca el acceso.": "Desconectar o Strava? Suas corridas são apagadas deste celular e o acesso é revogado.",
+  "Strava desconectado: se borraron tus datos.": "Strava desconectado: seus dados foram apagados.",
+  "Trayendo carreras de Strava… ({n} nuevas)": "Trazendo corridas do Strava… ({n} novas)",
+  "{n} carreras nuevas.": "{n} corridas novas.",
+  "Al día.": "Tudo em dia.",
+  "No pude leer Strava.": "Não consegui ler o Strava.",
+  "Cargando tu perfil de Strava…": "Carregando seu perfil do Strava…",
+  "Tu historial de carrera": "Seu histórico de corrida",
+  "Conecta tu Strava para ver tus kilómetros de las últimas semanas, del año y de siempre, tus récords y tus hábitos.": "Conecte o Strava para ver seus quilômetros das últimas semanas, do ano e de sempre, seus recordes e hábitos.",
+  "Tú": "Você",
+  "en Strava desde {a}": "no Strava desde {a}",
+  "4 semanas": "4 semanas",
+  "Histórico": "Sempre",
+  "No pude leer tus totales de Strava ahora.": "Não consegui ler seus totais do Strava agora.",
+  "carreras": "corridas",
+  "carrera": "corrida",
+  "Volumen semanal": "Volume semanal",
+  "Últimas 12 semanas · promedio {x} por semana": "Últimas 12 semanas · média de {x} por semana",
+  "Ritmo medio": "Ritmo médio",
+  "Por semana, ponderado por distancia (más arriba, más rápido)": "Por semana, ponderado pela distância (mais alto é mais rápido)",
+  "{a}, mes a mes": "{a}, mês a mês",
+  "{k} en {n} carreras con GPS": "{k} em {n} corridas com GPS",
+  "Récords": "Recordes",
+  "Más larga": "Mais longa",
+  "Mejor ritmo (≥5 km)": "Melhor ritmo (≥5 km)",
+  "Mayor desnivel": "Mais subida",
+  "Semana con más km": "Semana com mais km",
+  "semana del {f}": "semana de {f}",
+  "Racha actual": "Sequência atual",
+  "Racha máxima": "Maior sequência",
+  "semana": "semana",
+  "semanas": "semanas",
+  "seguidas corriendo": "seguidas correndo",
+  "Hábitos": "Hábitos",
+  "Día favorito": "Dia favorito",
+  "Hora típica": "Horário habitual",
+  "la mitad sale antes": "metade começa mais cedo",
+  "Distancia típica": "Distância habitual",
+  "de {n} carreras": "de {n} corridas",
+  "Ritmo de siempre": "Ritmo geral",
+  "promedio de todas": "média de todas",
+  "Trayendo tus carreras de Strava…": "Trazendo suas corridas do Strava…",
+  "Aún no hay suficientes semanas con carreras.": "Ainda não há semanas suficientes com corridas.",
+  "Semana del {f}: {k} · {n} {c}": "Semana de {f}: {k} · {n} {c}",
+  "Semana del {f}: {r}": "Semana de {f}: {r}",
+  "{m} {a}: {k} · {n} carreras": "{m} {a}: {k} · {n} corridas",
+  "Cancelaste la conexión con Strava.": "Você cancelou a conexão com o Strava.",
+  "No se pudo completar la conexión con Strava. Intenta de nuevo.": "Não deu para completar a conexão com o Strava. Tente de novo.",
+  "Strava quedó conectado, pero sin permiso para leer tus actividades: desconecta y vuelve a conectar marcando ese permiso.": "O Strava ficou conectado, mas sem permissão para ler suas atividades: desconecte e conecte de novo marcando essa permissão.",
+  "{p}: conecta tu Strava.": "{p}: conecte seu Strava.",
+  "Perfil · {lo}–{hi} m s. n. m.": "Perfil · {lo}–{hi} m de altitude",
+  "Cambiar idioma": "Mudar idioma",
+  "Borrar {x}": "Apagar {x}",
+  "Ver en kilómetros": "Ver em quilômetros",
+  "Ver en millas": "Ver em milhas",
+  "Mis datos": "Meus dados",
+  "Descargar mis datos": "Baixar meus dados",
+  "Borrar mi cuenta": "Apagar minha conta",
+  "Descarga una copia de todo lo que PacePath guarda de tu cuenta, o bórrala para siempre. Tus carreras de Strava no están en el servidor: viven sólo en tu teléfono.": "Baixe uma cópia de tudo o que o PacePath guarda da sua conta, ou apague-a para sempre. Suas corridas do Strava não estão no servidor: ficam só no seu celular.",
+  "¿Borrar tu cuenta para siempre? Se borran tus preferencias, rutas guardadas y la conexión con Strava. No se puede deshacer.": "Apagar sua conta para sempre? Suas preferências, rotas salvas e a conexão com o Strava serão apagadas. Não dá para desfazer.",
+  "No pude borrar tu cuenta. Inténtalo de nuevo en un rato.": "Não consegui apagar sua conta. Tente de novo daqui a pouco.",
+  "Listo: tu cuenta y sus datos se borraron.": "Pronto: sua conta e seus dados foram apagados.",
+  "aún sin mapa: lo preparamos al crear la ruta": "ainda sem mapa: preparamos quando você criar a rota",
+  "Todavía no hay mapa en esa zona: al crear la ruta lo preparamos (tarda unos minutos la primera vez).": "Ainda não há mapa nessa região: preparamos quando você criar a rota (leva alguns minutos na primeira vez).",
+  "Preparando el mapa de {z}": "Preparando o mapa de {z}",
+  "Si cierras la app, te avisamos por correo.": "Se você fechar o app, avisamos por e-mail.",
+  "Deja esta pantalla abierta: la ruta aparece sola.": "Deixe esta tela aberta: a rota aparece sozinha.",
+  "Dejar de esperar": "Parar de esperar",
+  "Seguimos preparando el mapa. Vuelve a crear la ruta en unos minutos.": "Ainda estamos preparando o mapa. Crie a rota de novo em alguns minutos.",
+  "No pudimos preparar el mapa de esa zona: puede que casi no tenga calles en OpenStreetMap. Prueba saliendo desde un punto cercano.": "Não conseguimos preparar o mapa dessa região: talvez ela tenha poucas ruas no OpenStreetMap. Tente sair de um ponto próximo.",
+  "Entreno": "Treino",
+  "Tu entrenamiento": "Seu treinamento",
+  "Últimos 3 meses · filosofía del método noruego": "Últimos 3 meses · filosofia do método norueguês",
+  "Fase": "Fase",
+  "Básica": "Base",
+  "Específica": "Específica",
+  "Competencia (descarga)": "Prova (polimento)",
+  "Tus zonas": "Suas zonas",
+  "Pulso": "Frequência cardíaca",
+  "Ritmo": "Ritmo",
+  "Zona": "Zona",
+  "Recuperación y rodaje muy suave": "Recuperação e trote bem leve",
+  "Base aeróbica: la mayor parte del volumen": "Base aeróbica: a maior parte do volume",
+  "Umbral controlado (el «doble umbral» noruego)": "Limiar controlado (o \"duplo limiar\" norueguês)",
+  "Umbral alto, ritmo de 10K": "Limiar alto, ritmo de 10K",
+  "VO₂máx: cuestas y series cortas": "VO₂máx: subidas e tiros curtos",
+  "Calcular mis zonas": "Calcular minhas zonas",
+  "Ajustar mis datos": "Ajustar meus dados",
+  "FC máxima": "FC máx.",
+  "FC de reposo": "FC em repouso",
+  "FC umbral": "FC de limiar",
+  "Mejor 10K": "Melhor 10K",
+  "Mejor 21K": "Melhor meia maratona",
+  "Ritmo umbral (/km)": "Ritmo de limiar (/km)",
+  "detectada: {x}": "detectado: {x}",
+  "Revisa el formato: tiempos como 42:30 o 1:35:00 y ritmos como 4:15.": "Confira o formato: tempos como 42:30 ou 1:35:00 e ritmos como 4:15.",
+  "Con tu FC umbral": "A partir da sua FC de limiar",
+  "Con tu FC máxima y de reposo (Karvonen)": "A partir da sua FC máx. e de repouso (Karvonen)",
+  "Con tu FC máxima": "A partir da sua FC máx.",
+  "Con la FC más alta de tus carreras ({x}): escribe la tuya si la conoces": "A partir da FC mais alta das suas corridas ({x}): informe a sua se souber",
+  "Con tu ritmo umbral": "A partir do seu ritmo de limiar",
+  "Con tus mejores tiempos (VDOT {v})": "A partir dos seus melhores tempos (VDOT {v})",
+  "Escribe tu FC máxima, tus mejores 10K/21K o tu ritmo umbral para calcular tus zonas.": "Informe sua FC máx., melhores tempos de 10K/meia ou ritmo de limiar para calcular suas zonas.",
+  "Tiempos equivalentes": "Tempos equivalentes",
+  "Mejor 5K": "Melhor 5K",
+  "Mejor maratón": "Melhor maratona",
+  "maratón": "maratona",
+  "Ritmo umbral": "Ritmo de limiar",
+  "de tu mejor {d} (VDOT {v})": "a partir do seu melhor {d} (VDOT {v})",
+  "el que escribiste": "o que você informou",
+  "escribe un mejor tiempo": "informe um melhor tempo",
+  "escribe tu FC máxima": "informe sua FC máx.",
+  "frontera I3/I4 (~87 % de la FC máx.)": "Limite I3/I4 (~87 % da FC máx.)",
+  "se usa · VDOT {v}": "usado · VDOT {v}",
+  "VDOT {v} · manda uno mejor": "VDOT {v} · usa-se um melhor",
+  "se usa para el pulso": "usada para a frequência cardíaca",
+  "vacío: se usa la más alta de tus carreras ({x})": "vazio: usa-se a mais alta das suas corridas ({x})",
+  "Distribución": "Distribuição",
+  "Últimas 12 semanas": "Últimas 12 semanas",
+  "Últimas 4 semanas": "Últimas 4 semanas",
+  "Piramidal": "Piramidal",
+  "Polarizada": "Polarizada",
+  "De umbral": "Muito limiar",
+  "Mixta": "Mista",
+  "Índice de polarización {p}": "Índice de polarização {p}",
+  "El método noruego es piramidal: mucho suave, bastante umbral controlado y poco I5.": "O método norueguês é piramidal: muito treino leve, bastante limiar controlado e pouco I5.",
+  "Semana a semana": "Semana a semana",
+  "Horas por zona · {n} sesiones de umbral en 12 semanas": "Horas por zona · {n} sessões de limiar em 12 semanas",
+  "Revisión": "Revisão",
+  "Sesiones recientes": "Treinos recentes",
+  "suave": "leve",
+  "suave rápido": "leve, rápido demais",
+  "umbral": "limiar",
+  "intensa": "forte",
+  "fondo": "longão",
+  "competencia": "prova",
+  "Pulso segundo a segundo en el {p} % del tiempo; el resto, con el promedio de cada carrera.": "Frequência cardíaca segundo a segundo em {p} % do tempo; o resto, pela média de cada corrida.",
+  "Analizando tus carreras… {n} de {t}": "Analisando suas corridas… {n} de {t}",
+  "Conecta tu Strava para revisar cómo vienes entrenando: zonas, polarización y sesiones de umbral de los últimos 3 meses.": "Conecte seu Strava para revisar como você vem treinando: zonas, polarização e sessões de limiar dos últimos 3 meses.",
+  "Aún no hay carreras de los últimos 3 meses en este teléfono.": "Ainda não há corridas dos últimos 3 meses neste celular.",
+  "Semana del {f}: {h} h · {k} · {u} de umbral": "Semana de {f}: {h} h · {k} · {u} de limiar",
+  "Revisión del {f}": "Revisão de {f}",
+  "No pude calcular la revisión ahora.": "Não consegui calcular a revisão agora.",
+};
+const LOCALE = { es: "es-CL", en: "en-US", pt: "pt-BR" };            // números y fechas
+const DIAS_PT = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+const MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const DIAS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MESES_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function t(es, vars) {
-  let s = idioma === "en" ? (EN[es] ?? es) : es;
+  let s = idioma === "en" ? (EN[es] ?? es) : idioma === "pt" ? (PT[es] ?? EN[es] ?? es) : es;
   if (vars) s = s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
   return s;
 }
@@ -1582,7 +2043,7 @@ $("editar").onclick = () => { document.body.classList.remove("con-ruta"); };
 for (const c of document.querySelectorAll(".chip")) {
   c.onclick = () => {
     document.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
-    $("texto").value = idioma === "en" ? c.dataset.tEn : c.dataset.t;
+    $("texto").value = idioma === "en" ? c.dataset.tEn : idioma === "pt" ? c.dataset.tPt : c.dataset.t;
     revisarTipo();
   };
 }
@@ -1591,7 +2052,7 @@ for (const a of document.querySelectorAll("nav a[data-pronto]")) {
     hoja(`<p class="pista">${t("{p}: conecta tu Strava.", { p: a.dataset.pronto })}</p>`); };
 }
 
-const num = (x, d = 0) => x.toLocaleString(idioma === "en" ? "en-US" : "es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
+const num = (x, d = 0) => x.toLocaleString(LOCALE[idioma], { minimumFractionDigits: d, maximumFractionDigits: d });
 // Unidades: km o millas («pp_unidad», botón KM/MI del mapa). Por defecto,
 // millas con el teléfono en inglés de Estados Unidos o del Reino Unido.
 // Las distancias cortas (series, «en 300 m») siguen en metros en ambos casos.
@@ -2956,7 +3417,7 @@ function pintarEntreno(j) {
     <div class="bloque"><h3>${t("Sesiones recientes")}</h3><ul class="sesiones-entreno">${rev.sesiones.slice(0, 10).map((x) =>
       `<li><span>${fechaCorta(new Date(x.fecha + "T12:00"))} · ${esc(x.nombre || "")} · ${fmtDistKm(x.km, 1)}</span><span class="tipo-sesion ${x.tipo}">${t(TIPO_TXT[x.tipo])}</span></li>`).join("")}</ul>
       <p class="nota-kpi">${t("Pulso segundo a segundo en el {p} % del tiempo; el resto, con el promedio de cada carrera.", { p: rev.detalle_pct })}
-        ${j.calculada ? " · " + t("Revisión del {f}", { f: new Date(j.calculada).toLocaleString(idioma === "en" ? "en-US" : "es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }) : ""}</p></div>` : ""}
+        ${j.calculada ? " · " + t("Revisión del {f}", { f: new Date(j.calculada).toLocaleString(LOCALE[idioma], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }) : ""}</p></div>` : ""}
     ${stravaEntreno?.conectado ? POWERED_STRAVA() : ""}`);
   if (rev?.semanas && !rev.vacia) activarGrafico("g-entreno", rev.semanas.map((w) => t("Semana del {f}: {h} h · {k} · {u} de umbral",
     { f: fechaCorta(new Date(w.inicio + "T12:00")), h: num(w.horas, 1), k: fmtDistKm(w.km, 1), u: w.umbral })));
@@ -3115,7 +3576,7 @@ function htmlPasaporte(P) {
   const L = P.nivel, desde = xpDeNivel(L), hasta = xpDeNivel(L + 1);
   const avance = Math.round((P.xp - desde) / (hasta - desde) * 100);
   const info = (tit, txt) => `tabindex="0" data-tit="${esc(tit)}" data-txt="${esc(txt)}"`;
-  const fechaLarga = (c) => localDe(c).toLocaleDateString(idioma === "en" ? "en-US" : "es-CL", { day: "numeric", month: "long", year: "numeric" });
+  const fechaLarga = (c) => localDe(c).toLocaleDateString(LOCALE[idioma], { day: "numeric", month: "long", year: "numeric" });
   const sellos = P.paises.filter((x) => x && x !== "AQ").map((cc) => {
     const d = P.porPais.get(cc), cs = [...(P.ciudadesPorPais.get(cc) || [])];
     const txt = t("{n} carreras · {k}", { n: num(d.carreras), k: fmtDistKm(d.km, 0) })
@@ -3333,7 +3794,7 @@ const ritmo = (s_km) => { if (!isFinite(s_km) || s_km <= 0) return "–";
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} /${unidad}`; };
 const lunes = (d) => { const x = new Date(d); const k = (x.getDay() + 6) % 7; x.setHours(0, 0, 0, 0);
   x.setDate(x.getDate() - k); return x; };
-const mesN = (i) => (idioma === "en" ? MESES_EN : MESES)[i];
+const mesN = (i) => (idioma === "en" ? MESES_EN : idioma === "pt" ? MESES_PT : MESES)[i];
 const fechaCorta = (d) => idioma === "en" ? `${mesN(d.getMonth())} ${d.getDate()}` : `${d.getDate()} ${mesN(d.getMonth())}`;
 const localDe = (c) => new Date((c.fecha_local || c.fecha).replace("Z", ""));
 
@@ -3488,7 +3949,7 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
   const horas = lista.map((c) => localDe(c).getHours()).sort((a, b) => a - b);
   const dist = lista.map((c) => c.distancia_m).sort((a, b) => a - b);
   const mediana = (a) => a.length ? a[a.length >> 1] : 0;
-  const fecha = (c) => c ? localDe(c).toLocaleDateString(idioma === "en" ? "en-US" : "es-CL", { day: "numeric", month: "short", year: "numeric" }) : "";
+  const fecha = (c) => c ? localDe(c).toLocaleDateString(LOCALE[idioma], { day: "numeric", month: "short", year: "numeric" }) : "";
   const record = (t, v, sub) => `<div class="record"><span>${t}</span><b>${v}</b><small>${sub}</small></div>`;
 
   hoja(`
@@ -3524,7 +3985,7 @@ async function abrirPerfil(sinSincronizar, reusarPerfil) {
       ${record(t("Racha máxima"), `${maxima} ${t(maxima === 1 ? "semana" : "semanas")}`, t("seguidas corriendo"))}
     </div></div>
     <div class="bloque"><h3>${t("Hábitos")}</h3><div class="records">
-      ${record(t("Día favorito"), (idioma === "en" ? DIAS_EN : DIAS)[dias.indexOf(Math.max(...dias))], `${Math.max(...dias)} ${t("carreras")}`)}
+      ${record(t("Día favorito"), (idioma === "en" ? DIAS_EN : idioma === "pt" ? DIAS_PT : DIAS)[dias.indexOf(Math.max(...dias))], `${Math.max(...dias)} ${t("carreras")}`)}
       ${record(t("Hora típica"), `${String(mediana(horas)).padStart(2, "0")}:00`, t("la mitad sale antes"))}
       ${record(t("Distancia típica"), fmtDist(mediana(dist), 1), t("de {n} carreras", { n: num(lista.length) }))}
       ${record(t(anioPerfil ? "Ritmo del año" : "Ritmo de siempre"), ritmo(lista.reduce((t, c) => t + c.tiempo_s, 0) / (lista.reduce((t, c) => t + c.distancia_m, 0) / 1000)), t("promedio de todas"))}
@@ -3563,8 +4024,10 @@ function aplicarIdioma() {
   document.querySelectorAll("[data-i18n-ph]").forEach((el) => el.placeholder = t(el.dataset.i18nPh));
   document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
     el.setAttribute("aria-label", t(el.dataset.i18nAria)); el.title = t(el.dataset.i18nAria); });
-  $("botonIdioma").textContent = idioma === "en" ? "ES" : "EN";
-  $("botonIdioma").setAttribute("aria-label", idioma === "en" ? "Cambiar a español" : "Switch to English");
+  // El botón muestra el idioma siguiente: ES → EN → PT → ES.
+  const sig = IDIOMAS[(IDIOMAS.indexOf(idioma) + 1) % IDIOMAS.length];
+  $("botonIdioma").textContent = sig.toUpperCase();
+  $("botonIdioma").setAttribute("aria-label", { es: "Cambiar a español", en: "Switch to English", pt: "Mudar para português" }[sig]);
   $("botonUnidad").textContent = unidad === "mi" ? "KM" : "MI";
   $("botonUnidad").setAttribute("aria-label", t(unidad === "mi" ? "Ver en kilómetros" : "Ver en millas"));
   resumirOpciones();
@@ -3580,7 +4043,7 @@ $("botonUnidad").onclick = () => {
   else if (document.body.classList.contains("con-ruta") && planActual) mostrar(planActual);
 };
 $("botonIdioma").onclick = () => {
-  idioma = idioma === "en" ? "es" : "en";
+  idioma = IDIOMAS[(IDIOMAS.indexOf(idioma) + 1) % IDIOMAS.length];
   try { localStorage.setItem("pp_lang", JSON.stringify(idioma)); } catch {}
   aplicarIdioma();
   // Lo que está en pantalla se vuelve a pedir/dibujar en el idioma nuevo.

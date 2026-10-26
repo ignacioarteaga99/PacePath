@@ -32,13 +32,16 @@ def _aviso_momento(m: Momento) -> str:
     partes = []
     if m.oscuro:
         partes.append(tr("es de noche: la ruta evita senderos de parque y caminos sin luz",
-                         "it's dark: the route avoids unlit park trails and dirt paths"))
+                         "it's dark: the route avoids unlit park trails and dirt paths",
+                         "está escuro: a rota evita trilhas de parque e caminhos sem iluminação"))
     elif m.calor:
         partes.append(tr("hace calor: la ruta busca más parques (lo más parecido a sombra que hay en el mapa)",
-                         "it's hot: the route looks for more parks (the closest thing to shade on the map)"))
+                         "it's hot: the route looks for more parks (the closest thing to shade on the map)",
+                         "está calor: a rota busca mais parques (o mais parecido com sombra que há no mapa)"))
     if m.punta:
         partes.append(tr("hora punta: evita más semáforos, cruces y avenidas",
-                         "rush hour: it avoids traffic lights, crossings and avenues even more"))
+                         "rush hour: it avoids traffic lights, crossings and avenues even more",
+                         "horário de pico: evita ainda mais semáforos, cruzamentos e avenidas"))
     texto = "; ".join(partes)
     return texto[0].upper() + texto[1:] + "."
 
@@ -54,7 +57,9 @@ def _con_radio(ctx, sesion, lat, lon, volver, meta, preferidas, radio_max_m, for
             raise SinTramo(f"{exc} " + tr(f"(Buscando a menos de {km:g} km de la salida: "
                                           "sube el radio o quítalo.)",
                                           f"(Searching within {km:g} km of the start: "
-                                          "increase the radius or remove it.)")) from exc
+                                          "increase the radius or remove it.)",
+                                          f"(Buscando a menos de {km:g} km da saída: "
+                                          "aumente o raio ou tire-o.)")) from exc
     plan["radio_max_m"] = radio_max_m
     return plan
 

@@ -25,16 +25,16 @@
   .nota { border: 1px solid var(--linea); border-radius: 12px; padding: 12px 14px; color: var(--suave); font-size: 14.5px; }
   a { color: var(--acento); }
   /* Sólo los bloques de contenido (no <html>, que también lleva lang) */
-  main [lang="en"] { display: none; }
-  body.en main [lang="es"] { display: none; }
-  body.en main [lang="en"] { display: block; }
+  main [lang="en"], main [lang="pt"] { display: none; }
+  body.en main [lang="es"], body.pt main [lang="es"] { display: none; }
+  body.en main [lang="en"], body.pt main [lang="pt"] { display: block; }
 </style>
 </head>
 <body>
 <main>
   <header>
     <a class="marca" href="/"><img src="/icons/icono-192.png" alt="">PacePath</a>
-    <nav class="idiomas"><a href="?lang=es" id="es">ES</a><a href="?lang=en" id="en">EN</a></nav>
+    <nav class="idiomas"><a href="?lang=es" id="es">ES</a><a href="?lang=en" id="en">EN</a><a href="?lang=pt" id="pt">PT</a></nav>
   </header>
 
   <section lang="es">
@@ -61,7 +61,11 @@
         guardadas (con su punto de salida), y, si conectas Strava, la autorización de Strava (cifrada; no tus
         carreras, que se vuelven a pedir a Strava en cada aparato). Al desconectar Strava, la autorización se borra
         de tu cuenta.</li>
-      <li>Puedes pedir que borremos tu cuenta con «Enviar comentario»; se borra con todas sus sesiones y todo lo anterior.</li>
+      <li>En «Mis datos» (al pie de la app, con tu cuenta abierta) puedes descargar una copia de todo lo que guardamos de
+        tu cuenta y borrarla para siempre: se borra con todas sus sesiones y todo lo anterior, y se revoca el acceso a
+        Strava.</li>
+      <li>Si pides una ruta donde aún no hay mapa, guardamos la zona pedida (no tu punto exacto) para avisarte por
+        correo cuando esté lista.</li>
     </ul>
 
     <h2>Sin Strava</h2>
@@ -148,7 +152,11 @@
         (with their start point) and, if you connect Strava, the Strava authorization (encrypted; not your runs,
         which are requested from Strava again on each device). When you disconnect Strava, the authorization is
         deleted from your account.</li>
-      <li>You can ask us to delete your account with “Send feedback”; it's deleted with all its sessions and everything above.</li>
+      <li>In “My data” (at the bottom of the app, while signed in) you can download a copy of everything we store about
+        your account and delete it for good: it's deleted with all its sessions and everything above, and Strava access
+        is revoked.</li>
+      <li>If you ask for a route where there's no map yet, we store the requested area (not your exact point) to email
+        you when it's ready.</li>
     </ul>
 
     <h2>Without Strava</h2>
@@ -209,16 +217,106 @@
       "Send feedback" button in the app.</p>
     <p>See also the <a href="/terms">terms of use</a>.</p>
   </section>
+
+  <section lang="pt">
+    <h1>Privacidade</h1>
+    <p class="fecha">Versão beta · atualizada em 22 de outubro de 2026</p>
+    <p class="nota">Em resumo: seus dados do Strava são usados só para mostrar a você, ficam no seu próprio celular, nunca
+      são compartilhados com outras pessoas nem vendidos, e desconectar apaga tudo e revoga o acesso.</p>
+
+    <h2>O que o PacePath faz</h2>
+    <p>O PacePath monta rotas de corrida para o seu treino (tiros, tempo, longão, subidas, regenerativo) nas ruas da sua
+      cidade. Opcionalmente, você conecta o Strava para ver onde já correu, seu perfil, suas estatísticas e conquistas, e para
+      que as rotas prefiram suas ruas de sempre.</p>
+
+    <h2>Sua conta</h2>
+    <ul>
+      <li>Para usar o PacePath você cria uma conta com seu e-mail e uma senha, ou entra com o Google ou a Microsoft.
+        Guardamos seu e-mail, seu nome (se você informar), como você entra, quando criou a conta e quando entrou pela
+        última vez. Com o Google ou a Microsoft recebemos só seu e-mail, seu nome e um identificador da sua conta; nunca a
+        sua senha do Google ou da Microsoft.</li>
+      <li>Sua senha é guardada com hash (scrypt); ninguém consegue lê-la, nem nós. Sua sessão é um cookie que dura 90 dias
+        ou até você sair.</li>
+      <li>Para que você possa usar o PacePath em outro celular ou computador sem começar do zero, sua conta guarda suas
+        preferências (zonas de treino, fase, opções de rota), seus trechos favoritos e suas rotas recentes e salvas (com o
+        ponto de saída) e, se você conectar o Strava, a autorização do Strava (criptografada; não as suas corridas, que são
+        pedidas de novo ao Strava em cada aparelho). Ao desconectar o Strava, a autorização é apagada da sua conta.</li>
+      <li>Em «Meus dados» (no rodapé do app, com sua conta aberta) você pode baixar uma cópia de tudo o que guardamos da sua
+        conta e apagá-la para sempre: ela é apagada com todas as sessões e tudo o que está acima, e o acesso ao Strava é
+        revogado.</li>
+      <li>Se você pedir uma rota onde ainda não há mapa, guardamos a região pedida (não o seu ponto exato) para avisar por
+        e-mail quando estiver pronta.</li>
+    </ul>
+
+    <h2>Sem o Strava</h2>
+    <ul>
+      <li>Para montar uma rota, seu celular envia ao nosso servidor o ponto de saída, o treino que você digitou e suas opções
+        (voltar ou não, chegada, subida, raio). O servidor calcula a rota e responde; não a guarda.</li>
+      <li>Se você buscar um endereço com número («Pocuro 2500»), esse texto é consultado no Nominatim, o serviço de busca do
+        OpenStreetMap.</li>
+      <li>Suas preferências (idioma, tipo de mapa, treinos recentes e salvos, trechos favoritos) ficam no seu celular.</li>
+    </ul>
+
+    <h2>Com o Strava (opcional)</h2>
+    <ul>
+      <li>Pedimos permissão só de leitura (<code>read</code> e <code>activity:read_all</code>). Lemos seu perfil (nome, foto,
+        cidade), seus totais de corrida e suas corridas: data, distância, tempo, desnível, frequência cardíaca média, tipo e o
+        traçado resumido. O Strava devolve a lista de todas as suas atividades: ficamos só com as corridas e descartamos o
+        resto. Nunca escrevemos nada na sua conta.</li>
+      <li>Suas corridas ficam guardadas <b>no seu celular</b> (no navegador), não no nosso servidor.</li>
+      <li>O acesso ao Strava («tokens») fica num cookie criptografado que só o nosso servidor consegue ler.</li>
+      <li>Para algumas funções seu celular envia suas corridas ao servidor, que as processa na hora e não as guarda: suas ruas
+        de sempre, a cidade, o país e o bairro onde cada corrida começa, e sua foto para o cartão de compartilhar conquistas.</li>
+      <li>Seus dados do Strava não são mostrados a outras pessoas, não são vendidos, não são usados para publicidade nem para
+        treinar modelos de IA. Não há rankings entre usuários.</li>
+      <li>O cartão para compartilhar suas conquistas só é criado e compartilhado se você tocar em «Compartilhar».</li>
+    </ul>
+
+    <h2>Desconectar e apagar</h2>
+    <p>Em «Meus lugares», «Desconectar» revoga o acesso no Strava e apaga do seu celular suas corridas e tudo o que foi
+      calculado com elas. Você também pode revogar o acesso nas configurações do Strava (Configurações → Meus aplicativos). O
+      resto é apagado limpando os dados deste site no seu navegador.</p>
+
+    <h2>Métricas de uso</h2>
+    <p>Para melhorar o beta registramos cada pedido ao app: quando, de que tipo (rota, GPX, conexão com o Strava…), se
+      funcionou ou falhou, quanto tempo levou, o tipo de treino e o texto que você digitou («6x1k»), o bairro, o idioma e o
+      tipo de aparelho (iPhone, Android…). Para contar quantas pessoas usam o app, seu celular guarda um cookie com um número
+      aleatório. Para saber quanto custa manter o app e quando ele precisa crescer, cada pedido também fica ligado à sua conta
+      do PacePath junto com o seu consumo: quantos dados transferiu, quanto processamento usou e quantas chamadas fez a outros
+      serviços; seu celular também informa quantos blocos de mapa baixou. Nunca registramos coordenadas, endereços, seu IP nem
+      dados do Strava. O registro é apagado depois de um ano e, quando você apaga sua conta, deixa de estar ligado a você.</p>
+
+    <h2>Terceiros</h2>
+    <ul>
+      <li><b>Strava</b>: conexão com a sua conta (se você usar).</li>
+      <li><b>Google e Microsoft</b>: login (se você usar).</li>
+      <li><b>Neon</b>: banco de dados que guarda as contas e o registro de uso.</li>
+      <li><b>Mapa</b>: seu navegador baixa o mapa do PacePath (dados do OpenStreetMap, guardados na Cloudflare), o relevo do AWS
+        Open Data Terrain Tiles e, nas outras camadas, as imagens de mapa da Esri.</li>
+      <li><b>Nominatim (OpenStreetMap)</b>: busca de endereços com número.</li>
+      <li><b>GitHub</b>: onde se constroem e publicam os mapas de cada região.</li>
+      <li><b>Resend</b>: envio dos e-mails do app.</li>
+      <li><b>Render</b>: hospeda o servidor; como qualquer provedor, registra dados técnicos de conexão (como endereços IP)
+        para segurança e operação.</li>
+    </ul>
+    <p>Mapas e ruas © colaboradores do OpenStreetMap (ODbL). Cidades: GeoNames (CC BY 4.0). Bandeiras no Windows: Twemoji (CC BY 4.0).</p>
+
+    <h2>Seus direitos e contato</h2>
+    <p>Você pode pedir acesso, correção ou exclusão dos seus dados (Lei chilena 19.628; e, se estiver no Brasil, a LGPD) e nos
+      enviar qualquer dúvida com o botão «Enviar comentário» no app.</p>
+    <p>Veja também os <a href="/terminos?lang=pt">termos de uso</a>.</p>
+  </section>
 </main>
 <script>
   // Idioma: ?lang=, o el que eligió en la app, o el del navegador.
   const q = new URLSearchParams(location.search).get("lang");
   let app = null; try { app = JSON.parse(localStorage.getItem("pp_lang")); } catch {}
-  const en = (q || app || navigator.language || "es").toLowerCase().startsWith("en");
-  document.body.classList.toggle("en", en);
-  document.documentElement.lang = en ? "en" : "es";
-  document.title = en ? "Privacy · PacePath" : "Privacidad · PacePath";
-  document.getElementById(en ? "en" : "es").setAttribute("aria-current", "true");
+  let lang = (q || app || navigator.language || "es").toLowerCase().slice(0, 2);
+  if (!["es", "en", "pt"].includes(lang)) lang = "es";
+  document.body.classList.add(lang);
+  document.documentElement.lang = lang === "pt" ? "pt-BR" : lang;
+  document.title = { es: "Privacidad", en: "Privacy", pt: "Privacidade" }[lang] + " · PacePath";
+  document.getElementById(lang).setAttribute("aria-current", "true");
 </script>
 </body>
 </html>

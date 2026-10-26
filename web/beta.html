@@ -35,16 +35,16 @@
   .idiomas a { color: var(--suave); font-weight: 700; text-decoration: none; margin-left: 10px; }
   .idiomas a[aria-current] { color: var(--acento); }
   /* Sólo los bloques de contenido (no <html>, que también lleva lang) */
-  main [lang="en"] { display: none; }
-  body.en main [lang="es"] { display: none; }
-  body.en main [lang="en"] { display: block; }
+  main [lang="en"], main [lang="pt"] { display: none; }
+  body.en main [lang="es"], body.pt main [lang="es"] { display: none; }
+  body.en main [lang="en"], body.pt main [lang="pt"] { display: block; }
 </style>
 </head>
 <body>
 <main>
   <header>
     <a class="marca" href="/"><img src="/icons/icono-192.png" alt="">PacePath</a>
-    <nav class="idiomas"><a href="?lang=es" id="es">ES</a><a href="?lang=en" id="en">EN</a></nav>
+    <nav class="idiomas"><a href="?lang=es" id="es">ES</a><a href="?lang=en" id="en">EN</a><a href="?lang=pt" id="pt">PT</a></nav>
   </header>
 
   <section lang="es">
@@ -75,16 +75,16 @@
     <li>Toca <b>Crear ruta</b>. Verás la ruta, los semáforos y cruces, y la altimetría.</li>
     <li>Toca <b>Descargar GPX</b> para pasarla a tu reloj (Garmin, Coros, Apple Watch con alguna app de rutas…).</li>
   </ol>
-  <div class="caja">📍 Por ahora funciona en <b>Las Condes, Lo Barnechea, Ñuñoa, Providencia, Santiago Centro y
-    Vitacura</b>. Si sales de otra comuna, la app te avisa: ¡cuéntanos cuál quieres que agreguemos!</div>
+  <div class="caja">📍 Funciona en <b>todo el Gran Santiago</b>. Si sales desde otra ciudad, la primera vez la app
+    prepara el mapa de esa zona en unos minutos y después arma tu ruta sola.</div>
 
   <h2><span class="n">3</span>Conecta tu Strava (opcional)</h2>
   <p>Con Strava ves todas tus carreras como un <b>mapa de calor</b>, en qué países y ciudades has corrido, tus
     <b>estadísticas</b> y tus <b>logros</b>, y las rutas prefieren tus calles de siempre.</p>
   <ol>
-    <li>Ve a <b>Mi ciudad</b> → <b>Conectar con Strava</b> → autoriza.</li>
+    <li>Ve a <b>Mis lugares</b> → <b>Conectar con Strava</b> → autoriza.</li>
     <li>Espera a que termine la barra de descarga (con muchos años de carreras puede tardar un minuto).</li>
-    <li>Mira <b>Mi ciudad</b> (mapa de calor y «Dónde has corrido») y <b>Perfil</b> (estadísticas y logros).</li>
+    <li>Mira <b>Mis lugares</b> (mapa de calor y «Dónde has corrido») y <b>Perfil</b> (estadísticas y logros).</li>
   </ol>
   <div class="caja">⚠️ Mientras Strava revisa la app, <b>sólo pueden conectarse unas pocas cuentas</b>. Si te da un error
     de «límite», avísame y te hago espacio. Tus datos de Strava quedan en tu teléfono y sólo los ves tú
@@ -120,7 +120,7 @@
   <ul>
     <li>Es una beta: puede haber errores. Si algo se ve raro, recarga la página.</li>
     <li>Strava está limitado a pocas cuentas mientras lo revisan.</li>
-    <li>Sólo hay mapa de rutas en las 6 comunas de arriba (vamos agregando).</li>
+    <li>En una ciudad nueva, la primera ruta tarda unos minutos mientras se prepara su mapa.</li>
     <li>Si la app no carga el mapa nuevo, usa uno de respaldo automáticamente: avísanos si lo ves distinto.</li>
   </ul>
 
@@ -154,16 +154,16 @@
     <li>Tap <b>Create route</b>. You'll see the route, the traffic lights and crossings, and the elevation profile.</li>
     <li>Tap <b>Download GPX</b> to send it to your watch (Garmin, Coros, Apple Watch with a route app…).</li>
   </ol>
-  <div class="caja">📍 For now it works in <b>Las Condes, Lo Barnechea, Ñuñoa, Providencia, Santiago Centro and
-    Vitacura</b> (Santiago, Chile). If you start somewhere else, the app tells you: let us know which area to add next!</div>
+  <div class="caja">📍 It works in <b>all of Greater Santiago</b> (Chile). If you start from another city, the first
+    time the app prepares that area's map in a few minutes and then builds your route on its own.</div>
 
   <h2><span class="n">3</span>Connect your Strava (optional)</h2>
   <p>With Strava you see all your runs as a <b>heatmap</b>, the countries and cities where you've run, your
     <b>stats</b> and your <b>achievements</b>, and routes prefer your usual streets.</p>
   <ol>
-    <li>Go to <b>My city</b> → <b>Connect with Strava</b> → authorize.</li>
+    <li>Go to <b>My places</b> → <b>Connect with Strava</b> → authorize.</li>
     <li>Wait for the download bar to finish (with many years of runs it can take a minute).</li>
-    <li>Check <b>My city</b> (heatmap and "Where you've run") and <b>Profile</b> (stats and achievements).</li>
+    <li>Check <b>My places</b> (heatmap and "Where you've run") and <b>Profile</b> (stats and achievements).</li>
   </ol>
   <div class="caja">⚠️ While Strava reviews the app, <b>only a few accounts can connect</b>. If you get a "limit"
     error, let me know and I'll make room. Your Strava data stays on your phone and only you can see it
@@ -199,8 +199,87 @@
   <ul>
     <li>It's a beta: there may be bugs. If something looks off, reload the page.</li>
     <li>Strava is limited to a few accounts while they review it.</li>
-    <li>Routes only work in the 6 areas above (we're adding more).</li>
+    <li>In a new city, the first route takes a few minutes while its map is prepared.</li>
     <li>If the app can't load the new map, it switches to a backup map automatically: tell us if it looks different.</li>
+  </ul>
+  </section>
+
+  <section lang="pt">
+  <h1>Obrigado por testar o PacePath 🧡</h1>
+  <p class="lead">O PacePath monta a rota perfeita para o treino de hoje: digite seu treino («6x1k», «longão 12k
+    plano») e ele mostra por onde correr. Está em beta, então sua ajuda vale muito. Leva 10 minutos.</p>
+
+  <a class="boton" href="/?lang=pt">Abrir o PacePath</a>
+
+  <h2><span class="n">1</span>Instale no seu celular</h2>
+  <p>Não precisa baixar da App Store: você instala pelo navegador.</p>
+  <ul>
+    <li><b>iPhone:</b> abra <code>pacepathapp.com</code> no <b>Safari</b> → botão <b>Compartilhar</b> (o quadrado com uma
+      seta) → <b>Adicionar à Tela de Início</b>.</li>
+    <li><b>Android:</b> abra <code>pacepathapp.com</code> no <b>Chrome</b> → menu <b>⋮</b> → <b>Instalar app</b>
+      (ou «Adicionar à tela inicial»).</li>
+  </ul>
+  <p>Ele ganha seu ícone laranja, como qualquer outro app. O botão de idioma no mapa alterna entre <b>ES</b>,
+    <b>EN</b> e <b>PT</b>.</p>
+
+  <h2><span class="n">2</span>Monte sua primeira rota</h2>
+  <ol>
+    <li>Em <b>Hoje</b>, digite seu treino. Exemplos: <code>tiros 6x1k</code>, <code>tempo 8k</code>,
+      <code>longão 12k plano</code>, <code>subidas 8x300 6%</code>, <code>leve 6k</code>.</li>
+    <li>Escolha <b>de onde você sai</b>: sua localização (o botão ao lado do campo de saída), um endereço ou toque no mapa.</li>
+    <li>Se quiser, abra <b>Opções</b>: voltar à saída ou não, terminar em outro lugar, subida máxima, raio máximo,
+      circuito ou voltas.</li>
+    <li>Toque em <b>Criar rota</b>. Você verá a rota, os semáforos e cruzamentos, e a altimetria.</li>
+    <li>Toque em <b>Baixar GPX</b> para mandar ao seu relógio (Garmin, Coros, Apple Watch com um app de rotas…).</li>
+  </ol>
+  <div class="caja">📍 Funciona em <b>toda a Grande Santiago</b> (Chile). Se você sair de outra cidade, na primeira vez
+    o app prepara o mapa dessa região em alguns minutos e depois monta sua rota sozinho.</div>
+
+  <h2><span class="n">3</span>Conecte seu Strava (opcional)</h2>
+  <p>Com o Strava você vê todas as suas corridas como um <b>mapa de calor</b>, os países e cidades onde correu, suas
+    <b>estatísticas</b> e suas <b>conquistas</b>, e as rotas preferem suas ruas de sempre.</p>
+  <ol>
+    <li>Vá em <b>Meus lugares</b> → <b>Conectar com o Strava</b> → autorize.</li>
+    <li>Espere a barra de descarga terminar (com muitos anos de corridas pode levar um minuto).</li>
+    <li>Veja <b>Meus lugares</b> (mapa de calor e «Onde você já correu») e <b>Perfil</b> (estatísticas e conquistas).</li>
+  </ol>
+  <div class="caja">⚠️ Enquanto o Strava revisa o app, <b>só algumas contas podem conectar</b>. Se aparecer um erro de
+    «limite», me avise e eu abro espaço. Seus dados do Strava ficam no seu celular e só você os vê
+    (<a href="/privacidad?lang=pt">privacidade</a>).</div>
+
+  <h2><span class="n">4</span>Missões para testar</h2>
+  <p>Não precisa fazer todas. A mais valiosa é <b>sair para correr uma rota de verdade</b>.</p>
+  <div class="mision"><b>🏃 Corra uma rota do PacePath</b><span>Fez sentido? Ela te mandou por uma rua feia, perigosa ou
+    fechada? A distância bateu com a do seu relógio?</span></div>
+  <div class="mision"><b>⏱️ Tiros</b><span>Peça <code>6x1k</code> ou <code>8x400</code>: a reta dos tiros tinha poucos
+    semáforos e cruzamentos?</span></div>
+  <div class="mision"><b>🏞️ Longão em circuito</b><span>Peça <code>longão 15k</code> com «Circuito» em Opções: repete poucas
+    ruas? Passa por parques?</span></div>
+  <div class="mision"><b>⛰️ Subidas e «plano»</b><span>Teste <code>subidas 8x300 6%</code> e <code>longão 12k plano</code>:
+    a inclinação foi a que você pediu?</span></div>
+  <div class="mision"><b>🗺️ O mapa</b><span>Veja o mapa de dia e de noite (🌙), aproxime num morro: está claro? Falta
+    alguma coisa?</span></div>
+  <div class="mision"><b>📊 Strava</b><span>Se você conectou: estão todas as suas corridas? As conquistas e os países estão
+    certos?</span></div>
+  <div class="mision"><b>🇧🇷 Português</b><span>Coloque o app em <b>PT</b>: tudo muda para português? Avise se algo
+    soar estranho.</span></div>
+
+  <h2><span class="n">5</span>Conte o que aconteceu</h2>
+  <ol>
+    <li>No app, desça até o fim do painel e toque em <b>💬 Enviar comentário</b>.</li>
+    <li>Escreva o que você viu. Deixe marcado «Incluir o que eu estava fazendo»: ajuda a reproduzir.</li>
+    <li>O WhatsApp abre: escolha o <b>grupo do beta</b> e envie.</li>
+  </ol>
+  <div class="caja">✍️ <b>Um bom comentário tem:</b> o que você fez, o que esperava e o que aconteceu. Se puder, mande um
+    <b>print</b>. Ex.: «Pedi 6x1k saindo da Plaza Ñuñoa, a reta tinha 3 semáforos e eu esperava 0».</div>
+  <p>Notícias boas também ajudam: «adorei X» nos diz o que não mexer. 😉</p>
+
+  <h2><span class="n">6</span>O que já sabemos</h2>
+  <ul>
+    <li>É um beta: pode ter erros. Se algo parecer estranho, recarregue a página.</li>
+    <li>O Strava está limitado a algumas contas enquanto o revisam.</li>
+    <li>Numa cidade nova, a primeira rota leva alguns minutos enquanto o mapa é preparado.</li>
+    <li>Se o app não conseguir carregar o mapa novo, ele passa sozinho para um mapa reserva: avise se parecer diferente.</li>
   </ul>
   </section>
 
@@ -211,11 +290,12 @@
   // Idioma: ?lang=, o el que eligió en la app, o el del navegador.
   const q = new URLSearchParams(location.search).get("lang");
   let app = null; try { app = JSON.parse(localStorage.getItem("pp_lang")); } catch {}
-  const en = (q || app || navigator.language || "es").toLowerCase().startsWith("en");
-  document.body.classList.toggle("en", en);
-  document.documentElement.lang = en ? "en" : "es";
-  document.title = en ? "Beta guide · PacePath" : "Guía beta · PacePath";
-  document.getElementById(en ? "en" : "es").setAttribute("aria-current", "true");
+  let lang = (q || app || navigator.language || "es").toLowerCase().slice(0, 2);
+  if (!["es", "en", "pt"].includes(lang)) lang = "es";
+  document.body.classList.add(lang);
+  document.documentElement.lang = lang === "pt" ? "pt-BR" : lang;
+  document.title = { es: "Guía beta", en: "Beta guide", pt: "Guia beta" }[lang] + " · PacePath";
+  document.getElementById(lang).setAttribute("aria-current", "true");
 </script>
 </body>
 </html>

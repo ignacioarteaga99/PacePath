@@ -309,19 +309,24 @@ def _niveles(req: Requisitos, holgura_m: float) -> list[tuple[Requisitos, float,
     return [
         (req, cerca, None),
         (req, lejos, tr("No hay un tramo sin cruces más cerca: éste es el más próximo.",
-                        "There's no crossing-free stretch closer: this is the nearest one.")),
+                        "There's no crossing-free stretch closer: this is the nearest one.",
+                        "Não há trecho sem cruzamentos mais perto: este é o mais próximo.")),
         (r(req, max_cruces_menores=2), lejos,
          tr(f"No hay ningún tramo sin cruces a menos de {lejos / 1000:.0f} km: éste tiene "
             "como mucho dos cruces de calle residencial.",
             f"There's no crossing-free stretch within {lejos / 1000:.0f} km: this one has at "
-            "most two residential street crossings.")),
+            "most two residential street crossings.",
+            f"Não há trecho sem cruzamentos a menos de {lejos / 1000:.0f} km: este tem no "
+            "máximo dois cruzamentos com ruas residenciais.")),
         (r(req, max_cruces_menores=4, max_cruces_mayores=1, max_semaforos=1,
            max_desnivel_tramo_m=req.max_desnivel_tramo_m * 1.5,
            min_rectitud=req.min_rectitud - 0.1), lejos,
          tr("No hay un tramo limpio cerca: éste tiene algún cruce y como mucho un "
             "semáforo. Si te toca en rojo, alarga esa pausa.",
             "There's no clean stretch nearby: this one has some crossings and at most one "
-            "traffic light. If it's red, make that rest longer.")),
+            "traffic light. If it's red, make that rest longer.",
+            "Não há trecho limpo por perto: este tem alguns cruzamentos e no máximo um "
+            "semáforo. Se estiver vermelho, alongue esse descanso.")),
     ]
 
 
@@ -373,14 +378,18 @@ def buscar_tramos(ctx: GraphContext, inicio: int, req: Requisitos, holgura_m: fl
         return elegidos, aviso
     if req.pendiente_objetivo_pct is not None:
         que = tr(f"con {req.pendiente_objetivo_pct:g} % de pendiente",
-                 f"at {req.pendiente_objetivo_pct:g} % grade")
+                 f"at {req.pendiente_objetivo_pct:g} % grade",
+                 f"com {req.pendiente_objetivo_pct:g} % de inclinação")
     else:
-        que = tr("sin semáforos", "without traffic lights")
+        que = tr("sin semáforos", "without traffic lights",
+                                  "sem semáforos")
     raise SinTramo(tr(
         f"No encontré ningún tramo de {req.largo_tramo_m:.0f} m {que} a menos "
         f"de {radio / 1000:.1f} km de la salida.",
         f"I couldn't find any {req.largo_tramo_m:.0f} m stretch {que} within "
-        f"{radio / 1000:.1f} km of the start."))
+        f"{radio / 1000:.1f} km of the start.",
+        f"Não encontrei nenhum trecho de {req.largo_tramo_m:.0f} m {que} a menos de "
+        f"{radio / 1000:.1f} km da saída."))
 
 
 def _centro(ctx: GraphContext, m: Tramo) -> tuple[float, float]:
@@ -540,9 +549,11 @@ def aviso_srtm(ctx: GraphContext | None = None) -> str:
     fuente = ((ctx.graph.coverage or {}).get("elevation") or {}).get("source", "") if ctx else ""
     if "Copernicus" in fuente:
         return tr("Elevación del modelo Copernicus GLO-30 (±1–2 m): el desnivel es orientativo.",
-                  "Elevation from the Copernicus GLO-30 model (±1–2 m): climb figures are approximate.")
+                  "Elevation from the Copernicus GLO-30 model (±1–2 m): climb figures are approximate.",
+                  "Elevação do modelo Copernicus GLO-30 (±1–2 m): o desnível é aproximado.")
     return tr("Elevación del modelo SRTM (±2–3 m): el desnivel es orientativo.",
-              "Elevation from the SRTM model (±2–3 m): climb figures are approximate.")
+              "Elevation from the SRTM model (±2–3 m): climb figures are approximate.",
+              "Elevação do modelo SRTM (±2–3 m): o desnível é aproximado.")
 
 
 def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
@@ -583,7 +594,8 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
             opciones.append((ida["distancia_m"], ini, ida))
     if not opciones:
         raise SinTramo(tr("El tramo encontrado no se puede alcanzar desde la salida.",
-                          "The stretch found can't be reached from the start."))
+                          "The stretch found can't be reached from the start.",
+                          "Não dá para chegar da saída ao trecho encontrado."))
     _, ini, ida = min(opciones, key=lambda o: o[0])
 
     info = _tramo_info(ctx, m)
@@ -626,7 +638,9 @@ def planificar_series(ctx: GraphContext, sesion: Sesion, lat: float, lon: float,
         avisos.append(tr(f"El tramo está a {ida['distancia_m']} m: completa el calentamiento "
                          f"con {calentamiento_extra} m suaves por el mismo tramo.",
                          f"The stretch is {ida['distancia_m']} m away: finish your warm-up "
-                         f"with {calentamiento_extra} m easy on the same stretch."))
+                         f"with {calentamiento_extra} m easy on the same stretch.",
+                         f"O trecho fica a {ida['distancia_m']} m: termine o aquecimento "
+                         f"com {calentamiento_extra} m leves no mesmo trecho."))
     avisos.append(aviso_srtm(ctx))
 
     plan = base_plan(ctx, sesion, req, casa) | {

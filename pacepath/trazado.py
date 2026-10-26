@@ -38,10 +38,12 @@ def _pesos(ctx: GraphContext) -> RoutingWeights:
 
 def trazar(ctx: GraphContext, puntos: list[tuple[float, float]], volver: bool) -> dict:
     if len(puntos) < 2:
-        raise TrazadoInvalido(tr("Marca al menos dos puntos.", "Mark at least two points."))
+        raise TrazadoInvalido(tr("Marca al menos dos puntos.", "Mark at least two points.",
+                                                               "Marque pelo menos dois pontos."))
     if len(puntos) > MAX_PUNTOS:
         raise TrazadoInvalido(tr(f"Como máximo {MAX_PUNTOS} puntos.",
-                                 f"At most {MAX_PUNTOS} points."))
+                                 f"At most {MAX_PUNTOS} points.",
+                                 f"No máximo {MAX_PUNTOS} pontos."))
     g = ctx.graph
     w = _pesos(ctx)
     red = nodos_en_red(ctx)
@@ -50,7 +52,8 @@ def trazar(ctx: GraphContext, puntos: list[tuple[float, float]], volver: bool) -
         x, y = g.project(la, lo)
         if np.hypot(g.x[n] - x, g.y[n] - y) > 300:
             raise TrazadoInvalido(tr("Hay un punto lejos de cualquier calle de este mapa.",
-                                     "A point is far from any street on this map."))
+                                     "A point is far from any street on this map.",
+                                     "Um ponto está longe de qualquer rua deste mapa."))
     secuencia = nodos + ([nodos[0]] if volver and nodos[-1] != nodos[0] else [])
 
     tramos, aristas = [], []
@@ -61,7 +64,8 @@ def trazar(ctx: GraphContext, puntos: list[tuple[float, float]], volver: bool) -
         if leg is None or not leg.ok:
             fin = k + 2 if k + 2 <= len(nodos) else 1
             raise TrazadoInvalido(tr(f"No hay camino corrible entre el punto {k + 1} y el {fin}.",
-                                     f"There's no runnable path between point {k + 1} and {fin}."))
+                                     f"There's no runnable path between point {k + 1} and {fin}.",
+                                     f"Não há caminho para correr entre o ponto {k + 1} e {fin}."))
         tramos.append({"tipo": "trazado", "numero": k + 1,
                        "distancia_m": round(leg.distance_m),
                        "coordenadas": _coords(ctx, leg.edges)})

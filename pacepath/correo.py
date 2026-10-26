@@ -132,10 +132,15 @@ def _base() -> str:
 
 def _pie() -> list[tuple[str, str]]:
     b = _base()
-    enlaces = [(tr("Abrir PacePath", "Open PacePath"), b), (tr("Guía beta", "Beta guide"), f"{b}/beta"),
-               (tr("Términos", "Terms"), f"{b}/terminos"), (tr("Privacidad", "Privacy"), f"{b}/privacidad")]
+    enlaces = [(tr("Abrir PacePath", "Open PacePath",
+                                     "Abrir o PacePath"), b), (tr("Guía beta", "Beta guide",
+                                                                            "Guia beta"), f"{b}/beta"),
+               (tr("Términos", "Terms",
+                               "Termos"), f"{b}/terminos"), (tr("Privacidad", "Privacy",
+                                                                             "Privacidade"), f"{b}/privacidad")]
     if (aporte := os.environ.get("PACEPATH_APORTE_URL", "").strip()).startswith("https://"):
-        enlaces.append(("☕ " + tr("Apoya PacePath", "Support PacePath"), aporte))
+        enlaces.append(("☕ " + tr("Apoya PacePath", "Support PacePath",
+                                                    "Apoie o PacePath"), aporte))
     return enlaces
 
 
@@ -147,7 +152,8 @@ def _correo(titulo: str, parrafos: list[str], boton: tuple[str, str] | None = No
     pie = _pie()
     soporte = "support@pacepathapp.com"
     motivo = motivo or tr("Recibes este correo por tu cuenta en PacePath.",
-                          "You're getting this email because of your PacePath account.")
+                          "You're getting this email because of your PacePath account.",
+                          "Você recebe este e-mail por causa da sua conta no PacePath.")
     # Texto plano
     t = [titulo, ""] + [p + "\n" for p in parrafos]
     t += [f"  · {x}" for x in (lista or [])] + ([""] if lista else [])
@@ -156,9 +162,11 @@ def _correo(titulo: str, parrafos: list[str], boton: tuple[str, str] | None = No
     if nota:
         t += [nota, ""]
     t += ["—", "PacePath · " + tr("la ruta perfecta para el entrenamiento de hoy",
-                                  "the perfect route for today's workout"),
+                                  "the perfect route for today's workout",
+                                  "a rota perfeita para o treino de hoje"),
           " · ".join(f"{n}: {u}" for n, u in pie), motivo,
-          tr(f"¿Dudas? Escríbenos a {soporte}", f"Questions? Write to {soporte}")]
+          tr(f"¿Dudas? Escríbenos a {soporte}", f"Questions? Write to {soporte}",
+                                                f"Dúvidas? Escreva para {soporte}")]
     texto = "\n".join(t)
     # HTML (tablas y estilos en línea: es lo que entienden Gmail, Outlook y Apple Mail)
     fuente = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
@@ -174,13 +182,15 @@ def _correo(titulo: str, parrafos: list[str], boton: tuple[str, str] | None = No
                    f'style="display:inline-block;padding:14px 26px;font:700 16px {fuente};color:#ffffff;'
                    f'text-decoration:none;border-radius:12px">{e(boton[0])}</a></td></tr></table>'
                    f'<p style="margin:0 0 14px;font-size:12px;line-height:1.5;color:{SUAVE}">'
-                   + tr("Si el botón no funciona, copia este enlace:", "If the button doesn't work, copy this link:")
+                   + tr("Si el botón no funciona, copia este enlace:", "If the button doesn't work, copy this link:",
+                                                                       "Se o botão não funcionar, copie este link:")
                    + f'<br><a href="{e(boton[1])}" style="color:{SUAVE};word-break:break-all">{e(boton[1])}</a></p>')
     if nota:
         cuerpo += f'<p style="margin:0;font-size:13px;line-height:1.5;color:{SUAVE}">{e(nota)}</p>'
     enlaces = ' <span style="color:#c4c4cc">·</span> '.join(
         f'<a href="{e(u)}" style="color:{SUAVE};text-decoration:underline">{e(n)}</a>' for n, u in pie)
-    html_ = f"""<!doctype html><html lang="{tr('es', 'en')}"><head><meta charset="utf-8">
+    html_ = f"""<!doctype html><html lang="{tr('es', 'en',
+                                                     'pt-BR')}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">
 <title>{e(titulo)}</title></head>
 <body style="margin:0;padding:0;background:{FONDO};font-family:{fuente}">
@@ -199,98 +209,140 @@ def _correo(titulo: str, parrafos: list[str], boton: tuple[str, str] | None = No
 <tr><td style="padding:22px 10px 0;text-align:center;font-size:13px;line-height:1.7;color:{SUAVE}">
   <div style="margin-bottom:8px">{enlaces}</div>
   <div>{e(motivo)}</div>
-  <div>{tr("¿Dudas? Escríbenos a", "Questions? Write to")} <a href="mailto:{soporte}" style="color:{SUAVE}">{soporte}</a></div>
-  <div style="margin-top:8px;color:#9a9aa3">{tr("Hecho en Santiago de Chile", "Made in Santiago, Chile")} 🇨🇱</div>
+  <div>{tr("¿Dudas? Escríbenos a", "Questions? Write to",
+                                   "Dúvidas? Escreva para")} <a href="mailto:{soporte}" style="color:{SUAVE}">{soporte}</a></div>
+  <div style="margin-top:8px;color:#9a9aa3">{tr("Hecho en Santiago de Chile", "Made in Santiago, Chile",
+                                                                              "Feito em Santiago, Chile")} 🇨🇱</div>
 </td></tr>
 </table></td></tr></table></body></html>"""
     return texto, html_
 
 
 def _hola(nombre: str | None) -> str:
-    return tr(f"Hola, {nombre}:", f"Hi {nombre},") if nombre else tr("Hola:", "Hi,")
+    return tr(f"Hola, {nombre}:", f"Hi {nombre},",
+                                  f"Olá, {nombre}!") if nombre else tr("Hola:", "Hi,",
+                                                                              "Olá!")
 
 
 # ── Los correos ─────────────────────────────────────────────────────────────
 
 def verificar(para: str, nombre: str | None, enlace: str, beta_pendiente: bool = False) -> None:
     parrafos = [_hola(nombre), tr("Confirma tu correo para terminar de crear tu cuenta de PacePath.",
-                                  "Confirm your email to finish creating your PacePath account.")]
+                                  "Confirm your email to finish creating your PacePath account.",
+                                  "Confirme seu e-mail para terminar de criar sua conta no PacePath.")]
     if beta_pendiente:
         parrafos.append(tr("PacePath está en beta privada: después de confirmar, tu cuenta queda en la lista de "
                            "espera y te avisamos por correo apenas te habilitemos.",
                            "PacePath is in private beta: after you confirm, your account goes on the waiting "
-                           "list and we'll email you as soon as you're in."))
-    texto, h = _correo(tr("Confirma tu correo", "Confirm your email"), parrafos,
-                       (tr("Confirmar mi correo", "Confirm my email"), enlace),
+                           "list and we'll email you as soon as you're in.",
+                           "O PacePath está em beta fechado: depois de confirmar, sua conta entra na lista de "
+                           "espera e avisamos por e-mail assim que você for liberado."))
+    texto, h = _correo(tr("Confirma tu correo", "Confirm your email",
+                                                "Confirme seu e-mail"), parrafos,
+                       (tr("Confirmar mi correo", "Confirm my email",
+                                                  "Confirmar meu e-mail"), enlace),
                        tr("El enlace vale 48 horas. Si no creaste una cuenta, ignora este correo.",
-                          "The link is valid for 48 hours. If you didn't create an account, ignore this email."))
-    enviar(para, tr("Confirma tu correo en PacePath", "Confirm your email on PacePath"), texto, h)
+                          "The link is valid for 48 hours. If you didn't create an account, ignore this email.",
+                          "O link vale por 48 horas. Se você não criou uma conta, ignore este e-mail."))
+    enviar(para, tr("Confirma tu correo en PacePath", "Confirm your email on PacePath",
+                                                      "Confirme seu e-mail no PacePath"), texto, h)
 
 
 def recuperar(para: str, nombre: str | None, enlace: str) -> None:
-    texto, h = _correo(tr("Cambia tu clave", "Reset your password"),
+    texto, h = _correo(tr("Cambia tu clave", "Reset your password",
+                                             "Troque sua senha"),
                        [_hola(nombre), tr("Pediste cambiar tu clave de PacePath. Elige una nueva aquí:",
-                                          "You asked to reset your PacePath password. Choose a new one here:")],
-                       (tr("Elegir una clave nueva", "Choose a new password"), enlace),
+                                          "You asked to reset your PacePath password. Choose a new one here:",
+                                          "Você pediu para trocar sua senha do PacePath. Escolha uma nova aqui:")],
+                       (tr("Elegir una clave nueva", "Choose a new password",
+                                                     "Escolher uma senha nova"), enlace),
                        tr("El enlace vale 1 hora y sirve una sola vez. Si no lo pediste, ignora este correo: tu clave no cambia.",
                           "The link is valid for 1 hour and works once. If you didn't ask for it, ignore this email: "
-                          "your password stays the same."))
-    enviar(para, tr("Cambia tu clave de PacePath", "Reset your PacePath password"), texto, h)
+                          "your password stays the same.",
+                          "O link vale por 1 hora e funciona uma vez. Se você não pediu, ignore este e-mail: "
+                          "sua senha continua a mesma."))
+    enviar(para, tr("Cambia tu clave de PacePath", "Reset your PacePath password",
+                                                   "Troque sua senha do PacePath"), texto, h)
 
 
 def _consejos() -> list[str]:
     return [tr("Escribe tu entrenamiento como lo dirías: «6x1k», «tempo 8k», «fondo 15k plano» o «45 min suave».",
-               "Type your workout the way you'd say it: \"6x1k\", \"tempo 8k\", \"long run 15k flat\" or \"45 min easy\"."),
+               "Type your workout the way you'd say it: \"6x1k\", \"tempo 8k\", \"long run 15k flat\" or \"45 min easy\".",
+               "Escreva seu treino como você falaria: \"6x1k\", \"tempo 8k\", \"longão 15k plano\" ou \"45 min leve\"."),
             tr("PacePath busca calles con pocos semáforos y la distancia justa, desde donde estés.",
-               "PacePath finds streets with few traffic lights and the right distance, from wherever you are."),
+               "PacePath finds streets with few traffic lights and the right distance, from wherever you are.",
+               "O PacePath encontra ruas com poucos semáforos e a distância certa, de onde você estiver."),
             tr("Conecta Strava para que la ruta prefiera tus calles de siempre y pinta tu ciudad.",
-               "Connect Strava so routes prefer your usual streets, and paint your city."),
+               "Connect Strava so routes prefer your usual streets, and paint your city.",
+               "Conecte o Strava para que as rotas prefiram suas ruas de sempre, e pinte sua cidade."),
             tr("Mándala a tu reloj como GPX con «Enviar al reloj».",
-               "Send it to your watch as a GPX with \"Send to watch\".")]
+               "Send it to your watch as a GPX with \"Send to watch\".",
+               "Mande para o relógio como GPX com \"Enviar para o relógio\".")]
 
 
 def bienvenida(para: str, nombre: str | None, beta_pendiente: bool) -> None:
     """Al quedar registrado (con correo: al confirmarlo; con Google/Microsoft: al crearla)."""
     if beta_pendiente:
-        texto, h = _correo(tr("¡Registro exitoso!", "You're registered!"),
+        texto, h = _correo(tr("¡Registro exitoso!", "You're registered!",
+                                                    "Cadastro feito!"),
                            [_hola(nombre), tr("Tu cuenta de PacePath ya está creada. Estamos en beta privada, así que "
                                               "quedaste en la lista de espera: te escribimos apenas te habilitemos.",
                                               "Your PacePath account is ready. We're in private beta, so you're on "
-                                              "the waiting list: we'll write as soon as you're in."),
-                            tr("Mientras, esto es lo que vas a poder hacer:", "Meanwhile, here's what you'll be able to do:")],
+                                              "the waiting list: we'll write as soon as you're in.",
+                                              "Sua conta no PacePath está pronta. Estamos em beta fechado, então você está na "
+                                              "lista de espera: escrevemos assim que você for liberado."),
+                            tr("Mientras, esto es lo que vas a poder hacer:", "Meanwhile, here's what you'll be able to do:",
+                                                                              "Enquanto isso, veja o que você vai poder fazer:")],
                            lista=_consejos(),
                            nota=tr("¿Te invitó alguien? Respóndenos este correo y te habilitamos antes.",
-                                   "Did someone invite you? Reply to this email and we'll let you in sooner."))
+                                   "Did someone invite you? Reply to this email and we'll let you in sooner.",
+                                   "Alguém te convidou? Responda a este e-mail e liberamos você antes."))
     else:
-        texto, h = _correo(tr("¡Registro exitoso!", "You're registered!"),
+        texto, h = _correo(tr("¡Registro exitoso!", "You're registered!",
+                                                    "Cadastro feito!"),
                            [_hola(nombre), tr("Bienvenido a PacePath: la ruta perfecta para el entrenamiento de hoy.",
-                                              "Welcome to PacePath: the perfect route for today's workout."),
-                            tr("Para empezar:", "To get started:")],
-                           (tr("Abrir PacePath", "Open PacePath"), _base()), lista=_consejos())
-    enviar(para, tr("¡Bienvenido a PacePath!", "Welcome to PacePath!"), texto, h)
+                                              "Welcome to PacePath: the perfect route for today's workout.",
+                                              "Boas-vindas ao PacePath: a rota perfeita para o treino de hoje."),
+                            tr("Para empezar:", "To get started:",
+                                                "Para começar:")],
+                           (tr("Abrir PacePath", "Open PacePath",
+                                                 "Abrir o PacePath"), _base()), lista=_consejos())
+    enviar(para, tr("¡Bienvenido a PacePath!", "Welcome to PacePath!",
+                                               "Boas-vindas ao PacePath!"), texto, h)
 
 
 def acceso_beta(para: str, nombre: str | None, invitado: bool) -> None:
     """Cuando el admin la habilita (o la crea ya habilitada: una invitación)."""
     b = _base()
     if invitado:
-        texto, h = _correo(tr("Te invitamos a la beta", "You're invited to the beta"),
+        texto, h = _correo(tr("Te invitamos a la beta", "You're invited to the beta",
+                                                        "Você foi convidado para o beta"),
                            [_hola(nombre), tr(f"Te habilitamos para probar PacePath antes que nadie. Entra con este "
                                               f"correo ({para}): con Google, si es una cuenta de Google, o creando una clave.",
                                               f"You're in to try PacePath before anyone else. Sign in with this email "
-                                              f"({para}): with Google if it's a Google account, or by creating a password.")],
-                           (tr("Entrar a PacePath", "Sign in to PacePath"), f"{b}/entrar"), lista=_consejos(),
+                                              f"({para}): with Google if it's a Google account, or by creating a password.",
+                                              f"Você foi liberado para testar o PacePath antes de todo mundo. Entre com este e-mail "
+                                              f"({para}): com o Google se for uma conta Google, ou criando uma senha.")],
+                           (tr("Entrar a PacePath", "Sign in to PacePath",
+                                                    "Entrar no PacePath"), f"{b}/entrar"), lista=_consejos(),
                            motivo=tr("Recibes este correo porque te invitaron a la beta de PacePath.",
-                                     "You're getting this email because you were invited to the PacePath beta."))
+                                     "You're getting this email because you were invited to the PacePath beta.",
+                                     "Você recebe este e-mail porque foi convidado para o beta do PacePath."))
     else:
-        texto, h = _correo(tr("¡Ya tienes acceso!", "You're in!"),
+        texto, h = _correo(tr("¡Ya tienes acceso!", "You're in!",
+                                                    "Você está dentro!"),
                            [_hola(nombre), tr("Te habilitamos en la beta de PacePath. Ya puedes entrar y pedir tu primera ruta.",
-                                              "You've been let into the PacePath beta. You can sign in and ask for your first route.")],
-                           (tr("Abrir PacePath", "Open PacePath"), b), lista=_consejos(),
+                                              "You've been let into the PacePath beta. You can sign in and ask for your first route.",
+                                              "Você foi liberado no beta do PacePath. Já pode entrar e pedir sua primeira rota.")],
+                           (tr("Abrir PacePath", "Open PacePath",
+                                                 "Abrir o PacePath"), b), lista=_consejos(),
                            nota=tr("Estamos afinándola: si algo falla o se te ocurre una mejora, usa «Enviar comentario» en la app.",
-                                   "We're still fine-tuning it: if something breaks or you have an idea, use \"Send feedback\" in the app."))
-    enviar(para, tr("Ya puedes entrar a PacePath", "You can now use PacePath") if not invitado
-           else tr("Te invitamos a la beta de PacePath", "You're invited to the PacePath beta"), texto, h)
+                                   "We're still fine-tuning it: if something breaks or you have an idea, use \"Send feedback\" in the app.",
+                                   "Ainda estamos ajustando: se algo quebrar ou você tiver uma ideia, use \"Enviar comentário\" no app."))
+    enviar(para, tr("Ya puedes entrar a PacePath", "You can now use PacePath",
+                                                   "Você já pode usar o PacePath") if not invitado
+           else tr("Te invitamos a la beta de PacePath", "You're invited to the PacePath beta",
+                                                         "Você foi convidado para o beta do PacePath"), texto, h)
 
 
 def aviso_registro(correo_: str, nombre: str | None, metodo: str, beta_pendiente: bool) -> None:
@@ -308,17 +360,24 @@ def aviso_registro(correo_: str, nombre: str | None, metodo: str, beta_pendiente
 def zona_lista(para: str, nombre: str | None, zona: str, lat: float, lon: float) -> None:
     """Pidió una ruta donde aún no había mapa: ya está («preparando tu zona»)."""
     enlace = f"{_base()}/?lat={lat:.5f}&lon={lon:.5f}"
-    texto, h = _correo(tr("Tu zona ya tiene mapa", "Your area is ready"),
+    texto, h = _correo(tr("Tu zona ya tiene mapa", "Your area is ready",
+                                                   "Sua região está pronta"),
                        [_hola(nombre), tr(f"Terminamos de preparar el mapa de {zona}. Ya puedes armar tus rutas ahí: "
                                           "la primera vez que alguien corre en una zona nueva hay que construir su mapa, "
                                           "y desde ahora queda listo para ti y para todos.",
                                           f"We finished preparing the map for {zona}. You can now plan your routes "
                                           "there: the first time someone runs in a new area its map has to be built, "
-                                          "and from now on it's ready for you and everyone else.")],
-                       (tr("Armar mi ruta", "Plan my route"), enlace),
+                                          "and from now on it's ready for you and everyone else.",
+                                          f"Terminamos de preparar o mapa de {zona}. Você já pode montar suas rotas "
+                                          "lá: na primeira vez que alguém corre em uma região nova é preciso construir o mapa, "
+                                          "e a partir de agora ele fica pronto para você e para todo mundo.")],
+                       (tr("Armar mi ruta", "Plan my route",
+                                            "Montar minha rota"), enlace),
                        motivo=tr("Te llega porque pediste una ruta en esa zona.",
-                                 "You're getting this because you asked for a route in that area."))
-    enviar(para, tr(f"El mapa de {zona} está listo", f"The map for {zona} is ready"), texto, h)
+                                 "You're getting this because you asked for a route in that area.",
+                                 "Você recebe isto porque pediu uma rota nessa região."))
+    enviar(para, tr(f"El mapa de {zona} está listo", f"The map for {zona} is ready",
+                                                     f"O mapa de {zona} está pronto"), texto, h)
 
 
 def prueba(para: str) -> None:
