@@ -45,7 +45,7 @@ def activo() -> bool:
                                     "PACEPATH_CORREO_CLAVE", "PACEPATH_CORREO_DE"))
 
 
-def enviar(para: str, asunto: str, texto: str, html_: str | None = None) -> None:
+def enviar(para: str, asunto: str, texto: str, html_: str | None = None, responder_a: str | None = None) -> None:
     if not activo():
         raise RuntimeError("el envío de correos está apagado")
     host, _, puerto = os.environ["PACEPATH_CORREO_SMTP"].partition(":")
@@ -53,9 +53,9 @@ def enviar(para: str, asunto: str, texto: str, html_: str | None = None) -> None
         # Render gratis no deja salir conexiones a los puertos SMTP (25/465/587):
         # con Resend se manda por su API web (HTTPS), con la misma clave.
         if "resend" in host:
-            _por_resend(para, asunto, texto, html_)
+            _por_resend(para, asunto, texto, html_, responder_a)
         else:
-            _por_smtp(host, int(puerto or 465), para, asunto, texto, html_)
+            _por_smtp(host, int(puerto or 465), para, asunto, texto, html_, responder_a)
     except Exception as exc:
         estado.update(error=f"{type(exc).__name__}: {exc}"[:300], error_ts=time.time())
         print(f"[correo] falló «{asunto}»: {estado['error']}", flush=True)
@@ -68,8 +68,10 @@ def enviar(para: str, asunto: str, texto: str, html_: str | None = None) -> None
 estado: dict = {"ok_ts": None, "error": None, "error_ts": None}
 
 
-def _por_resend(para: str, asunto: str, texto: str, html_: str | None) -> None:
+def _por_resend(para: str, asunto: str, texto: str, html_: str | None, responder_a: str | None = None) -> None:
     cuerpo = {"from": os.environ["PACEPATH_CORREO_DE"], "to": [para], "subject": asunto, "text": texto}
+    if responder_a:
+        cuerpo["reply_to"] = responder_a
     if html_:
         cuerpo["html"] = html_
     req = urllib.request.Request("https://api.resend.com/emails", data=json.dumps(cuerpo).encode(), method="POST",
@@ -87,9 +89,12 @@ def _por_resend(para: str, asunto: str, texto: str, html_: str | None) -> None:
         raise RuntimeError(f"Resend respondió {exc.code}: {detalle}") from None
 
 
-def _por_smtp(host: str, puerto: int, para: str, asunto: str, texto: str, html_: str | None) -> None:
+def _por_smtp(host: str, puerto: int, para: str, asunto: str, texto: str, html_: str | None,
+              responder_a: str | None = None) -> None:
     m = EmailMessage()
     m["From"], m["To"], m["Subject"] = os.environ["PACEPATH_CORREO_DE"], para, asunto
+    if responder_a:
+        m["Reply-To"] = responder_a
     m["Message-ID"] = make_msgid(domain="pacepathapp.com")
     m.set_content(texto)
     if html_:
@@ -378,6 +383,80 @@ def zona_lista(para: str, nombre: str | None, zona: str, lat: float, lon: float)
                                  "Você recebe isto porque pediu uma rota nessa região."))
     enviar(para, tr(f"El mapa de {zona} está listo", f"The map for {zona} is ready",
                                                      f"O mapa de {zona} está pronto"), texto, h)
+
+
+def sesion_entrenador(para: str, de_nombre: str, de_correo: str, entrenador: str | None, e: dict,
+                      nota: str | None = None, compara: str | None = None) -> None:
+    """Un corredor le manda a su entrenador una sesión de su bitácora: qué hizo
+    y sus números. Se responde directo al corredor."""
+    from datetime import date
+
+    from . import bitacora
+    d = date.fromisoformat(e["fecha"])
+    dia = d.strftime("%d/%m/%Y")
+    titulo_s = e.get("titulo") or tr("su sesión", "their session", "a sessão")
+    turno = {"manana": tr("en la mañana", "in the morning", "de manhã"), "tarde": tr("en la tarde", "in the afternoon", "à tarde"),
+             "noche": tr("en la noche", "at night", "à noite")}.get(e.get("turno") or "", "")
+    parrafos = [_hola(entrenador),
+                tr(f"{de_nombre} realizó «{titulo_s}» el {dia}{' ' + turno if turno else ''} y te comparte cómo le fue.",
+                   f"{de_nombre} did «{titulo_s}» on {dia}{' ' + turno if turno else ''} and is sharing how it went.",
+                   f"{de_nombre} fez «{titulo_s}» em {dia}{' ' + turno if turno else ''} e compartilha como foi.")]
+    lista = []
+    for b in e.get("bloques") or []:
+        det = [f"{_m(b['obj'][0])}–{_m(b['obj'][1])}" if b.get("obj") and b["obj"][0] != b["obj"][1] else _m(b["obj"][0]) if b.get("obj") else "",
+               tr(f"{bitacora._pausa(b['p_rep'])} entre reps", f"{bitacora._pausa(b['p_rep'])} between reps",
+                  f"{bitacora._pausa(b['p_rep'])} entre reps") if b.get("p_rep") else "",
+               tr(f"{bitacora._pausa(b['p_serie'])} entre series", f"{bitacora._pausa(b['p_serie'])} between sets",
+                  f"{bitacora._pausa(b['p_serie'])} entre séries") if b.get("p_serie") and b.get("series", 1) > 1 else ""]
+        det = ", ".join(x for x in det if x)
+        lista.append(f"{bitacora.estructura(b)}" + (f" ({det})" if det else ""))
+        for k, fila in enumerate(b.get("tiempos") or []):
+            vals = [x for x in fila or [] if x]
+            if vals:
+                lista.append((f"S{k + 1}: " if b.get("series", 1) > 1 else "")
+                             + " · ".join(f"{round(x)} m" if b.get("dur_s") else bitacora._mmss(x) for x in vals))
+        s = bitacora.stats_bloque(b)
+        if s:
+            partes = [tr("promedio", "average", "média") + " " + (f"{round(s['prom'])} m" if b.get("dur_s") else bitacora._mmss(s["prom"]))]
+            if s["ritmo_s_km"]:
+                partes.append(f"{bitacora._mmss(s['ritmo_s_km'])}/km")
+            if not b.get("dur_s"):
+                partes.append(tr("mejor", "best", "melhor") + " " + bitacora._mmss(s["mejor"]))
+                partes.append(tr("peor", "worst", "pior") + " " + bitacora._mmss(s["peor"]))
+            if s["en_rango"] is not None:
+                partes.append(tr(f"{s['en_rango']} de {s['n']} en el rango", f"{s['en_rango']} of {s['n']} on target",
+                                 f"{s['en_rango']} de {s['n']} no alvo"))
+            lista.append(" · ".join(partes))
+    totales = [f"{e['km']:.1f} km".replace(".", "," if not idioma.en() else ".") if e.get("km") else "",
+               bitacora._mmss(e["dur_s"]) if e.get("dur_s") else "",
+               tr(f"calentamiento {e['cal_km']} km", f"warm-up {e['cal_km']} km", f"aquecimento {e['cal_km']} km") if e.get("cal_km") else "",
+               tr(f"vuelta a la calma {e['vc_km']} km", f"cool-down {e['vc_km']} km", f"desaquecimento {e['vc_km']} km") if e.get("vc_km") else "",
+               tr(f"esfuerzo percibido (RPE) {e['rpe']}/10", f"perceived effort (RPE) {e['rpe']}/10",
+                  f"esforço percebido (RPE) {e['rpe']}/10") if e.get("rpe") else ""]
+    totales = " · ".join(x for x in totales if x)
+    if totales:
+        lista.append(totales)
+    if compara:
+        lista.append("📈 " + compara)
+    if e.get("sensaciones"):
+        parrafos.append(tr("Sus sensaciones: ", "How it felt: ", "Sensações: ") + f"«{e['sensaciones']}»")
+    if nota:
+        parrafos.append(tr(f"Nota de {de_nombre}: ", f"Note from {de_nombre}: ", f"Nota de {de_nombre}: ") + nota)
+    texto, h = _correo(tr(f"{de_nombre} completó su sesión", f"{de_nombre} completed a session",
+                          f"{de_nombre} completou a sessão"), parrafos, lista=lista,
+                       nota=tr(f"Responde este correo para escribirle a {de_nombre}.",
+                               f"Reply to this email to write to {de_nombre}.",
+                               f"Responda este e-mail para escrever para {de_nombre}."),
+                       motivo=tr(f"Te llega porque {de_nombre} ({de_correo}) te lo envió desde su bitácora de PacePath.",
+                                 f"You're getting this because {de_nombre} ({de_correo}) sent it from their PacePath training log.",
+                                 f"Você recebe isto porque {de_nombre} ({de_correo}) enviou do diário de treino no PacePath."))
+    enviar(para, tr(f"{de_nombre} · {titulo_s} ({dia})", f"{de_nombre} · {titulo_s} ({dia})", f"{de_nombre} · {titulo_s} ({dia})"),
+           texto, h, responder_a=de_correo)
+
+
+def _m(s: float) -> str:
+    from . import bitacora
+    return bitacora._mmss(s)
 
 
 def prueba(para: str) -> None:

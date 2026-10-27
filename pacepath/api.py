@@ -1485,6 +1485,83 @@ def bitacora_series(body: PedidoSeries) -> dict:
                              body.plan.model_dump() if body.plan else None, body.marcas)
 
 
+class BloqueEnvio(BaseModel):
+    series: int = Field(default=1, ge=1, le=20)
+    reps: int = Field(ge=1, le=60)
+    dist_m: float | None = Field(default=None, gt=0, le=50_000)
+    dur_s: float | None = Field(default=None, gt=0, le=7200)
+    obj: list[float] | None = Field(default=None, min_length=2, max_length=2)
+    p_rep: float | None = Field(default=None, ge=0, le=3600)
+    p_serie: float | None = Field(default=None, ge=0, le=3600)
+    tiempos: list[list[float | None]] = Field(default_factory=list, max_length=20)
+
+    @field_validator("tiempos")
+    @classmethod
+    def _filas(cls, v: list[list[float | None]]) -> list[list[float | None]]:
+        if any(len(f) > 60 for f in v):
+            raise ValueError("demasiadas repeticiones")
+        return v
+
+
+class EntradaEnvio(BaseModel):
+    fecha: date
+    titulo: str | None = Field(default=None, max_length=120)
+    turno: Literal["manana", "tarde", "noche"] | None = None
+    bloques: list[BloqueEnvio] = Field(default_factory=list, max_length=8)
+    km: float | None = Field(default=None, ge=0, le=500)
+    dur_s: float | None = Field(default=None, ge=0, le=100_000)
+    cal_km: float | None = Field(default=None, ge=0, le=100)
+    vc_km: float | None = Field(default=None, ge=0, le=100)
+    rpe: int | None = Field(default=None, ge=1, le=10)
+    sensaciones: str | None = Field(default=None, max_length=800)
+
+
+class PedidoEnvio(BaseModel):
+    para: str = Field(min_length=5, max_length=120, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    entrenador: str | None = Field(default=None, max_length=60)
+    de_nombre: str | None = Field(default=None, max_length=60)
+    nota: str | None = Field(default=None, max_length=800)
+    compara: str | None = Field(default=None, max_length=200)
+    entrada: EntradaEnvio
+
+
+ENVIOS_DIA = 15                           # correos a entrenadores por cuenta en 24 h
+_envios: dict[str, list[float]] = {}
+
+
+@app.post("/api/bitacora/enviar")
+def bitacora_enviar(body: PedidoEnvio, request: Request) -> dict:
+    """Manda una sesión de la bitácora al correo de tu entrenador (responde a
+    tu correo). Sólo con cuenta y con tope diario: no es para mandar correos a
+    cualquiera. Sin envío configurado, el teléfono abre tu app de correo."""
+    u = _usuario(request)
+    if not u:
+        raise HTTPException(401, tr("Entra a tu cuenta para enviar correos desde PacePath.",
+                                    "Sign in to your account to send emails from PacePath.",
+                                    "Entre na sua conta para enviar e-mails pelo PacePath."))
+    if not correo.activo():
+        raise HTTPException(503, tr("El envío de correos no está disponible ahora.", "Sending email isn't available right now.",
+                                    "O envio de e-mails não está disponível agora."))
+    ahora = time.time()
+    recientes = [x for x in _envios.get(u["id"], []) if ahora - x < 86_400]
+    if len(recientes) >= ENVIOS_DIA:
+        raise HTTPException(429, tr("Ya enviaste muchos correos hoy: prueba mañana o por WhatsApp.",
+                                    "You've sent a lot of emails today: try tomorrow or use WhatsApp.",
+                                    "Você já enviou muitos e-mails hoje: tente amanhã ou pelo WhatsApp."))
+    nombre = (body.de_nombre or u.get("nombre") or u["correo"].split("@")[0]).strip()
+    try:
+        correo.sesion_entrenador(body.para.strip(), nombre, u["correo"], (body.entrenador or "").strip() or None,
+                                 body.entrada.model_dump(mode="json"), (body.nota or "").strip() or None,
+                                 (body.compara or "").strip() or None)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, tr("No pude enviar el correo ahora. Prueba de nuevo en un rato.",
+                                    "I couldn't send the email right now. Try again in a while.",
+                                    "Não consegui enviar o e-mail agora. Tente de novo daqui a pouco.")) from exc
+    _envios[u["id"]] = recientes + [ahora]
+    _anotar(tipo="bitacora_envio", detalle=f"…@{body.para.rpartition('@')[2]}")
+    return {"ok": True}
+
+
 class Ajustes(BaseModel):
     fc_max: float | None = Field(default=None, ge=120, le=230)
     fc_reposo: float | None = Field(default=None, ge=30, le=110)

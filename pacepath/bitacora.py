@@ -151,3 +151,40 @@ def _bloque(vueltas: list[dict], reps: list[int], plan: dict | None) -> dict:
     b["p_rep"] = int(_redondear(median(dentro), 5)) if dentro and median(dentro) > 0 else None
     b["p_serie"] = int(_redondear(median(entre), 5)) if entre else None
     return b
+
+
+# ── Una entrada, en palabras (para el correo al entrenador) ─────────────────
+
+def _mmss(s: float | None) -> str:
+    if s is None:
+        return "–"
+    s = round(s)
+    return f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}" if s >= 3600 else f"{s // 60}:{s % 60:02d}"
+
+
+def _pausa(s: float | None) -> str:
+    if not s:
+        return ""
+    s = round(s)
+    return f"{s // 60}'" if s % 60 == 0 else f'{s}"' if s < 60 else f"{s // 60}'{s % 60:02d}\""
+
+
+def estructura(b: dict) -> str:
+    rep = f"{round(b['dist_m'])}m" if b.get("dist_m") else _pausa(b.get("dur_s"))
+    return f"{str(b['series']) + 'x' if b.get('series', 1) > 1 else ''}{b['reps']}x{rep}"
+
+
+def stats_bloque(b: dict) -> dict | None:
+    """Promedio, mejor, peor, en rango y ritmo de las repeticiones anotadas."""
+    vals = [x for fila in b.get("tiempos") or [] for x in fila or [] if x]
+    if not vals:
+        return None
+    prom = sum(vals) / len(vals)
+    por_tiempo = bool(b.get("dur_s"))
+    obj = b.get("obj")
+    en_rango = None
+    if obj and not por_tiempo:
+        en_rango = sum(obj[0] - 1 <= x <= obj[1] + 1 for x in vals)
+    ritmo = (prom / (b["dist_m"] / 1000) if b.get("dist_m") else b["dur_s"] / (prom / 1000)) if not por_tiempo or prom else None
+    return {"n": len(vals), "prom": prom, "mejor": max(vals) if por_tiempo else min(vals),
+            "peor": min(vals) if por_tiempo else max(vals), "en_rango": en_rango, "ritmo_s_km": ritmo}

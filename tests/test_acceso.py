@@ -472,3 +472,37 @@ def test_descargar_y_borrar_mi_cuenta(base, monkeypatch):
     assert len(revocadas) == 1                                     # se revocó también en Strava
     assert cuentas.por_id(uid) is None
     assert cli.get("/api/cuenta/datos").status_code == 401
+
+
+def test_enviar_sesion_al_entrenador(base, monkeypatch):
+    from pacepath import correo
+    cli = TestClient(app)
+    entrada = {"fecha": "2026-10-27", "titulo": "Series en pista", "turno": "manana", "rpe": 8, "km": 12.4, "cal_km": 3,
+               "sensaciones": "Piernas pesadas en la 2.ª serie",
+               "bloques": [{"series": 2, "reps": 3, "dist_m": 1000, "obj": [190, 200], "p_rep": 60, "p_serie": 120,
+                            "tiempos": [[195, 194, 192], [198, 202, 188]]}]}
+    cuerpo = {"para": "coach@ejemplo.cl", "entrenador": "Pedro", "entrada": entrada, "compara": "vs 20 oct: −4 s por rep"}
+    assert cli.post("/api/bitacora/enviar", json=cuerpo).status_code == 401           # sin cuenta, no
+    registrar(cli)
+    cli.patch(f"/api/admin/usuarios/{cuentas.por_correo('ana@ejemplo.cl')['id']}", headers=ADMIN, json={"beta": True})
+    assert cli.post("/api/bitacora/enviar", json=cuerpo).status_code == 503           # envío apagado: el teléfono abre el correo
+    for k, v in {"PACEPATH_CORREO_ACTIVO": "1", "PACEPATH_CORREO_SMTP": "smtp.x:465", "PACEPATH_CORREO_USUARIO": "u",
+                 "PACEPATH_CORREO_CLAVE": "c", "PACEPATH_CORREO_DE": "PacePath <support@pacepathapp.com>"}.items():
+        monkeypatch.setenv(k, v)
+    enviados = []
+    monkeypatch.setattr(correo, "enviar", lambda para, asunto, texto, html_=None, responder_a=None: enviados.append((para, asunto, texto, html_, responder_a)))
+    api._envios.clear()
+    cuentas.actualizar(cuentas.por_correo("ana@ejemplo.cl")["id"], verificado=1)      # con correo encendido se pide verificar
+    assert cli.post("/api/bitacora/enviar", json=cuerpo).status_code == 200
+    para, asunto, texto, html_, resp = enviados[0]
+    assert para == "coach@ejemplo.cl" and resp == "ana@ejemplo.cl" and "Ana" in asunto and "27/10/2026" in asunto
+    for x in ("Hola, Pedro", "Ana realizó «Series en pista»", "2x3x1000m (3:10–3:20, 1' entre reps, 2' entre series)",
+              "S1: 3:15 · 3:14 · 3:12", "promedio 3:15", "4 de 6 en el rango", "RPE) 8/10", "calentamiento 3", "−4 s por rep",
+              "Piernas pesadas"):
+        assert x in texto, x
+    assert "Series en pista" in html_
+    # Correo mal escrito y tope diario.
+    assert cli.post("/api/bitacora/enviar", json={**cuerpo, "para": "no-es-correo"}).status_code == 422
+    for _ in range(api.ENVIOS_DIA - 1):
+        cli.post("/api/bitacora/enviar", json=cuerpo)
+    assert cli.post("/api/bitacora/enviar", json=cuerpo).status_code == 429

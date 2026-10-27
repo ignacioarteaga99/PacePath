@@ -362,6 +362,8 @@
   .vueltas small.gps { display: block; font-size: 10.5px; color: var(--suave); font-weight: 400; }
   .vueltas select { font: inherit; font-size: 14px; padding: 3px; border-radius: 8px; border: 1px solid var(--linea); background: #fff; max-width: 92px; }
   .prev-b { font-size: 13px; margin: 8px 0 0; line-height: 1.5; }
+  .vista-envio { white-space: pre-wrap; font: inherit; font-size: 13px; line-height: 1.45; background: var(--gris); border-radius: 10px; padding: 10px; margin: 8px 0 0; color: var(--tinta); }
+  #estadoEnvio.ok { color: #1a7a35; }
   .previas { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; font-size: 13.5px; }
   .previas li { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 6px; } .previas .dif { font-weight: 800; color: var(--acento-osc); }
   .fila-b { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--gris); border-radius: 12px; padding: 8px 12px; margin: 6px 0; font-size: 14px; }
@@ -3821,6 +3823,27 @@ Object.assign(EN, {
   "¿Cómo te fue?": "How did it go?",
   "☰ Lista": "☰ List",
   "📅 Calendario": "📅 Calendar",
+  "Enviar": "Send",
+  "Enviar a tu entrenador": "Send to your coach",
+  "Tu nombre": "Your name",
+  "Tu entrenador": "Your coach",
+  "ej. Pedro": "e.g. Peter",
+  "Correo de tu entrenador": "Your coach's email",
+  "WhatsApp de tu entrenador (opcional)": "Your coach's WhatsApp (optional)",
+  "Con código de país. Si lo dejas vacío, WhatsApp te deja elegir el contacto.": "With country code. If you leave it empty, WhatsApp lets you pick the contact.",
+  "Nota (opcional)": "Note (optional)",
+  "ej. La última serie me costó, ¿bajamos el ritmo?": "e.g. The last set was tough, should we slow down?",
+  "Ver el mensaje": "See the message",
+  "Enviar por correo": "Send by email",
+  "Escribe el correo de tu entrenador.": "Type your coach's email.",
+  "Enviando…": "Sending…",
+  "Enviado a {c}. Si te responde, le llega a tu correo.": "Sent to {c}. Their reply goes to your email.",
+  "Para enviarlo desde PacePath entra a tu cuenta. Mientras, te abro tu app de correo con el mensaje listo.": "To send it from PacePath, sign in. Meanwhile, I'm opening your email app with the message ready.",
+  "Te abro tu app de correo con el mensaje listo.": "Opening your email app with the message ready.",
+  "No pude enviar el correo.": "I couldn't send the email.",
+  "Puedes mandarlo por WhatsApp.": "You can send it by WhatsApp.",
+  "Hola {n}, te comparto mi sesión:": "Hi {n}, here's my session:",
+  "Hola, te comparto mi sesión:": "Hi, here's my session:",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -4118,6 +4141,27 @@ Object.assign(PT, {
   "¿Cómo te fue?": "Como foi?",
   "☰ Lista": "☰ Lista",
   "📅 Calendario": "📅 Calendário",
+  "Enviar": "Enviar",
+  "Enviar a tu entrenador": "Enviar ao seu treinador",
+  "Tu nombre": "Seu nome",
+  "Tu entrenador": "Seu treinador",
+  "ej. Pedro": "ex. Pedro",
+  "Correo de tu entrenador": "E-mail do seu treinador",
+  "WhatsApp de tu entrenador (opcional)": "WhatsApp do seu treinador (opcional)",
+  "Con código de país. Si lo dejas vacío, WhatsApp te deja elegir el contacto.": "Com código do país. Se deixar vazio, o WhatsApp deixa você escolher o contato.",
+  "Nota (opcional)": "Nota (opcional)",
+  "ej. La última serie me costó, ¿bajamos el ritmo?": "ex. A última série foi difícil, baixamos o ritmo?",
+  "Ver el mensaje": "Ver a mensagem",
+  "Enviar por correo": "Enviar por e-mail",
+  "Escribe el correo de tu entrenador.": "Escreva o e-mail do seu treinador.",
+  "Enviando…": "Enviando…",
+  "Enviado a {c}. Si te responde, le llega a tu correo.": "Enviado para {c}. Se responder, chega no seu e-mail.",
+  "Para enviarlo desde PacePath entra a tu cuenta. Mientras, te abro tu app de correo con el mensaje listo.": "Para enviar pelo PacePath, entre na sua conta. Enquanto isso, abro seu app de e-mail com a mensagem pronta.",
+  "Te abro tu app de correo con el mensaje listo.": "Abrindo seu app de e-mail com a mensagem pronta.",
+  "No pude enviar el correo.": "Não consegui enviar o e-mail.",
+  "Puedes mandarlo por WhatsApp.": "Você pode mandar pelo WhatsApp.",
+  "Hola {n}, te comparto mi sesión:": "Olá {n}, compartilho minha sessão:",
+  "Hola, te comparto mi sesión:": "Olá, compartilho minha sessão:",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -4476,7 +4520,8 @@ function activarCoach() {
 // sensaciones) y tus objetivos (10K Fedachi, 42K MDS…), en un calendario: tu
 // journey. Se guarda en el teléfono y viaja con tu cuenta (es tuyo, no de Strava).
 let subEntreno = leer("pp_entreno_sub", "entreno"), editandoEntrada = null, editandoObjetivo = null, editandoPausa = null, editandoSens = null;
-const editandoBitacora = () => editandoEntrada || editandoObjetivo || editandoPausa;
+let editandoEnvio = null;           // { e: la entrada, volver: el editor del que se vino (o null) }
+const editandoBitacora = () => editandoEntrada || editandoObjetivo || editandoPausa || editandoEnvio;
 let vistaBitacora = leer("pp_bitacora_vista", "cal"), filtroBitacora = "todas", buscarBitacora = "";
 // La misma sesión otra vez (2x3x1000m, 10x400m…): para ver cómo cambia con el tiempo.
 const firma = (e) => (e.bloques || []).map(estructura).join(" + ");
@@ -4519,8 +4564,8 @@ function migrarBitacora() {
   escribir("pp_coach", resto);
 }
 const bitacora = () => { migrarBitacora(); const b = leer("pp_bitacora", null) || {};
-  return { entradas: b.entradas || [], objetivos: b.objetivos || [], sensaciones: b.sensaciones || [], pausas: b.pausas || [] }; };
-const guardarBitacora = (b) => escribir("pp_bitacora", { v: 2, entradas: b.entradas, objetivos: b.objetivos,
+  return { entradas: b.entradas || [], objetivos: b.objetivos || [], sensaciones: b.sensaciones || [], pausas: b.pausas || [], entrenador: b.entrenador || null }; };
+const guardarBitacora = (b) => escribir("pp_bitacora", { v: 2, entradas: b.entradas, objetivos: b.objetivos, entrenador: b.entrenador || null,
   sensaciones: b.sensaciones.sort((x, y) => x.fecha.localeCompare(y.fecha)), pausas: b.pausas.sort((x, y) => x.desde.localeCompare(y.desde)) });
 // Lo que el Coach necesita saber: su perfil, más tus sensaciones recientes y tus pausas.
 const coachPayload = () => { const p = leer("pp_coach", null); if (!p) return null; const b = bitacora();
@@ -4688,6 +4733,7 @@ function pintarBitacora() {
   if (editandoEntrada) return pintarEditorEntrada();
   if (editandoObjetivo) return pintarEditorObjetivo();
   if (editandoPausa) return pintarEditorPausa();
+  if (editandoEnvio) return pintarEnvio();
   const hoyF = fechaLocal(), b = bitacora(), objs = objetivosTodos();
   const sensDe = Object.fromEntries(b.sensaciones.map((x) => [x.fecha, x]));
   const pausaDe = (f) => b.pausas.find((x) => x.desde <= f && f <= (x.hasta || hoyF));
@@ -4744,7 +4790,8 @@ function pintarBitacora() {
         ${e.rpe ? `<span class="rpe r${Math.min(4, Math.ceil(e.rpe / 2.5))}">RPE ${e.rpe}</span>` : ""}</div>
       <p>${esc(resumenEntrada(e))}</p>${compararTxt(e) ? `<p class="compara">📈 ${esc(compararTxt(e))}</p>` : ""}${e.sensaciones ? `<p class="sens">“${esc(e.sensaciones)}”</p>` : ""}
       <div class="coach-acciones"><button type="button" class="mini" data-ent-ed="${e.id}">✎ ${t("Editar")}</button>
-        <button type="button" class="mini" data-ent-copiar="${e.id}">⧉ ${t("Copiar")}</button></div></li>`).join("")}</ul>`
+        <button type="button" class="mini" data-ent-copiar="${e.id}">⧉ ${t("Copiar")}</button>
+        <button type="button" class="mini" data-ent-enviar="${e.id}">✈️ ${t("Enviar")}</button></div></li>`).join("")}</ul>`
       : `<p class="pista">${t("Sin entradas este día.")}</p>`}
     ${coachDia.map((s) => `<p class="sugerencia-b">${t("Coach")}: <b>${esc(s.titulo)}</b> · ${esc(s.texto)} <button type="button" class="mini" data-ent-coach="${esc(s.texto)}" data-titulo="${esc(s.titulo)}">+ ${t("Registrar")}</button></p>`).join("")}
     ${(stravaDia[diaBitacora] || []).filter((c) => !yaLigadas.has(c.id)).map((c) => `<p class="sugerencia-b">Strava: <b>${esc(c.nombre || "")}</b> · ${fmtDistKm(c.distancia_m / 1000, 1)} · ${hms(c.tiempo_s)}
@@ -4788,6 +4835,8 @@ function pintarBitacora() {
   document.querySelectorAll("[data-dia]").forEach((x) => { x.onclick = () => { diaBitacora = x.dataset.dia; pintarBitacora(); }; });
   document.querySelectorAll("[data-ent-ed]").forEach((x) => { x.onclick = () => {
     editandoEntrada = structuredClone(bitacora().entradas.find((e) => e.id === x.dataset.entEd)); pintarBitacora(); }; });
+  document.querySelectorAll("[data-ent-enviar]").forEach((x) => { x.onclick = () => {
+    editandoEnvio = { e: structuredClone(bitacora().entradas.find((e) => e.id === x.dataset.entEnviar)), volver: null }; pintarBitacora(); }; });
   document.querySelectorAll("[data-ent-copiar]").forEach((x) => { x.onclick = async () => {
     const ok = await copiar(textoEntrada(bitacora().entradas.find((e) => e.id === x.dataset.entCopiar)));
     x.textContent = ok ? "✓ " + t("Copiada") : t("No se pudo copiar"); }; });
@@ -4981,6 +5030,7 @@ function pintarEditorEntrada() {
       <label>${t("Sensaciones")}<textarea id="sensEnt" rows="3" placeholder="${t("Cómo te sentiste, piernas, clima, qué cambiarías…")}">${esc(e.sensaciones || "")}</textarea></label>
       <div class="coach-acciones"><button type="submit">${t("Guardar")}</button><button type="button" class="sec" data-ent-cancelar>${t("Cancelar")}</button>
         <button type="button" class="sec" data-ent-copiar-ed>⧉ ${t("Copiar")}</button>
+        <button type="button" class="sec" data-ent-enviar-ed>✈️ ${t("Enviar")}</button>
         ${e.id ? `<button type="button" class="sec peligro" data-ent-borrar>${t("Borrar")}</button>` : ""}</div>
       <p class="aviso" id="errorEnt" style="margin:0"></p></form>`);
   activarEditorEntrada();
@@ -5056,6 +5106,11 @@ function activarEditorEntrada() {
       if (v != null && !b.dur_s) x.value = mmss(v); };
   });
   f.querySelector("[data-ent-cancelar]").onclick = () => { editandoEntrada = null; pintarBitacora(); };
+  f.querySelector("[data-ent-enviar-ed]").onclick = () => {
+    leerFormEntrada();
+    const { _sens, _prop, ...limpia } = e;
+    editandoEnvio = { e: structuredClone({ ...limpia, km: limpia.km_manual ? limpia.km : kmAuto(limpia) }), volver: e };
+    editandoEntrada = null; pintarBitacora(); };
   f.querySelector("[data-ent-copiar-ed]").onclick = async (ev) => { leerFormEntrada(); const ok = await copiar(textoEntrada(e));
     ev.target.textContent = ok ? "✓ " + t("Copiada") : t("No se pudo copiar"); };
   const borrar = f.querySelector("[data-ent-borrar]");
@@ -5078,6 +5133,68 @@ function activarEditorEntrada() {
     editandoEntrada = null;
     if (_sens?.nota) guardarYRecalcular(bt); else { guardarBitacora(bt); pintarBitacora(); }
   };
+}
+
+// ── Enviar una sesión a tu entrenador: por correo (lo manda PacePath) o por WhatsApp ──
+function textoEnvio(e, d) {
+  const c = compararTxt(e);
+  return [d.nombre ? t("Hola {n}, te comparto mi sesión:", { n: d.nombre }) : t("Hola, te comparto mi sesión:"), "", textoEntrada(e),
+    ...(c ? ["📈 " + c] : []), ...(d.nota ? ["", d.nota] : []), "", (d.yo ? `— ${d.yo}` : "—") + " · PacePath"].join("\n");
+}
+function pintarEnvio() {
+  const { e } = editandoEnvio, bt = bitacora(), d = { yo: miCuenta?.nombre || "", nombre: "", correo: "", wa: "", ...(bt.entrenador || {}), ...(editandoEnvio.datos || {}) };
+  editandoEnvio.datos = d;
+  hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t("Enviar a tu entrenador")}</h2>
+    <form id="formEnvio" class="coach-form">
+      <p class="sub" style="margin:0">${esc(e.titulo || t("Sesión"))} · ${fechaCorta(new Date(e.fecha + "T12:00"))}</p>
+      <div class="rejilla-b"><label>${t("Tu nombre")}<input id="envYo" value="${esc(d.yo)}" maxlength="60" autocomplete="name"></label>
+        <label>${t("Tu entrenador")}<input id="envNombre" value="${esc(d.nombre)}" maxlength="60" placeholder="${t("ej. Pedro")}"></label></div>
+      <label>${t("Correo de tu entrenador")}<input id="envCorreo" type="email" inputmode="email" autocomplete="off" value="${esc(d.correo)}" placeholder="entrenador@correo.com"></label>
+      <label>${t("WhatsApp de tu entrenador (opcional)")}<input id="envWa" type="tel" inputmode="tel" value="${esc(d.wa)}" placeholder="+56 9 1234 5678">
+        <small style="font-weight:400">${t("Con código de país. Si lo dejas vacío, WhatsApp te deja elegir el contacto.")}</small></label>
+      <label>${t("Nota (opcional)")}<textarea id="envNota" rows="2" maxlength="800" placeholder="${t("ej. La última serie me costó, ¿bajamos el ritmo?")}">${esc(d.nota || "")}</textarea></label>
+      <details class="ajustes-zonas"><summary>${t("Ver el mensaje")}</summary><pre class="vista-envio" id="vistaEnvio">${esc(textoEnvio(e, d))}</pre></details>
+      <div class="coach-acciones"><button type="submit">✉️ ${t("Enviar por correo")}</button>
+        <button type="button" class="sec" data-env-wa>💬 WhatsApp</button><button type="button" class="sec" data-env-volver>${t("Volver")}</button></div>
+      <p class="aviso" id="estadoEnvio" style="margin:0"></p></form>`);
+  const leerD = () => { d.yo = $("envYo").value.trim(); d.nombre = $("envNombre").value.trim(); d.correo = $("envCorreo").value.trim();
+    d.wa = $("envWa").value.trim(); d.nota = $("envNota").value.trim(); $("vistaEnvio").textContent = textoEnvio(e, d); };
+  const recordar = () => { const b2 = bitacora(); b2.entrenador = { yo: d.yo, nombre: d.nombre, correo: d.correo, wa: d.wa }; guardarBitacora(b2); };
+  ["envYo", "envNombre", "envNota"].forEach((id) => { $(id).oninput = leerD; });
+  const aviso = (m, ok) => { const x = $("estadoEnvio"); x.textContent = m; x.classList.toggle("ok", !!ok); };
+  const abrirCorreo = () => {
+    const asunto = `${d.yo ? d.yo + " · " : ""}${e.titulo || t("Sesión")} (${fechaCorta(new Date(e.fecha + "T12:00"))})`;
+    location.href = `mailto:${encodeURIComponent(d.correo)}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoEnvio(e, d).replace(/\n/g, "\r\n"))}`;
+  };
+  $("formEnvio").onsubmit = async (ev) => {
+    ev.preventDefault(); leerD();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.correo)) return aviso(t("Escribe el correo de tu entrenador."));
+    recordar();
+    const btn = ev.submitter || $("formEnvio").querySelector("[type=submit]");
+    btn.disabled = true; aviso(t("Enviando…"), true);
+    const { _sens, _prop, id, km_manual, strava_id, texto, tipo, ...entrada } = e;
+    const r = await fetch("/api/bitacora/enviar", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ para: d.correo, entrenador: d.nombre || null, de_nombre: d.yo || null, nota: d.nota || null,
+        compara: compararTxt(e) || null, entrada: { ...entrada, turno: entrada.turno || null,
+          bloques: (entrada.bloques || []).map(({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos }) => ({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos: tiempos || [] })) } }) }).catch(() => null);
+    btn.disabled = false;
+    if (r?.ok) return aviso("✓ " + t("Enviado a {c}. Si te responde, le llega a tu correo.", { c: d.correo }), true);
+    // Sin cuenta o sin envío configurado: el mismo correo, desde tu app de correo.
+    if (!r || r.status === 401 || r.status === 503) {
+      aviso(r?.status === 401 ? t("Para enviarlo desde PacePath entra a tu cuenta. Mientras, te abro tu app de correo con el mensaje listo.")
+        : t("Te abro tu app de correo con el mensaje listo."), true);
+      return abrirCorreo();
+    }
+    const j = await r.json().catch(() => ({}));
+    aviso((j.detail && typeof j.detail === "string" ? j.detail : t("No pude enviar el correo.")) + " " + t("Puedes mandarlo por WhatsApp."));
+  };
+  document.querySelector("[data-env-wa]").onclick = () => {
+    leerD(); recordar();
+    const num = d.wa.replace(/\D/g, "");
+    const url = `https://wa.me/${num}?text=${encodeURIComponent(textoEnvio(e, d))}`;
+    if (!window.open(url, "_blank")) location.href = url;
+  };
+  document.querySelector("[data-env-volver]").onclick = () => { leerD(); recordar(); editandoEntrada = editandoEnvio.volver; editandoEnvio = null; pintarBitacora(); };
 }
 
 // ── Editor de una pausa ──
