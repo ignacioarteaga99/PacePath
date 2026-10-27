@@ -1785,9 +1785,9 @@ const esEscritorio = () => window.matchMedia("(min-width: 900px)").matches;
 
 let salida = null, marcaSalida = null, capas = L.layerGroup().addTo(mapa), animacion = null;
 // Cuenta: quién soy (se pide una vez al abrir la app).
-let miCuenta = null;
+let miCuenta = null, correoActivo = false;
 fetch("/api/cuenta").then((r) => r.json()).then((c) => {
-  miCuenta = c.usuario;
+  miCuenta = c.usuario; correoActivo = !!c.correo_activo;
   document.querySelectorAll(".pie-hoja [data-cuenta]").forEach((x) => { x.outerHTML = enlaceCuenta(); });
   if (miCuenta) alEntrarCuenta().catch(() => {});
 }).catch(() => {});
@@ -3844,6 +3844,13 @@ Object.assign(EN, {
   "Puedes mandarlo por WhatsApp.": "You can send it by WhatsApp.",
   "Hola {n}, te comparto mi sesión:": "Hi {n}, here's my session:",
   "Hola, te comparto mi sesión:": "Hi, here's my session:",
+  "Para que PacePath envíe el correo por ti, entra a tu cuenta.": "For PacePath to send the email for you, sign in.",
+  "El envío de correos de PacePath no está activo en el servidor. Puedes mandarlo desde tu app de correo o por WhatsApp.": "PacePath email sending isn't active on the server. You can send it from your email app or by WhatsApp.",
+  "Sin conexión: no pude enviar el correo.": "No connection: I couldn't send the email.",
+  "Entra a tu cuenta para que PacePath lo envíe.": "Sign in so PacePath can send it.",
+  "El envío de correos de PacePath no está activo en el servidor.": "PacePath email sending isn't active on the server.",
+  "¿Prefieres mandarlo tú?": "Rather send it yourself?",
+  "Abrir mi app de correo": "Open my email app",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -4162,6 +4169,13 @@ Object.assign(PT, {
   "Puedes mandarlo por WhatsApp.": "Você pode mandar pelo WhatsApp.",
   "Hola {n}, te comparto mi sesión:": "Olá {n}, compartilho minha sessão:",
   "Hola, te comparto mi sesión:": "Olá, compartilho minha sessão:",
+  "Para que PacePath envíe el correo por ti, entra a tu cuenta.": "Para o PacePath enviar o e-mail por você, entre na sua conta.",
+  "El envío de correos de PacePath no está activo en el servidor. Puedes mandarlo desde tu app de correo o por WhatsApp.": "O envio de e-mails do PacePath não está ativo no servidor. Você pode mandar pelo seu app de e-mail ou pelo WhatsApp.",
+  "Sin conexión: no pude enviar el correo.": "Sem conexão: não consegui enviar o e-mail.",
+  "Entra a tu cuenta para que PacePath lo envíe.": "Entre na sua conta para o PacePath enviar.",
+  "El envío de correos de PacePath no está activo en el servidor.": "O envio de e-mails do PacePath não está ativo no servidor.",
+  "¿Prefieres mandarlo tú?": "Prefere mandar você mesmo?",
+  "Abrir mi app de correo": "Abrir meu app de e-mail",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -5147,6 +5161,8 @@ function pintarEnvio() {
   hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t("Enviar a tu entrenador")}</h2>
     <form id="formEnvio" class="coach-form">
       <p class="sub" style="margin:0">${esc(e.titulo || t("Sesión"))} · ${fechaCorta(new Date(e.fecha + "T12:00"))}</p>
+      ${!miCuenta ? `<p class="aviso" style="margin:0">${t("Para que PacePath envíe el correo por ti, entra a tu cuenta.")} <a href="/entrar">${t("Entrar")}</a></p>`
+        : !correoActivo ? `<p class="aviso" style="margin:0">${t("El envío de correos de PacePath no está activo en el servidor. Puedes mandarlo desde tu app de correo o por WhatsApp.")}</p>` : ""}
       <div class="rejilla-b"><label>${t("Tu nombre")}<input id="envYo" value="${esc(d.yo)}" maxlength="60" autocomplete="name"></label>
         <label>${t("Tu entrenador")}<input id="envNombre" value="${esc(d.nombre)}" maxlength="60" placeholder="${t("ej. Pedro")}"></label></div>
       <label>${t("Correo de tu entrenador")}<input id="envCorreo" type="email" inputmode="email" autocomplete="off" value="${esc(d.correo)}" placeholder="entrenador@correo.com"></label>
@@ -5156,7 +5172,9 @@ function pintarEnvio() {
       <details class="ajustes-zonas"><summary>${t("Ver el mensaje")}</summary><pre class="vista-envio" id="vistaEnvio">${esc(textoEnvio(e, d))}</pre></details>
       <div class="coach-acciones"><button type="submit">✉️ ${t("Enviar por correo")}</button>
         <button type="button" class="sec" data-env-wa>💬 WhatsApp</button><button type="button" class="sec" data-env-volver>${t("Volver")}</button></div>
-      <p class="aviso" id="estadoEnvio" style="margin:0"></p></form>`);
+      <p class="aviso" id="estadoEnvio" style="margin:0"></p>
+      <p id="respaldoEnvio" class="sub" style="margin:0"${miCuenta && correoActivo ? " hidden" : ""}>${t("¿Prefieres mandarlo tú?")}
+        <button type="button" class="enlace" data-env-mail>${t("Abrir mi app de correo")}</button></p></form>`);
   const leerD = () => { d.yo = $("envYo").value.trim(); d.nombre = $("envNombre").value.trim(); d.correo = $("envCorreo").value.trim();
     d.wa = $("envWa").value.trim(); d.nota = $("envNota").value.trim(); $("vistaEnvio").textContent = textoEnvio(e, d); };
   const recordar = () => { const b2 = bitacora(); b2.entrenador = { yo: d.yo, nombre: d.nombre, correo: d.correo, wa: d.wa }; guardarBitacora(b2); };
@@ -5179,15 +5197,15 @@ function pintarEnvio() {
           bloques: (entrada.bloques || []).map(({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos }) => ({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos: tiempos || [] })) } }) }).catch(() => null);
     btn.disabled = false;
     if (r?.ok) return aviso("✓ " + t("Enviado a {c}. Si te responde, le llega a tu correo.", { c: d.correo }), true);
-    // Sin cuenta o sin envío configurado: el mismo correo, desde tu app de correo.
-    if (!r || r.status === 401 || r.status === 503) {
-      aviso(r?.status === 401 ? t("Para enviarlo desde PacePath entra a tu cuenta. Mientras, te abro tu app de correo con el mensaje listo.")
-        : t("Te abro tu app de correo con el mensaje listo."), true);
-      return abrirCorreo();
-    }
-    const j = await r.json().catch(() => ({}));
-    aviso((j.detail && typeof j.detail === "string" ? j.detail : t("No pude enviar el correo.")) + " " + t("Puedes mandarlo por WhatsApp."));
+    // No salió desde PacePath: se dice por qué, y tu app de correo queda como opción (no se abre sola).
+    const j = r ? await r.json().catch(() => ({})) : {};
+    aviso(!r ? t("Sin conexión: no pude enviar el correo.")
+      : r.status === 401 ? t("Entra a tu cuenta para que PacePath lo envíe.")
+      : r.status === 503 ? t("El envío de correos de PacePath no está activo en el servidor.")
+      : (typeof j.detail === "string" ? j.detail : t("No pude enviar el correo.")));
+    $("respaldoEnvio").hidden = false;
   };
+  document.querySelector("[data-env-mail]").onclick = () => { leerD(); recordar(); abrirCorreo(); };
   document.querySelector("[data-env-wa]").onclick = () => {
     leerD(); recordar();
     const num = d.wa.replace(/\D/g, "");
