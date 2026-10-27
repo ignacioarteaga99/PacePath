@@ -445,7 +445,7 @@ def test_preferencias_viajan_con_la_cuenta(base):
     otro.post("/api/auth/entrar", json={"correo": "ana@ejemplo.cl", "clave": "corre-mucho-2026"})
     j = otro.get("/api/cuenta/datos").json()
     assert j == {"datos": {"pp_fase": '"especifica"', "pp_entreno_ajustes": '{"fc_max":190}'}, "actualizado": ts}
-    grande = {"pp_guardadas": "x" * 300_000}
+    grande = {"pp_guardadas": "x" * 1_100_000}
     assert cli.put("/api/cuenta/datos", json={"datos": grande}).status_code == 413
 
 
