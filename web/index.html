@@ -316,7 +316,23 @@
   .coach-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--suave); }
   .coach-form input, .coach-form select { font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 10px;
     border: 1px solid var(--linea); background: #fff; }
-  .coach-pie { display: flex; gap: 14px; margin-top: 12px; font-size: 13px; }
+  .coach-pie { display: flex; gap: 14px; margin-top: 12px; font-size: 13px; flex-wrap: wrap; }
+  .coach-hoy p.porque, .coach-semana small.porque { color: var(--tinta); opacity: .8; }
+  .coach-hoy.pausa { background: var(--gris); }
+  .coach-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .coach-acciones button { font-size: 14px; padding: 9px 14px; }
+  button.mini { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--gris); color: var(--tinta); border: 1px solid var(--linea); font-weight: 700; }
+  button.enlace { background: none; border: 0; padding: 0; color: var(--acento-osc); text-decoration: underline; font: inherit; cursor: pointer; }
+  .acciones-dia { display: flex; gap: 6px; margin-top: 5px; }
+  .mover-a { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; } .mover-a .chip { font-size: 13px; padding: 5px 11px; }
+  .coach-sentir { background: var(--gris); border-radius: 14px; padding: 12px; margin-top: 12px; }
+  .coach-sentir > b { font-size: 15px; line-height: 1.3; display: block; }
+  .caras { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 10px 0 6px; }
+  .caras button { background: none; border: 2px solid transparent; border-radius: 12px; font-size: 28px; padding: 4px 0; display: grid; gap: 2px; justify-items: center; color: var(--tinta); }
+  .caras button small { font-size: 10.5px; color: var(--suave); font-weight: 600; }
+  .caras button.on { border-color: var(--acento); background: var(--fondo); }
+  .coach-sentir .dolor { display: flex; gap: 8px; align-items: center; font-size: 14px; font-weight: 600; margin: 4px 0; }
+  .coach-sentir .dolor input { width: 20px; height: 20px; margin: 0; }
   .coach-pie button { background: none; border: 0; padding: 0; color: var(--suave); text-decoration: underline; font: inherit; cursor: pointer; }
   .chequeos li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: start; }
   .chequeos .ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 900;
@@ -3519,6 +3535,45 @@ Object.assign(EN, {
   "no se hizo": "not done",
   "extra": "extra",
   "hoy": "today",
+  "¿Qué días puedes correr?": "Which days can you run?",
+  "{n} días por semana": "{n} days a week",
+  "Elige al menos 3 días.": "Pick at least 3 days.",
+  "Crear ruta para esta sesión": "Create a route for this session",
+  "Ruta": "Route",
+  "Plan en pausa": "Plan paused",
+  "Enfermedad": "Illness",
+  "Lesión": "Injury",
+  "Viaje": "Travel",
+  "Pausa": "Break",
+  "Otro": "Other",
+  "{n} días": "{n} days", "1 día": "1 day",
+  "Recupérate tranquilo: los días en pausa no cuentan como sesiones no hechas.": "Take your time: paused days don't count as missed sessions.",
+  "Volver a entrenar": "Back to training",
+  "Hoy no puedo": "Can't today",
+  "Descanso sugerido": "Suggested rest",
+  "Muy mal": "Awful",
+  "Mal": "Bad",
+  "Normal": "OK",
+  "Bien": "Good",
+  "Muy bien": "Great",
+  "Rodilla": "Knee",
+  "Tobillo o pie": "Ankle or foot",
+  "Gemelo o Aquiles": "Calf or Achilles",
+  "Cadera": "Hip",
+  "Espalda": "Back",
+  "Otra": "Other",
+  "¿Cómo te sentiste en {s} del {d} ({k})?": "How did you feel on {s} on {d} ({k})?",
+  "Me duele algo": "Something hurts",
+  "Ahora no": "Not now",
+  "Pausar el plan": "Pause the plan",
+  "Mientras dure, no hay sesiones. Al volver, armo una reentrada según los días que estuviste parado.": "While it lasts there are no sessions. When you're back, I'll plan a return based on how many days you were off.",
+  "Desde el día": "Starting on",
+  "Pausar": "Pause",
+  "movida desde el {d}": "moved from {d}",
+  "deshacer": "undo",
+  "Mover": "Move",
+  "Mañana": "Tomorrow",
+  "Tu sesión «{s}» está lista: elige desde dónde sales (escribe una calle, usa «Cerca de mí» o toca el mapa) y pulsa «Crear ruta».": "Your «{s}» session is ready: choose where you start (type a street, use «Near me» or tap the map) and press «Create route».",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -3602,6 +3657,45 @@ Object.assign(PT, {
   "no se hizo": "não feita",
   "extra": "extra",
   "hoy": "hoje",
+  "¿Qué días puedes correr?": "Quais dias você pode correr?",
+  "{n} días por semana": "{n} dias por semana",
+  "Elige al menos 3 días.": "Escolha pelo menos 3 dias.",
+  "Crear ruta para esta sesión": "Criar rota para esta sessão",
+  "Ruta": "Rota",
+  "Plan en pausa": "Plano em pausa",
+  "Enfermedad": "Doença",
+  "Lesión": "Lesão",
+  "Viaje": "Viagem",
+  "Pausa": "Pausa",
+  "Otro": "Outro",
+  "{n} días": "{n} dias", "1 día": "1 dia",
+  "Recupérate tranquilo: los días en pausa no cuentan como sesiones no hechas.": "Recupere-se com calma: os dias em pausa não contam como sessões não feitas.",
+  "Volver a entrenar": "Voltar a treinar",
+  "Hoy no puedo": "Hoje não dá",
+  "Descanso sugerido": "Descanso sugerido",
+  "Muy mal": "Muito mal",
+  "Mal": "Mal",
+  "Normal": "Normal",
+  "Bien": "Bem",
+  "Muy bien": "Muito bem",
+  "Rodilla": "Joelho",
+  "Tobillo o pie": "Tornozelo ou pé",
+  "Gemelo o Aquiles": "Panturrilha ou Aquiles",
+  "Cadera": "Quadril",
+  "Espalda": "Costas",
+  "Otra": "Outra",
+  "¿Cómo te sentiste en {s} del {d} ({k})?": "Como você se sentiu em {s} de {d} ({k})?",
+  "Me duele algo": "Algo dói",
+  "Ahora no": "Agora não",
+  "Pausar el plan": "Pausar o plano",
+  "Mientras dure, no hay sesiones. Al volver, armo una reentrada según los días que estuviste parado.": "Enquanto durar, não há sessões. Quando voltar, monto um retorno conforme os dias que você ficou parado.",
+  "Desde el día": "A partir de",
+  "Pausar": "Pausar",
+  "movida desde el {d}": "movida de {d}",
+  "deshacer": "desfazer",
+  "Mover": "Mover",
+  "Mañana": "Amanhã",
+  "Tu sesión «{s}» está lista: elige desde dónde sales (escribe una calle, usa «Cerca de mí» o toca el mapa) y pulsa «Crear ruta».": "Sua sessão «{s}» está pronta: escolha de onde você sai (digite uma rua, use «Perto de mim» ou toque no mapa) e toque em «Criar rota».",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -3666,7 +3760,15 @@ Object.assign(PT, {
 });
 const OBJ_COACH = [["5k", "5K"], ["10k", "10K"], ["21k", "21K"], ["42k", "42K"], ["forma", "En forma"]];
 const DIA_CORTO = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-let editandoCoach = false;
+let editandoCoach = false, pausandoCoach = false, moviendoCoach = null, sintiendo = null;
+// Fecha local «AAAA-MM-DD» (toISOString es UTC: en Chile, de noche ya sería mañana).
+const fechaLocal = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const masDias = (f, n) => { const d = new Date(f + "T12:00"); d.setDate(d.getDate() + n); return fechaLocal(d); };
+// Los días de la plantilla del servidor (relativos al fondo), para quien todavía no eligió días.
+const PLANT_COACH = { 3: [-5, -3, 0], 4: [-6, -5, -3, 0], 5: [-6, -5, -3, -2, 0], 6: [-6, -5, -4, -3, -2, 0], 7: [-6, -5, -4, -3, -2, -1, 0] };
+const diasCoach = (p) => p?.dias_semana?.length ? [...p.dias_semana]
+  : PLANT_COACH[p?.dias || 4].map((r) => ((p?.dia_largo ?? 6) + r + 14) % 7).sort((a, b) => a - b);
+const guardarCoach = (cambio) => { escribir("pp_coach", { ...(leer("pp_coach", null) || {}), ...cambio }); pintarEntreno(leer("pp_revision", null)); recalcularEntreno(); };
 const ritmoCoach = (txt) => !txt ? "" : unidad === "mi"            // «4:18–4:49» por km → por milla
   ? txt.replace(/(\d+):(\d{2})/g, (_, m, s) => { const x = Math.round((+m * 60 + +s) * MILLA / 1000); return `${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}`; }) + " /mi"
   : txt + " /km";
@@ -3678,18 +3780,22 @@ function formCoach(p) {
     <label id="campoFechaCoach"${p?.objetivo === "forma" ? " hidden" : ""}>${t("Fecha de la carrera")}<input type="date" id="fechaCoach" min="${hoy}" value="${esc(p?.fecha || "")}"></label>
     <label id="campoMetaCoach"${p?.objetivo === "forma" ? " hidden" : ""}>${t("Tiempo objetivo (opcional)")}<input id="metaCoach" inputmode="text" placeholder="${t("ej. 3:30:00 o 45:00")}" value="${esc(p?.tiempo_objetivo_s ? hms(p.tiempo_objetivo_s) : "")}">
       <small style="font-weight:400">${t("Con él, las sesiones a ritmo de carrera usan tu ritmo objetivo y el Coach te dice si vas en camino.")}</small></label>
-    <label>${t("Días para correr por semana")}<div class="fases">${[3, 4, 5, 6, 7].map((d) =>
-      `<button type="button" class="chip${(p?.dias || 4) === d ? " on" : ""}" data-dias="${d}">${d}</button>`).join("")}</div></label>
+    <label>${t("¿Qué días puedes correr?")}<div class="fases">${DIA_CORTO.map((d, i) =>
+      `<button type="button" class="chip${diasCoach(p).includes(i) ? " on" : ""}" data-dsem="${i}" aria-pressed="${diasCoach(p).includes(i)}">${t(d)}</button>`).join("")}</div>
+      <small style="font-weight:400" id="nDiasCoach">${t("{n} días por semana", { n: diasCoach(p).length })}</small></label>
     <label>${t("Dobles jornadas por semana")}<div class="fases">${[0, 1, 2, 3, 4].map((d) =>
       `<button type="button" class="chip${(p?.dobles || 0) === d ? " on" : ""}" data-dobles="${d}">${d}</button>`).join("")}</div>
       <small style="font-weight:400">${t("Días con dos salidas: la del día y otra suave y corta. Para volúmenes altos.")}</small></label>
     <label style="display:flex;gap:10px;align-items:flex-start;font-weight:700"><input type="checkbox" id="dobleUmbralCoach"${p?.doble_umbral ? " checked" : ""} style="width:22px;height:22px;margin:0">
       <span>${t("Doble umbral (avanzado)")}<small style="display:block;font-weight:400">${t("Método noruego: en los días de umbral, una sesión controlada en la mañana y otra en la tarde. Requiere 5 días o más y una base sólida.")}</small></span></label>
-    <label>${t("Día del fondo")}<select id="diaLargoCoach">${DIA_CORTO.map((d, i) =>
-      `<option value="${i}"${(p?.dia_largo ?? 6) === i ? " selected" : ""}>${t(d)}</option>`).join("")}</select></label>
+    <label>${t("Día del fondo")}<select id="diaLargoCoach">${opcionesFondo(diasCoach(p), p?.dia_largo ?? 6)}</select></label>
     <div style="display:flex;gap:8px"><button type="submit">${t(p ? "Guardar" : "Activar Coach")}</button>
       <button type="button" class="sec" data-coach="cancelar">${t("Cancelar")}</button></div>
     <p class="aviso" id="errorCoach" style="margin:0"></p></form>`;
+}
+function opcionesFondo(dias, largo) {
+  if (!dias.includes(largo)) largo = dias.filter((d) => d >= 5).pop() ?? dias[dias.length - 1];
+  return dias.map((i) => `<option value="${i}"${largo === i ? " selected" : ""}>${t(DIA_CORTO[i])}</option>`).join("");
 }
 function graficoCarga(serie) {
   // La escala la ponen las líneas (un día enorme no las aplasta: su barra se corta arriba).
@@ -3753,16 +3859,51 @@ function bloqueCoach(j) {
   const sub = c.faltan_semanas != null ? t("{o} · faltan {n} semanas", { o: esc(c.objetivo), n: c.faltan_semanas }) : t("Objetivo: {o}", { o: esc(c.objetivo) });
   const estado = { hecha: "✓ " + t("hecha"), parcial: "◐ " + t("a medias"), saltada: "✕ " + t("no se hizo"), extra: "+ " + t("extra"), hoy: t("hoy"), pendiente: "" };
   const dia = (f) => t(DIA_CORTO[(new Date(f + "T12:00").getDay() + 6) % 7]);
-  const hoyHtml = h ? `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${esc(h.titulo)}${h.texto && h.tipo !== "suave" && h.tipo !== "fondo" ? ` · ${esc(h.texto)}` : ""}</b>
+  const hoyF = fechaLocal(), domingo = c.semana ? masDias(c.semana.lunes, 6) : hoyF;
+  const porque = (s) => s.porque ? `<p class="porque">💡 ${esc(s.porque)}</p>` : "";
+  const rutaBtn = (s, chico) => s.texto && s.tipo !== "carrera" && !s.real
+    ? `<button type="button" class="${chico ? "mini" : "coach-ruta"}" data-ruta-coach="${esc(s.texto)}">🗺 ${t(chico ? "Ruta" : "Crear ruta para esta sesión")}</button>` : "";
+  let hoyHtml;
+  if (c.pausa) hoyHtml = `<div class="coach-hoy pausa"><span class="et">${t("Plan en pausa")}</span>
+      <b>${t({ enfermedad: "Enfermedad", lesion: "Lesión", viaje: "Viaje", otro: "Pausa" }[c.pausa.motivo])} · ${c.pausa.dias === 1 ? t("1 día") : t("{n} días", { n: c.pausa.dias })}</b>
+      <p>${t("Recupérate tranquilo: los días en pausa no cuentan como sesiones no hechas.")}</p>
+      <div class="coach-acciones"><button type="button" class="coach-ruta" data-reanudar>▶ ${t("Volver a entrenar")}</button></div></div>`;
+  else if (h) hoyHtml = `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${esc(h.titulo)}${h.texto && h.tipo !== "suave" && h.tipo !== "fondo" ? ` · ${esc(h.texto)}` : ""}</b>
       <div class="datos"><span>${fmtDistKm(h.km, 0)}</span>${h.ritmo ? `<span>${ritmoCoach(h.ritmo)}</span>` : ""}<span>~${num(h.minutos)} min</span><span>${t("esfuerzo {n}", { n: num(h.iep) })}</span></div>
-      <p>${esc(h.nota || "")}</p>${h.real ? `<p>✓ ${t("Ya corriste {k} hoy.", { k: fmtDistKm(h.real.km, 1) })}</p>` : ""}
-      ${c.hoy_2 ? `<p><b style="display:inline;font-size:14px">+ ${t("2.ª salida")}:</b> ${t("rodaje suave de {k}", { k: fmtDistKm(c.hoy_2.km, 0) })}${c.hoy_2.ritmo ? " · " + ritmoCoach(c.hoy_2.ritmo) : ""}${c.hoy_2.real ? " ✓" : ""}</p>` : ""}</div>`
-    : `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${t("Descanso")}</b><p>${t("El descanso también entrena: hoy el cuerpo asimila.")}</p></div>`;
-  const semana = (c.semana?.sesiones || []).map((s) => `<li class="${s.fecha === new Date().toISOString().slice(0, 10) ? "hoy" : ""}">
+      <p>${esc(h.nota || "")}</p>${porque(h)}${h.real ? `<p>✓ ${t("Ya corriste {k} hoy.", { k: fmtDistKm(h.real.km, 1) })}</p>` : ""}
+      ${c.hoy_2 ? `<p><b style="display:inline;font-size:14px">+ ${t("2.ª salida")}:</b> ${t("rodaje suave de {k}", { k: fmtDistKm(c.hoy_2.km, 0) })}${c.hoy_2.ritmo ? " · " + ritmoCoach(c.hoy_2.ritmo) : ""}${c.hoy_2.real ? " ✓" : ""} ${rutaBtn(c.hoy_2, true)}</p>` : ""}
+      ${h.real ? "" : `<div class="coach-acciones">${rutaBtn(h)}${hoyF < domingo ? `<button type="button" class="sec" data-mover-hoy="${h.fecha}">${t("Hoy no puedo")}</button>` : ""}</div>`}</div>`;
+  else hoyHtml = `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${t(c.descanso ? "Descanso sugerido" : "Descanso")}</b><p>${esc(c.descanso || t("El descanso también entrena: hoy el cuerpo asimila."))}</p></div>`;
+  // ¿Cómo te sentiste? (la última salida sin responder)
+  const pr = c.preguntar && !(p.omitidas || []).includes(c.preguntar.fecha) ? c.preguntar : null;
+  const CARAS = [["😫", "Muy mal"], ["😕", "Mal"], ["😐", "Normal"], ["🙂", "Bien"], ["😄", "Muy bien"]];
+  const ZONAS_D = [["rodilla", "Rodilla"], ["tobillo", "Tobillo o pie"], ["gemelo", "Gemelo o Aquiles"], ["cadera", "Cadera"], ["espalda", "Espalda"], ["otra", "Otra"]];
+  const sentir = pr ? `<div class="coach-sentir" data-fecha="${pr.fecha}"><b>${t("¿Cómo te sentiste en {s} del {d} ({k})?", { s: esc(pr.titulo), d: dia(pr.fecha), k: fmtDistKm(pr.km, 1) })}</b>
+      <div class="caras">${CARAS.map(([e, et], i) => `<button type="button" data-nota="${i + 1}" aria-label="${t(et)}" class="${sintiendo?.nota === i + 1 ? "on" : ""}">${e}<small>${t(et)}</small></button>`).join("")}</div>
+      <label class="dolor"><input type="checkbox" id="dolorCoach"${sintiendo?.dolor ? " checked" : ""}> ${t("Me duele algo")}</label>
+      <div class="fases" id="zonasDolor"${sintiendo?.dolor ? "" : " hidden"}>${ZONAS_D.map(([k, et]) => `<button type="button" class="chip${sintiendo?.dolor === k ? " on" : ""}" data-dolor="${k}">${t(et)}</button>`).join("")}</div>
+      <div class="coach-acciones"><button type="button" class="coach-ruta" data-sentir-ok${sintiendo?.nota ? "" : " disabled"}>${t("Guardar")}</button><button type="button" class="sec" data-sentir-omitir>${t("Ahora no")}</button></div></div>` : "";
+  const MOTIVOS_P = [["enfermedad", "Enfermedad"], ["lesion", "Lesión"], ["viaje", "Viaje"], ["otro", "Otro"]];
+  const formPausa = pausandoCoach ? `<div class="coach-sentir"><b>${t("Pausar el plan")}</b>
+      <p class="pista" style="margin:4px 0 8px">${t("Mientras dure, no hay sesiones. Al volver, armo una reentrada según los días que estuviste parado.")}</p>
+      <div class="fases">${MOTIVOS_P.map(([k, et]) => `<button type="button" class="chip${pausandoCoach.motivo === k ? " on" : ""}" data-motivo="${k}">${t(et)}</button>`).join("")}</div>
+      <label class="coach-form" style="margin-top:8px"><span>${t("Desde el día")}</span><input type="date" id="desdePausa" max="${hoyF}" value="${pausandoCoach.desde || hoyF}"></label>
+      <div class="coach-acciones"><button type="button" class="coach-ruta" data-pausa-ok>⏸ ${t("Pausar")}</button><button type="button" class="sec" data-pausa-cancelar>${t("Cancelar")}</button></div></div>` : "";
+  // Días a los que se puede mover una sesión: los que quedan de la semana (una calidad no va al día del fondo o la carrera).
+  const fijos = new Set((c.semana?.sesiones || []).filter((s) => s.tipo === "fondo" || s.tipo === "carrera").map((s) => s.fecha));
+  const quedan = (f, tipo) => { const out = []; for (let x = hoyF > c.semana.lunes ? hoyF : c.semana.lunes; x <= domingo; x = masDias(x, 1))
+    if (x !== f && !(["umbral", "intensa", "fondo"].includes(tipo) && fijos.has(x))) out.push(x); return out; };
+  const semana = (c.semana?.sesiones || []).map((s) => {
+    const abierta = s.estado === "hoy" || s.estado === "pendiente";
+    const mover = abierta && s.turno !== 2 && !s.real && !c.pausa && quedan(s.fecha, s.tipo).length;
+    return `<li class="${s.fecha === hoyF ? "hoy" : ""}">
       <span class="d">${s.turno === 2 ? "+" : dia(s.fecha)}</span>
       <span><i class="tipo-c ${s.tipo}"></i>${esc(s.titulo)}${s.texto && !["suave", "fondo", "extra"].includes(s.tipo) ? ` · ${esc(s.texto)}` : ""}
-        <small>${fmtDistKm(s.real ? s.real.km : s.km, s.real ? 1 : 0)}${s.real && s.estado !== "extra" ? " / " + fmtDistKm(s.km, 0) : ""}${s.ritmo ? " · " + ritmoCoach(s.ritmo) : ""}${s.movida ? " · " + t("sugerida desde el {d}", { d: dia(s.movida) }) : ""}</small></span>
-      ${estado[s.estado] ? `<span class="e ${s.estado}">${estado[s.estado]}</span>` : "<span></span>"}</li>`).join("");
+        <small>${fmtDistKm(s.real ? s.real.km : s.km, s.real ? 1 : 0)}${s.real && s.estado !== "extra" ? " / " + fmtDistKm(s.km, 0) : ""}${s.ritmo ? " · " + ritmoCoach(s.ritmo) : ""}${s.movida ? " · " + t("sugerida desde el {d}", { d: dia(s.movida) }) : ""}${s.movida_por_ti ? ` · ${t("movida desde el {d}", { d: dia(s.movida_por_ti) })} <button type="button" class="enlace" data-desmover="${s.movida_por_ti}|${s.fecha}">${t("deshacer")}</button>` : ""}</small>
+        ${abierta && s.porque && s.fecha !== hoyF ? `<small class="porque">💡 ${esc(s.porque)}</small>` : ""}
+        ${mover ? `<span class="acciones-dia"><button type="button" class="mini" data-mover="${s.fecha}">${t("Mover")}</button>${s.fecha !== hoyF ? rutaBtn(s, true) : ""}</span>` : ""}
+        ${moviendoCoach === s.fecha ? `<span class="fases mover-a">${quedan(s.fecha, s.tipo).map((f) => `<button type="button" class="chip" data-mover-a="${f}">${f === masDias(hoyF, 1) ? t("Mañana") : dia(f)}</button>`).join("")}</span>` : ""}</span>
+      ${estado[s.estado] ? `<span class="e ${s.estado}">${estado[s.estado]}</span>` : "<span></span>"}</li>`; }).join("");
   const maxKm = Math.max(...c.semanas.map((w) => Math.max(w.km, w.km_real || 0)), 1);
   const FASE_TXT = { basica: "Básica", especifica: "Específica", competencia: "Competencia" };
   const meses = c.semanas.map((w) => `<div class="fila${w.lunes === c.semana?.lunes ? " actual" : ""}">
@@ -3771,7 +3912,7 @@ function bloqueCoach(j) {
       <span class="f">${fmtDistKm(w.km, 0)}${w.descarga ? " ↓" : ""}</span></div>`).join("");
   return `<div class="coach">${cab(sub)}
     <ul class="coach-msgs">${c.mensajes.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>
-    ${hoyHtml}
+    ${sentir}${hoyHtml}
     ${bloquePrediccion(c.prediccion)}
     <div class="bloque"><h3>${t("Índice de esfuerzo PacePath")}</h3>
       <div class="semaforo"><span class="luz ${k.nivel}">${k.acwr != null ? "×" + num(k.acwr, 2) : "–"}</span><p>${esc(k.texto)}</p></div>
@@ -3783,10 +3924,78 @@ function bloqueCoach(j) {
     <div class="bloque"><h3>${t("Esta semana")}</h3><ul class="coach-semana">${semana}</ul></div>
     <div class="bloque"><h3>${t("Tu plan, semana a semana")}</h3><p class="sub">${t("Barra clara: sugerido · naranja: corrido · ↓ semana de descarga")}</p>
       <div class="coach-meses">${meses}</div></div>
+    ${formPausa}
     <div class="coach-pie"><button type="button" data-coach="editar">${t("Cambiar objetivo")}</button>
+      ${c.pausa || pausandoCoach ? "" : `<button type="button" data-pausar>${t("Pausar")}</button>`}
       <button type="button" data-coach="apagar">${t("Desactivar Coach")}</button></div></div>`;
 }
+// Llevar la sesión del Coach a la pestaña Hoy y armar la ruta.
+function rutaParaSesion(texto) {
+  cambiarVista("hoy");
+  if (modo !== "sesion") cambiarModo("sesion");
+  $("texto").value = texto;
+  revisarTipo();
+  if (salida || $("desde").value.trim()) $("form").requestSubmit();
+  else inicioHoja(t("Tu sesión «{s}» está lista: elige desde dónde sales (escribe una calle, usa «Cerca de mí» o toca el mapa) y pulsa «Crear ruta».", { s: texto }));
+}
 function activarCoach() {
+  const repintar = () => pintarEntreno(leer("pp_revision", null));
+  const p0 = leer("pp_coach", null) || {};
+  const moverDia = (de, a) => {
+    const movidas = (p0.movidas || []).filter((m) => m.de >= masDias(fechaLocal(), -21));
+    moviendoCoach = null;
+    guardarCoach({ movidas: [...movidas, { de, a }] });
+  };
+  document.querySelectorAll("[data-ruta-coach]").forEach((b) => { b.onclick = () => rutaParaSesion(b.dataset.rutaCoach); });
+  document.querySelectorAll("[data-mover-hoy]").forEach((b) => { b.onclick = () => moverDia(b.dataset.moverHoy, masDias(b.dataset.moverHoy, 1)); });
+  document.querySelectorAll("[data-mover]").forEach((b) => { b.onclick = () => {
+    moviendoCoach = moviendoCoach === b.dataset.mover ? null : b.dataset.mover; repintar(); }; });
+  document.querySelectorAll("[data-mover-a]").forEach((b) => { b.onclick = () => moverDia(moviendoCoach, b.dataset.moverA); });
+  document.querySelectorAll("[data-desmover]").forEach((b) => { b.onclick = () => {
+    const [de, a] = b.dataset.desmover.split("|");
+    guardarCoach({ movidas: (p0.movidas || []).filter((m) => !(m.de === de && m.a === a)) });
+  }; });
+  // Pausa
+  const pausar = document.querySelector("[data-pausar]");
+  if (pausar) pausar.onclick = () => { pausandoCoach = { motivo: "enfermedad", desde: fechaLocal() }; repintar(); };
+  document.querySelectorAll("[data-motivo]").forEach((b) => { b.onclick = () => { pausandoCoach.motivo = b.dataset.motivo; pausandoCoach.desde = $("desdePausa").value; repintar(); }; });
+  const pOk = document.querySelector("[data-pausa-ok]");
+  if (pOk) pOk.onclick = () => {
+    const hoy = fechaLocal(), desde = $("desdePausa").value || hoy, motivo = pausandoCoach.motivo || "otro";
+    const pausas = (p0.pausas || []).filter((x) => x.hasta);                 // a lo más una abierta
+    pausandoCoach = false;
+    guardarCoach({ pausas: [...pausas, { desde: desde > hoy ? hoy : desde, motivo }].slice(-20) });
+  };
+  const pNo = document.querySelector("[data-pausa-cancelar]");
+  if (pNo) pNo.onclick = () => { pausandoCoach = false; repintar(); };
+  const reanudar = document.querySelector("[data-reanudar]");
+  if (reanudar) reanudar.onclick = () => {
+    const hoy = fechaLocal(), ayer = masDias(hoy, -1);
+    // Si la pausa empezó hoy mismo, se borra (fue un error o un día suelto); si no, termina ayer.
+    const pausas = (p0.pausas || []).flatMap((x) => x.hasta ? [x] : x.desde >= hoy ? [] : [{ ...x, hasta: ayer }]);
+    guardarCoach({ pausas });
+  };
+  // ¿Cómo te sentiste?
+  const caja = document.querySelector(".coach-sentir[data-fecha]");
+  if (caja) {
+    const fecha = caja.dataset.fecha;
+    if (!sintiendo || sintiendo.fecha !== fecha) sintiendo = { fecha, nota: null, dolor: null };
+    caja.querySelectorAll("[data-nota]").forEach((b) => { b.onclick = () => { sintiendo.nota = +b.dataset.nota; repintar(); }; });
+    $("dolorCoach").onchange = (e) => { sintiendo.dolor = e.target.checked ? (sintiendo.dolor || "otra") : null; repintar(); };
+    caja.querySelectorAll("[data-dolor]").forEach((b) => { b.onclick = () => { sintiendo.dolor = b.dataset.dolor; repintar(); }; });
+    caja.querySelector("[data-sentir-ok]").onclick = () => {
+      if (!sintiendo.nota) return;
+      const lista = (p0.sensaciones || []).filter((x) => x.fecha !== fecha && x.fecha >= masDias(fechaLocal(), -45));
+      const nueva = { fecha, nota: sintiendo.nota, ...(sintiendo.dolor ? { dolor: sintiendo.dolor } : {}) };
+      sintiendo = null;
+      guardarCoach({ sensaciones: [...lista, nueva].slice(-60) });
+    };
+    caja.querySelector("[data-sentir-omitir]").onclick = () => {
+      sintiendo = null;
+      escribir("pp_coach", { ...p0, omitidas: [...(p0.omitidas || []), fecha].slice(-10) });
+      repintar();
+    };
+  }
   document.querySelectorAll("[data-coach]").forEach((b) => { b.onclick = () => {
     if (b.dataset.coach === "apagar") {
       if (!confirm(t("¿Desactivar el Coach? Puedes volver a activarlo cuando quieras."))) return;
@@ -3803,9 +4012,14 @@ function activarCoach() {
     f.querySelectorAll("[data-obj]").forEach((x) => x.classList.toggle("on", x === b));
     $("campoFechaCoach").hidden = $("campoMetaCoach").hidden = p.objetivo === "forma";
   }; });
-  f.querySelectorAll("[data-dias]").forEach((b) => { b.onclick = () => {
-    p.dias = +b.dataset.dias;
-    f.querySelectorAll("[data-dias]").forEach((x) => x.classList.toggle("on", x === b));
+  let dsem = diasCoach(p);
+  f.querySelectorAll("[data-dsem]").forEach((b) => { b.onclick = () => {
+    const i = +b.dataset.dsem;
+    dsem = dsem.includes(i) ? dsem.filter((x) => x !== i) : [...dsem, i].sort((a, b) => a - b);
+    b.classList.toggle("on", dsem.includes(i)); b.setAttribute("aria-pressed", dsem.includes(i));
+    $("nDiasCoach").textContent = t("{n} días por semana", { n: dsem.length });
+    const sel = $("diaLargoCoach"), antes = +sel.value;
+    if (dsem.length) sel.innerHTML = opcionesFondo(dsem, antes);
   }; });
   f.querySelectorAll("[data-dobles]").forEach((b) => { b.onclick = () => {
     p.dobles = +b.dataset.dobles;
@@ -3821,7 +4035,9 @@ function activarCoach() {
     const km = { "5k": 5, "10k": 10, "21k": 21.0975, "42k": 42.195 }[p.objetivo];
     if (meta && (meta / km < 150 || meta / km > 720)) return ($("errorCoach").textContent = t("Ese tiempo objetivo no parece posible para la distancia."));
     p.tiempo_objetivo_s = meta || null;
-    p.dias = p.dias || 4;
+    if (dsem.length < 3) return ($("errorCoach").textContent = t("Elige al menos 3 días."));
+    p.dias_semana = dsem;
+    p.dias = dsem.length;
     p.dobles = Math.min(p.dobles || 0, p.dias - 1);
     p.doble_umbral = $("dobleUmbralCoach").checked;
     if (p.doble_umbral && p.dias < 5) return ($("errorCoach").textContent = t("El doble umbral necesita 5 días o más por semana."));

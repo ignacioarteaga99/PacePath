@@ -22,6 +22,14 @@ Recalcular
   curso sugiere pasar una calidad que no se hizo a un día suave libre y, si
   la carga se dispara, cambiar la calidad por rodaje suave.
 
+Escuchar al corredor
+  Cómo se sintió después de cada salida (1–5) y si le duele algo: con dolor,
+  los días siguientes van suaves (y si se repite, descanso); con dos salidas
+  malas seguidas, la próxima calidad pasa a suave. También elige qué días
+  puede correr, mueve una sesión («hoy no puedo») y pausa el plan por
+  enfermedad, lesión o viaje: al volver, una reentrada según los días parado.
+  Cada sesión dice por qué toca.
+
 Todo es una recomendación: el Coach es opcional (se activa en Entreno) y el
 corredor decide.
 
@@ -31,6 +39,7 @@ from __future__ import annotations
 
 import math
 from datetime import date, datetime, timedelta
+from itertools import combinations
 
 from . import entreno, prediccion
 from .entreno import PESO_CARGA, segundos_por_zona, tipo_sesion, zonas
@@ -66,6 +75,14 @@ PLANTILLAS = {
 }
 DOBLE_MAX_KM = 10.0          # la 2.ª salida de un día doble: corta y muy suave
 PESO_DOBLE = 0.6             # cuánto de un rodaje normal le toca
+MOTIVOS = {"enfermedad": ("enfermedad", "illness", "doença"), "lesion": ("lesión", "injury", "lesão"),
+           "viaje": ("viaje", "travel", "viagem"), "otro": ("una pausa", "a break", "uma pausa")}
+# «dolor en …» / «pain in …» / «dor …» (en portugués, con su preposición)
+ZONAS_DOLOR = {"rodilla": ("la rodilla", "your knee", "no joelho"), "tobillo": ("el tobillo o pie", "your ankle or foot", "no tornozelo ou pé"),
+               "gemelo": ("el gemelo o Aquiles", "your calf or Achilles", "na panturrilha ou Aquiles"),
+               "cadera": ("la cadera", "your hip", "no quadril"), "espalda": ("la espalda", "your back", "nas costas"),
+               "otra": ("alguna zona", "some area", "em alguma região")}
+DUROS = ("umbral", "intensa", "fondo", "carrera")
 DIAS = [("lunes", "Monday", "segunda"), ("martes", "Tuesday", "terça"), ("miércoles", "Wednesday", "quarta"),
         ("jueves", "Thursday", "quinta"), ("viernes", "Friday", "sexta"), ("sábado", "Saturday", "sábado"),
         ("domingo", "Sunday", "domingo")]
@@ -73,6 +90,11 @@ DIAS = [("lunes", "Monday", "segunda"), ("martes", "Tuesday", "terça"), ("miér
 
 def _dia(d: date) -> str:
     return tr(*DIAS[d.weekday()])
+
+
+def _dia_n(d: date) -> str:
+    """«martes 3» / «Tuesday 3» / «terça 3»."""
+    return f"{_dia(d)} {d.day}"
 
 
 def _f(x: float, dec: int = 1) -> str:
@@ -347,12 +369,34 @@ def _min_por_km(z: dict, zona: int) -> float:
     return s / 60
 
 
+def _plantilla(perfil: dict) -> tuple[dict[int, str], int]:
+    """({día relativo al fondo: tipo}, día del fondo). Con días elegidos
+    («martes, jueves, sábado y domingo») las calidades van donde queden más
+    separadas entre sí y del fondo; si no, la plantilla según cuántos días."""
+    largo = int(perfil.get("dia_largo", 6))
+    elegidos = sorted({int(d) for d in perfil.get("dias_semana") or [] if 0 <= int(d) <= 6})
+    if not 3 <= len(elegidos) <= 7:
+        return PLANTILLAS[min(7, max(3, int(perfil.get("dias") or 4)))], largo
+    if largo not in elegidos:                        # el fondo, en el fin de semana si se puede
+        largo = max(elegidos, key=lambda d: (d >= 5, d))
+    rels = [(d - largo) % 7 - 7 for d in elegidos if d != largo]          # −6 … −1
+    n_q = 1 if len(elegidos) == 3 else 2
+
+    def costo(qs: tuple[int, ...]) -> int:
+        duros = set(qs) | {0, -7}                    # −7: el fondo de la semana anterior
+        pegadas = sum(any(abs(q - h) == 1 for h in duros if h != q) for q in qs)
+        return 10 * pegadas + sum(abs(q - o) for q, o in zip(sorted(qs), (-5, -3)))
+    qs = min(combinations(rels, n_q), key=costo)
+    out = {r: "s" for r in rels} | {0: "f"}
+    out.update(zip(sorted(qs), ("q", "q2")))
+    return out, largo
+
+
 def plan_semana(perfil: dict, sem: dict, z: dict, km: float, fondo_prev: float, n_fase: int) -> list[dict]:
     """Las sesiones de una semana: una por día con entrenamiento, y en los días
     dobles una 2.ª salida suave («turno» 2)."""
     obj = perfil["objetivo"]
-    dias = PLANTILLAS[min(7, max(3, int(perfil.get("dias") or 4)))]
-    largo_dia = int(perfil.get("dia_largo", 6))
+    dias, largo_dia = _plantilla(perfil)
     q2_calidad = (sem["fase"] == "especifica" or (sem["fase"] == "basica" and len(dias) >= 5)) and not sem["descarga"]
     carrera = date.fromisoformat(perfil["fecha"]) if sem["faltan"] == 0 and perfil.get("fecha") else None
     # El fondo: ~28 % de la semana (un tercio con 3 días), sin pasar del tope del objetivo
@@ -373,12 +417,14 @@ def plan_semana(perfil: dict, sem: dict, z: dict, km: float, fondo_prev: float, 
             s["km"] = round(s["trabajo_km"] + 4, 1)          # + calentamiento y vuelta a la calma
             s["titulo"] = (tr("Calidad · umbral", "Quality · threshold", "Qualidade · limiar") if s["tipo"] == "umbral"
                            else tr("Calidad · velocidad", "Quality · speed", "Qualidade · velocidade"))
+            s["porque"] = _porque_calidad(perfil, sem)
         elif tipo == "f":
             s = {"tipo": "fondo", "zona": 1, "km": round(largo), "texto": f"fondo {round(largo)}k",
                  "titulo": tr("Fondo", "Long run", "Longão"),
                  "nota": tr("Suave y conversable: construye la base aeróbica.",
                             "Easy and conversational: it builds your aerobic base.",
                             "Leve e dando para conversar: constrói a base aeróbica.")}
+            s["porque"] = _porque_fondo(obj, largo, fondo_prev, km, sem)
             if obj in ("21k", "42k") and sem["fase"] == "especifica" and not sem["descarga"]:
                 ult = 5 if obj == "21k" else 8
                 s["nota"] = tr(f"Suave, y los últimos {ult} km a ritmo de carrera.",
@@ -414,6 +460,9 @@ def plan_semana(perfil: dict, sem: dict, z: dict, km: float, fondo_prev: float, 
             out.append({"tipo": "umbral", "zona": 2, "turno": 2, "fecha": x["fecha"], "texto": f"{n}x400",
                         "trabajo_km": n * 0.4, "km": round(n * 0.4 + 3, 1),
                         "titulo": tr("Doble umbral · tarde", "Double threshold · PM", "Duplo limiar · tarde"),
+                        "porque": tr("Dos dosis controladas en el día suman mucho trabajo de umbral con poco desgaste: la clave es no pasarse en ninguna.",
+                                     "Two controlled doses in a day add lots of threshold work with little wear: the key is not overdoing either.",
+                                     "Duas doses controladas no dia somam muito trabalho de limiar com pouco desgaste: o segredo é não exagerar em nenhuma."),
                         "nota": tr("Pausas de 30″, mismo umbral controlado de la mañana: nunca a fondo. Si llegas cansado, cámbiala por un trote suave.",
                                    "30″ rests, the same controlled threshold as the morning: never all-out. If you're tired, swap it for an easy jog.",
                                    "Pausas de 30″, o mesmo limiar controlado da manhã: nunca no máximo. Se chegar cansado, troque por um trote leve.")})
@@ -448,16 +497,315 @@ def plan_semana(perfil: dict, sem: dict, z: dict, km: float, fondo_prev: float, 
                                "Start controlled and pick it up in the second half. Enjoy it!",
                                "Comece controlado e acelere na segunda metade. Aproveite!")})
     for s in out:
-        s["ritmo"] = _ritmo_sesion(perfil, z, s) if s["tipo"] != "carrera" else _ritmo_objetivo(perfil, z, obj if obj != "forma" else "10k")
-        trabajo = s.get("trabajo_km", 0)
-        minutos = (s["km"] - trabajo) * _min_por_km(z, 1) + trabajo * _min_por_km(z, min(s["zona"], 4))
-        s["minutos"] = round(minutos)
-        peso = PESO_CARGA[1] * (minutos - trabajo * _min_por_km(z, min(s["zona"], 4))) + \
-            PESO_CARGA[min(s["zona"], 4)] * trabajo * _min_por_km(z, min(s["zona"], 4))
-        s["iep"] = round(peso * 100 / IEP_HORA_UMBRAL)
-        s.pop("trabajo_km", None)
-        s.pop("objetivo_ritmo", None)
+        _metricas(s, perfil, z)
     return sorted(out, key=lambda s: (s["fecha"], s.get("turno", 1)))
+
+
+def _metricas(s: dict, perfil: dict, z: dict) -> None:
+    """Ritmo, minutos y esfuerzo (IEP) de una sesión (de nuevo si el Coach la cambió)."""
+    obj = perfil["objetivo"]
+    s["ritmo"] = _ritmo_sesion(perfil, z, s) if s["tipo"] != "carrera" else _ritmo_objetivo(perfil, z, obj if obj != "forma" else "10k")
+    trabajo = s.get("trabajo_km", 0) if s["tipo"] not in ("suave", "fondo") else 0
+    minutos = (s["km"] - trabajo) * _min_por_km(z, 1) + trabajo * _min_por_km(z, min(s["zona"], 4))
+    s["minutos"] = round(minutos)
+    peso = PESO_CARGA[1] * (minutos - trabajo * _min_por_km(z, min(s["zona"], 4))) + \
+        PESO_CARGA[min(s["zona"], 4)] * trabajo * _min_por_km(z, min(s["zona"], 4))
+    s["iep"] = round(peso * 100 / IEP_HORA_UMBRAL)
+    s.pop("objetivo_ritmo", None)
+
+
+def _porque_calidad(perfil: dict, sem: dict) -> str:
+    obj = perfil["objetivo"]
+    if sem["fase"] == "competencia":
+        return tr("Afinamiento: algo de intensidad con poco volumen te deja fresco y rápido para la carrera.",
+                  "Taper: a little intensity on low volume leaves you fresh and fast for race day.",
+                  "Polimento: um pouco de intensidade com pouco volume te deixa descansado e rápido para a prova.")
+    if obj == "forma":
+        return tr("Para mantenerte en forma: el umbral controlado sostiene tu motor aeróbico con poco desgaste.",
+                  "To stay fit: controlled threshold keeps your aerobic engine going with little wear.",
+                  "Para manter a forma: o limiar controlado sustenta seu motor aeróbico com pouco desgaste.")
+    if sem["fase"] == "basica":
+        return tr("Fase básica: el umbral controlado sube tu motor aeróbico con poco desgaste; lo específico viene después.",
+                  "Base phase: controlled threshold builds your aerobic engine with little wear; race-specific work comes later.",
+                  "Fase básica: o limiar controlado aumenta seu motor aeróbico com pouco desgaste; o específico vem depois.")
+    n, nombre = sem["faltan"], tr(*NOMBRE_OBJ[obj])
+    return tr(f"Fase específica (faltan {n} semanas): toca acostumbrar el cuerpo al ritmo de tu {nombre}.",
+              f"Specific phase ({n} weeks to go): time to get your body used to your {nombre} pace.",
+              f"Fase específica (faltam {n} semanas): é hora de acostumar o corpo ao ritmo da sua {nombre}.")
+
+
+def _porque_fondo(obj: str, largo: float, fondo_prev: float, km: float, sem: dict) -> str:
+    tope = OBJETIVOS[obj]["largo"]
+    if sem["descarga"]:
+        return tr("Semana de descarga: el fondo baja un poco para asimilar las semanas de carga.",
+                  "Recovery week: the long run drops a bit so you absorb the loading weeks.",
+                  "Semana de descarga: o longão cai um pouco para assimilar as semanas de carga.")
+    if round(largo) >= tope:
+        return tr(f"Ya llegas al fondo más largo que pide tu objetivo ({tope} km): ahora se mantiene.",
+                  f"You've reached the longest run your goal needs ({tope} km): now we hold it.",
+                  f"Você chegou ao longão mais longo que seu objetivo pede ({tope} km): agora ele se mantém.")
+    if largo >= fondo_prev + 1.5:
+        return tr(f"Tu fondo más largo reciente fue de {round(fondo_prev)} km: sube de a 2 km como máximo, hacia {tope} km.",
+                  f"Your longest recent run was {round(fondo_prev)} km: it grows 2 km at most, toward {tope} km.",
+                  f"Seu longão mais longo recente foi de {round(fondo_prev)} km: sobe no máximo 2 km por vez, rumo a {tope} km.")
+    return tr(f"Cerca de un {round(100 * largo / max(km, 1))} % de tu semana: el fondo es lo que más construye resistencia.",
+              f"About {round(100 * largo / max(km, 1))}% of your week: the long run builds endurance like nothing else.",
+              f"Cerca de {round(100 * largo / max(km, 1))} % da sua semana: o longão é o que mais constrói resistência.")
+
+
+# ── Lo que pide el corredor: mover, pausar, cómo se sintió ─────────────────
+
+def _d(x) -> date | None:
+    try:
+        return x if isinstance(x, date) else date.fromisoformat(str(x)[:10])
+    except ValueError:
+        return None
+
+
+def _a_suave(s: dict, nota: str, porque: str, factor: float = 0.8) -> None:
+    km = max(4, round(s["km"] * factor))
+    s.update(tipo="suave", zona=1, km=km, texto=f"regenerativo {km}k", bloqueada=True, cambiada=True,
+             titulo=tr("Mejor un rodaje suave", "Better an easy run", "Melhor uma rodagem leve"), nota=nota, porque=porque)
+
+
+def _mover(sesiones: list[dict], movidas: list[dict], hoy: date, lunes: date) -> list[dict]:
+    """«Hoy no puedo»: pasa todo lo de un día a otro de la misma semana y
+    reacomoda para no juntar dos días duros."""
+    fin = lunes + timedelta(days=7)
+    for m in movidas or []:
+        de, a = _d(m.get("de")), _d(m.get("a"))
+        if not de or not a or de == a or not (lunes <= de < fin and lunes <= a < fin) or a < hoy:
+            continue
+        van = [s for s in sesiones if s["fecha"] == de.isoformat()]
+        if not van:
+            continue
+        hay = [s for s in sesiones if s["fecha"] == a.isoformat()]
+        for s in van:
+            s.update(fecha=a.isoformat(), movida_por_ti=de.isoformat(), fija=True)
+            if s["tipo"] == "suave":
+                s.pop("porque", None)                 # el de los suaves depende de los vecinos
+        principal = next((s for s in van if s.get("turno", 1) == 1), None)
+        otra = next((s for s in hay if s.get("turno", 1) == 1), None)
+        if principal and otra:
+            if principal["tipo"] in DUROS and otra["tipo"] not in DUROS:
+                sesiones.remove(otra)
+            elif principal["tipo"] not in DUROS:
+                if otra["tipo"] == "suave":            # dos rodajes el mismo día: uno más largo
+                    otra["km"] = min(18, otra["km"] + principal["km"])
+                    otra["texto"] = f"regenerativo {otra['km']}k"
+                sesiones.remove(principal)
+            elif otra["tipo"] in ("fondo", "carrera"):  # el fondo y la carrera no se mueven: la calidad busca otro día
+                principal["relocar"] = True
+                principal.pop("fija")
+            else:
+                otra["relocar"] = True                # dos calidades en un día: la que estaba busca otro
+        if any(s.get("turno") == 2 for s in van):
+            for s in [s for s in hay if s.get("turno") == 2]:
+                sesiones.remove(s)
+    # Calidades que quedaron pegadas a otro día duro (o compartiendo día): a un día suave libre o, si no hay, suave.
+    for q in sorted([s for s in sesiones if s["tipo"] in ("umbral", "intensa") and not s.get("fija")
+                     and s.get("turno", 1) == 1 and s["fecha"] >= hoy.isoformat()], key=lambda s: s["fecha"]):
+        def duros_sin(x):
+            return {date.fromisoformat(s["fecha"]) for s in sesiones if s is not x and s.get("turno", 1) == 1 and s["tipo"] in DUROS}
+        d = date.fromisoformat(q["fecha"])
+        if not q.get("relocar") and not any(abs((d - h).days) == 1 for h in duros_sin(q)):
+            continue
+        libre = next((f for f in sorted(sesiones, key=lambda s: s["fecha"]) if f["tipo"] == "suave" and f.get("turno", 1) == 1
+                      and f["fecha"] >= hoy.isoformat() and not f.get("fija")
+                      and not any(abs((date.fromisoformat(f["fecha"]) - h).days) <= 1 for h in duros_sin(q))), None)
+        if libre:
+            if q.pop("relocar", False):
+                sesiones.remove(libre)
+                q["fecha"] = libre["fecha"]
+            else:
+                q["fecha"], libre["fecha"] = libre["fecha"], q["fecha"]
+            q["porque"] = tr("La cambié de día para que no quede pegada a otro día duro.",
+                             "I moved it so it doesn't sit right next to another hard day.",
+                             "Mudei de dia para não ficar colada em outro dia duro.")
+        elif q.pop("relocar", False):
+            sesiones.remove(q)
+        else:
+            _a_suave(q, q["nota"], tr("Con la sesión que moviste quedaban dos días duros seguidos: esta pasa a suave.",
+                                      "With the session you moved there'd be two hard days in a row: this one turns easy.",
+                                      "Com a sessão que você mudou ficariam dois dias duros seguidos: esta vira leve."))
+    for s in sesiones:
+        s.pop("fija", None)
+    return sorted(sesiones, key=lambda s: (s["fecha"], s.get("turno", 1)))
+
+
+def _pausas(perfil: dict, hoy: date) -> list[dict]:
+    """Las pausas (enfermedad, lesión, viaje) con su reentrada: cuántos días
+    se paró, cuánto volumen las semanas siguientes y hasta cuándo sólo suave."""
+    out = []
+    for p in perfil.get("pausas") or []:
+        desde, hasta = _d(p.get("desde")), _d(p.get("hasta")) if p.get("hasta") else None
+        if not desde or desde > hoy or (hasta and hasta < desde):
+            continue
+        activa = hasta is None or hasta >= hoy
+        fin = hoy if activa else hasta
+        n = (fin - desde).days + 1
+        motivo = p.get("motivo") if p.get("motivo") in MOTIVOS else "otro"
+        if n <= 3:
+            factores, suaves = [], 1
+        elif n <= 10:
+            factores, suaves = [0.8], 3
+        elif n <= 21:
+            factores, suaves = [0.6, 0.8], 7
+        else:
+            factores, suaves = [0.5, 0.65, 0.8], 14
+        if motivo == "lesion":
+            suaves = max(suaves, 2 if n <= 3 else 7 if n <= 10 else 10 if n <= 21 else 14)
+        elif motivo == "enfermedad":
+            suaves = max(suaves, 3)
+        out.append({"desde": desde, "fin": fin, "activa": activa, "dias": n, "motivo": motivo,
+                    "factores": factores, "suave_hasta": fin + timedelta(days=suaves)})
+    return out
+
+
+def _en_pausa(f: str, pausas: list[dict]) -> bool:
+    d = date.fromisoformat(f)
+    return any(p["desde"] <= d <= p["fin"] for p in pausas)
+
+
+def _reentrar(sesiones: list[dict], pausas: list[dict]) -> list[dict]:
+    """Fuera los días en pausa; en la reentrada, sólo suave y sin dobles."""
+    out = []
+    for s in sesiones:
+        if _en_pausa(s["fecha"], pausas):
+            continue
+        d = date.fromisoformat(s["fecha"])
+        p = next((p for p in pausas if p["fin"] < d <= p["suave_hasta"]), None)
+        if p:
+            if s.get("turno") == 2:
+                continue
+            motivo = tr(*MOTIVOS[p["motivo"]])
+            if s["tipo"] in ("umbral", "intensa"):
+                _a_suave(s, tr("Vuelves de una pausa: suave y conversable, sin apurar.",
+                               "You're coming back from a break: easy and conversational, no rushing.",
+                               "Você está voltando de uma pausa: leve e dando para conversar, sem pressa."),
+                         _porque_reentrada(p, motivo))
+            else:
+                s["porque"] = _porque_reentrada(p, motivo)
+                s["bloqueada"] = True
+        out.append(s)
+    return out
+
+
+def _porque_reentrada(p: dict, motivo: str) -> str:
+    hasta = _dia_n(p["suave_hasta"])
+    return tr(f"Vuelves de {p['dias']} días sin correr ({motivo}): sólo suave hasta el {hasta} para volver sin lesionarte.",
+              f"You're back after {p['dias']} days off ({motivo}): easy only until {hasta} so you come back injury-free.",
+              f"Você volta de {p['dias']} dias sem correr ({motivo}): só leve até {hasta} para voltar sem se lesionar.")
+
+
+def _factor_reentrada(lunes: date, pausas: list[dict]) -> float:
+    f = 1.0
+    for p in pausas:
+        j = (lunes - _lunes(p["fin"] + timedelta(days=1))).days // 7
+        if 0 <= j < len(p["factores"]):
+            f = min(f, p["factores"][j])
+    return f
+
+
+def _sensaciones(sesiones: list[dict], perfil: dict, hoy: date, carga: dict) -> tuple[list[dict], list[str], str | None]:
+    """Cómo se sintió (1 muy mal … 5 muy bien) y si le duele algo, en la última
+    semana: con dolor, suave los próximos días (y si se repite, descanso hoy);
+    con dos salidas malas seguidas, la próxima calidad pasa a suave."""
+    sens = sorted([s for s in perfil.get("sensaciones") or []
+                   if (d := _d(s.get("fecha"))) and 0 <= (hoy - d).days < 7], key=lambda s: str(s["fecha"]))
+    pendientes = [s for s in sesiones if s.get("estado") in ("hoy", "pendiente") and not s.get("real")]
+    msgs, descanso = [], None
+    dolores = [s for s in sens if s.get("dolor")]
+    recientes = [s for s in dolores if (hoy - _d(s["fecha"])).days <= 3]
+    if recientes:
+        zona = tr(*ZONAS_DOLOR.get(recientes[-1]["dolor"], ZONAS_DOLOR["otra"]))
+        if len({str(s["fecha"])[:10] for s in dolores}) >= 2:
+            descanso = tr(f"Reportaste dolor en {zona} más de una vez esta semana: hoy te sugiero descansar. "
+                          "Si no mejora en unos días, consulta a un kinesiólogo o médico.",
+                          f"You've reported pain in {zona} more than once this week: I suggest resting today. "
+                          "If it doesn't improve in a few days, see a physio or doctor.",
+                          f"Você relatou dor {zona} mais de uma vez nesta semana: "
+                          "hoje sugiro descansar. Se não melhorar em alguns dias, consulte um fisioterapeuta ou médico.")
+            sesiones = [s for s in sesiones if not (s["fecha"] == hoy.isoformat() and s in pendientes)]
+        porque = tr(f"Reportaste dolor en {zona}: los próximos días, sólo suave. Si duele al correr, para.",
+                    f"You reported pain in {zona}: easy only for the next few days. If it hurts while running, stop.",
+                    f"Você relatou dor {zona}: nos próximos dias, só leve. Se doer correndo, pare.")
+        for f in pendientes:
+            if f in sesiones and (date.fromisoformat(f["fecha"]) - hoy).days <= 3:
+                if f["tipo"] in ("umbral", "intensa"):
+                    _a_suave(f, tr("Suave y corto: escucha a tu cuerpo.", "Easy and short: listen to your body.",
+                                   "Leve e curta: escute seu corpo."), porque)
+                elif f["tipo"] == "fondo":
+                    f.update(km=round(f["km"] * 0.7), texto=f"fondo {round(f['km'] * 0.7)}k", porque=porque, bloqueada=True, cambiada=True)
+        if not descanso:
+            msgs.append(porque + " " + tr("Si no mejora, consulta a un profesional.", "If it doesn't improve, see a professional.",
+                                          "Se não melhorar, procure um profissional."))
+        return sesiones, msgs, descanso
+    notas = [int(s.get("nota") or 3) for s in sens if (hoy - _d(s["fecha"])).days <= 5]
+    if len(notas) >= 2 and max(notas[-2:]) <= 2:
+        q = next((f for f in pendientes if f["tipo"] in ("umbral", "intensa") and (date.fromisoformat(f["fecha"]) - hoy).days <= 4), None)
+        txt = tr("Te sentiste mal en tus dos últimas salidas", "You felt bad on your last two runs",
+                 "Você se sentiu mal nas suas duas últimas saídas")
+        if q:
+            _a_suave(q, tr("Suave: primero recuperar.", "Easy: recover first.", "Leve: primeiro recuperar."),
+                     txt + tr(": cambio esta calidad por suave para recuperar.", ": I'm swapping this quality session for easy to recover.",
+                              ": troco esta qualidade por leve para recuperar."))
+        msgs.append(txt + tr(". Duerme y come bien; si sigue igual, tómate un día libre.",
+                             ". Sleep and eat well; if it continues, take a day off.",
+                             ". Durma e coma bem; se continuar assim, tire um dia de folga.")
+                    + (" " + tr("La próxima calidad pasa a suave.", "The next quality session turns easy.",
+                                "A próxima qualidade vira leve.") if q else ""))
+    elif len(notas) >= 2 and min(notas[-2:]) >= 4 and carga["nivel"] in ("verde", "azul"):
+        msgs.append(tr("Te has sentido bien en tus últimas salidas y tu carga está sana: seguimos con el plan tal cual.",
+                       "You've felt good on your recent runs and your load is healthy: we stick with the plan.",
+                       "Você tem se sentido bem nas últimas saídas e sua carga está saudável: seguimos o plano."))
+    return sesiones, msgs, descanso
+
+
+DURO_NOMBRE = {"umbral": ("una sesión de umbral", "a threshold session", "uma sessão de limiar"),
+               "intensa": ("una sesión de velocidad", "a speed session", "uma sessão de velocidade"),
+               "fondo": ("el fondo", "the long run", "o longão"), "carrera": ("la carrera", "the race", "a prova")}
+
+
+def _porque_semana(sesiones: list[dict], carga: dict, perfil: dict) -> None:
+    """El porqué de cada sesión de la semana que no lo tenga ya (los suaves,
+    según lo que hay alrededor)."""
+    duros = {s["fecha"]: s for s in sesiones if s.get("turno", 1) == 1 and s["tipo"] in DUROS}
+    for s in sesiones:
+        if s["tipo"] == "extra":
+            continue
+        d = date.fromisoformat(s["fecha"])
+        if s.get("movida_por_ti") and not s.get("porque"):
+            s["porque"] = tr(f"La moviste desde el {_dia(date.fromisoformat(s['movida_por_ti']))}.",
+                             f"You moved it from {_dia(date.fromisoformat(s['movida_por_ti']))}.",
+                             f"Você mudou de {_dia(date.fromisoformat(s['movida_por_ti']))}.")
+        if s.get("porque") or s["tipo"] != "suave":
+            continue
+        if s.get("turno") == 2:
+            s["porque"] = tr("Una 2.ª salida corta suma volumen casi sin fatiga, sin alargar los rodajes.",
+                             "A short second run adds volume with almost no fatigue, without stretching your easy runs.",
+                             "Uma 2.ª saída curta soma volume quase sem fadiga, sem alongar as rodagens.")
+            continue
+        ayer, mañana = duros.get((d - timedelta(days=1)).isoformat()), duros.get((d + timedelta(days=1)).isoformat())
+        if ayer:
+            s["porque"] = tr(f"Suave porque ayer tocaba {tr(*DURO_NOMBRE[ayer['tipo']])}: así absorbes ese trabajo.",
+                             f"Easy because yesterday was {tr(*DURO_NOMBRE[ayer['tipo']])}: this is how you absorb that work.",
+                             f"Leve porque ontem era {tr(*DURO_NOMBRE[ayer['tipo']])}: assim você absorve esse treino.")
+        elif mañana:
+            s["porque"] = tr(f"Suave para llegar fresco a {tr(*DURO_NOMBRE[mañana['tipo']])} de mañana.".replace(" a el ", " al "),
+                             f"Easy so you're fresh for tomorrow's {tr(*DURO_NOMBRE[mañana['tipo']]).split(' ', 1)[-1]}.",
+                             f"Leve para chegar descansado para {tr(*DURO_NOMBRE[mañana['tipo']])} de amanhã.")
+        else:
+            s["porque"] = tr("Casi todo tu entrenamiento debe ser suave (~80 %): suma base aeróbica sin cansar.",
+                             "Most of your training should be easy (~80%): it builds your aerobic base without fatigue.",
+                             "Quase todo o treino deve ser leve (~80 %): soma base aeróbica sem cansar.")
+    if carga.get("nivel") == "ambar":
+        extra = tr(f" Tu carga está al límite (×{_f(carga['acwr'] or 0, 2)}): que lo suave sea suave de verdad.",
+                   f" Your load is at the limit (×{_f(carga['acwr'] or 0, 2)}): keep easy truly easy.",
+                   f" Sua carga está no limite (×{_f(carga['acwr'] or 0, 2)}): que o leve seja leve de verdade.")
+        for s in sesiones:
+            if s["tipo"] in ("suave", "fondo") and s.get("estado") in ("hoy", "pendiente"):
+                s["porque"] = (s.get("porque") or "") + extra
 
 
 # ── Lo hecho contra lo pedido ───────────────────────────────────────────────
@@ -528,9 +876,12 @@ def _ajustar_semana(sesiones: list[dict], hoy: date, carga: dict) -> list[str]:
             for f in futuras:
                 d = date.fromisoformat(f["fecha"])
                 vecinos = {(d + timedelta(days=k)).isoformat() for k in (-1, 1)}
-                if f["tipo"] == "suave" and f.get("turno") != 2 and not (vecinos & duros):
+                if f["tipo"] == "suave" and f.get("turno") != 2 and not f.get("bloqueada") and not (vecinos & duros):
                     nueva = {k: v for k, v in s.items() if k not in ("estado", "real")}
-                    nueva.update(fecha=f["fecha"], estado=f["estado"], movida=s["fecha"])
+                    nueva.update(fecha=f["fecha"], estado=f["estado"], movida=s["fecha"],
+                                 porque=tr(f"La calidad del {_dia(date.fromisoformat(s['fecha']))} no se hizo: la paso aquí porque es la sesión que más rinde.",
+                                           f"{_dia(date.fromisoformat(s['fecha']))}'s quality session didn't happen: I moved it here because it's the most valuable one.",
+                                           f"A qualidade de {_dia(date.fromisoformat(s['fecha']))} não foi feita: passo para cá porque é a sessão que mais rende."))
                     f.clear(); f.update(nueva)
                     s["movida_a"] = nueva["fecha"]
                     mensajes.append(tr(f"Te sugiero pasar la sesión de calidad del {_dia(date.fromisoformat(s['fecha']))} al "
@@ -549,8 +900,11 @@ def _ajustar_semana(sesiones: list[dict], hoy: date, carga: dict) -> list[str]:
     if carga["nivel"] == "rojo":
         for f in sesiones:
             if f["estado"] in ("hoy", "pendiente") and f["tipo"] in ("umbral", "intensa"):
-                f.update(tipo="suave", titulo=tr("Mejor un rodaje suave", "Better an easy run", "Melhor uma rodagem leve"),
+                f.update(tipo="suave", cambiada=True, titulo=tr("Mejor un rodaje suave", "Better an easy run", "Melhor uma rodagem leve"),
                          texto=f"regenerativo {round(f['km'] * 0.8)}k", km=round(f["km"] * 0.8), zona=1,
+                         porque=tr(f"Tu carga de la semana es ×{_f(carga['acwr'] or 0, 2)} tu condición (sano: hasta ×1,3).",
+                                   f"Your weekly load is ×{_f(carga['acwr'] or 0, 2)} your fitness (healthy: up to ×1.3).",
+                                   f"Sua carga da semana é ×{_f(carga['acwr'] or 0, 2)} sua condição (saudável: até ×1,3)."),
                          nota=tr("Tocaba calidad, pero tu carga está muy alta: te recomiendo suave para absorber lo hecho.",
                                  "This was a quality day, but your load is very high: I recommend easy to absorb the work.",
                                  "Era dia de qualidade, mas sua carga está muito alta: recomendo leve para absorver o treino."))
@@ -568,6 +922,9 @@ def plan(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date | None = N
     if obj not in OBJETIVOS:
         return {"perfil": None}
     perfil = {"dias": 4, "dia_largo": 6, "inicio": hoy.isoformat()} | {k: v for k, v in perfil.items() if v is not None}
+    if 3 <= len(set(perfil.get("dias_semana") or [])) <= 7:
+        perfil["dias"] = len(set(perfil["dias_semana"]))
+        perfil["dia_largo"] = _plantilla(perfil)[1]
     if obj != "forma" and (not perfil.get("fecha") or date.fromisoformat(perfil["fecha"]) < hoy):
         return {"perfil": perfil, "error": tr("Elige la fecha de tu carrera (desde hoy en adelante).",
                                               "Pick your race date (from today on).",
@@ -582,18 +939,30 @@ def plan(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date | None = N
     pico = _pico(perfil, max(base, _km4(carreras, lunes_hoy)))
     # Semana a semana: las pasadas con las carreras de antes de su lunes; las
     # que vienen, suponiendo que se cumple lo pedido.
+    pausas = _pausas(perfil, hoy)
+    nivel_pre: dict[int, float] = {}                  # el nivel con que se entró a cada pausa
     nivel, n_fase, fase_ant, out = base, 0, None, []
     for sem in semanas:
+        for i, p in enumerate(pausas):
+            if i not in nivel_pre and p["desde"] < sem["lunes"] + timedelta(days=7):
+                nivel_pre[i] = nivel
         antes = [c for c in carreras if _fecha(c) < sem["lunes"].isoformat()]
         pasada_o_actual = sem["lunes"] <= lunes_hoy
         real_ant = _km_semana(carreras, sem["lunes"] - timedelta(weeks=1)) if pasada_o_actual and sem["i"] else None
         km4 = _km4(antes, sem["lunes"]) if pasada_o_actual else nivel
         km, nivel = _meta_km(sem, nivel, real_ant, km4, pico)
+        # Reentrada: las semanas después de una pausa parten de una fracción de lo que había antes.
+        f = _factor_reentrada(sem["lunes"], pausas)
+        if f < 1:
+            km = nivel = max(8.0, min(pico, min(nivel_pre[i] * f for i, p in enumerate(pausas)
+                                                if _factor_reentrada(sem["lunes"], [p]) < 1)))
         n_fase = n_fase + 1 if sem["fase"] == fase_ant else 0
         fase_ant = sem["fase"]
         fondo_prev = (_fondo_reciente(antes, sem["lunes"]) if pasada_o_actual
                       else max((w["fondo_km"] for w in out[-3:]), default=0))
         sesiones = plan_semana(perfil, sem, z, km, fondo_prev, n_fase)
+        sesiones = _reentrar(sesiones, pausas)
+        sesiones = _mover(sesiones, perfil.get("movidas"), hoy, sem["lunes"])
         fila = {"lunes": sem["lunes"].isoformat(), "fase": sem["fase"], "descarga": sem["descarga"], "meta_km": round(km),
                 "faltan": sem["faltan"], "km": round(sum(s["km"] for s in sesiones)),
                 "fondo_km": max((s["km"] for s in sesiones if s["tipo"] == "fondo"), default=0),
@@ -608,8 +977,20 @@ def plan(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date | None = N
         fila["sesiones"] = sesiones
         out.append(fila)
     actual = next((w for w in out if w["lunes"] == lunes_hoy.isoformat()), None)
-    mensajes = _ajustar_semana(actual["sesiones"], hoy, carga) if actual else []
-    mensajes = _resumen(out, lunes_hoy, carga, perfil) + mensajes
+    pausa = next((p for p in pausas if p["activa"]), None)
+    mensajes, descanso = [], None
+    if actual:
+        mensajes = _ajustar_semana(actual["sesiones"], hoy, carga) if not pausa else []
+        actual["sesiones"], m_sens, descanso = _sensaciones(actual["sesiones"], perfil, hoy, carga)
+        mensajes += m_sens
+        _porque_semana(actual["sesiones"], carga, perfil)
+    for w in out:                                   # lo que el Coach cambió: su ritmo, minutos y esfuerzo de nuevo
+        for s in w["sesiones"]:
+            if s.pop("cambiada", None):
+                _metricas(s, perfil, z)
+            s.pop("bloqueada", None)
+            s.pop("trabajo_km", None)
+    mensajes = _mensajes_pausa(pausas, hoy) + _resumen(out, lunes_hoy, carga, perfil) + mensajes
     de_hoy = [s for s in (actual or {}).get("sesiones", []) if s["fecha"] == hoy.isoformat() and s["tipo"] != "extra"]
     hoy_s = de_hoy[0] if de_hoy else None
     i_act = next((i for i, w in enumerate(out) if w["lunes"] == lunes_hoy.isoformat()), len(out) - 1)
@@ -627,7 +1008,47 @@ def plan(perfil: dict, carreras: list[dict], ajustes: dict, hoy: date | None = N
             "semana": actual, "mensajes": mensajes,
             "semanas": [{k: v for k, v in w.items() if k != "sesiones"} for w in out[max(0, i_act - 3):i_act + 6]],
             "faltan_semanas": actual["faltan"] if obj != "forma" and actual else None,
+            "pausa": {"desde": pausa["desde"].isoformat(), "motivo": pausa["motivo"], "dias": pausa["dias"]} if pausa else None,
+            "descanso": descanso, "preguntar": _preguntar(carreras, perfil, hoy, actual),
             "zonas_ok": bool(z.get("ritmo") or z.get("fc"))}
+
+
+def _mensajes_pausa(pausas: list[dict], hoy: date) -> list[str]:
+    for p in pausas:
+        motivo = tr(*MOTIVOS[p["motivo"]])
+        if p["activa"]:
+            return [tr(f"Plan en pausa por {motivo} desde el {_dia_n(p['desde'])} ({p['dias']} días). Cuando vuelvas, "
+                       "toca «Volver a entrenar» y armo una reentrada suave.",
+                       f"Plan paused for {motivo} since {_dia_n(p['desde'])} ({p['dias']} days). When you're back, "
+                       "tap «Back to training» and I'll set up a gentle return.",
+                       f"Plano em pausa por {motivo} desde {_dia_n(p['desde'])} ({p['dias']} dias). Quando voltar, "
+                       "toque em «Voltar a treinar» e preparo um retorno leve.")]
+        if p["fin"] < hoy <= p["suave_hasta"] + timedelta(days=7 * len(p["factores"])):
+            vol = ""
+            if p["factores"]:
+                vol = tr(f" El volumen vuelve de a poco: {', '.join(f'{round(100 * f)} %' for f in p['factores'])} de lo que hacías, semana a semana.",
+                         f" Volume comes back gradually: {', '.join(f'{round(100 * f)}%' for f in p['factores'])} of what you did, week by week.",
+                         f" O volume volta aos poucos: {', '.join(f'{round(100 * f)} %' for f in p['factores'])} do que você fazia, semana a semana.")
+            les = (" " + tr("Si vuelve el dolor, para y consulta a un profesional.", "If the pain returns, stop and see a professional.",
+                            "Se a dor voltar, pare e procure um profissional.")) if p["motivo"] == "lesion" else ""
+            return [tr(f"Bienvenido de vuelta: {p['dias']} días sin correr ({motivo}). Sólo suave hasta el {_dia_n(p['suave_hasta'])}.",
+                       f"Welcome back: {p['dias']} days off ({motivo}). Easy only until {_dia_n(p['suave_hasta'])}.",
+                       f"Bem-vindo de volta: {p['dias']} dias sem correr ({motivo}). Só leve até {_dia_n(p['suave_hasta'])}.") + vol + les]
+    return []
+
+
+def _preguntar(carreras: list[dict], perfil: dict, hoy: date, actual: dict | None) -> dict | None:
+    """La última salida de los últimos 3 días sin «¿cómo te sentiste?»."""
+    ya = {str(s.get("fecha"))[:10] for s in perfil.get("sensaciones") or []}
+    desde = (hoy - timedelta(days=2)).isoformat()
+    sin = sorted([c for c in carreras if desde <= _fecha(c) <= hoy.isoformat() and _fecha(c) not in ya], key=_fecha)
+    if not sin:
+        return None
+    c = sin[-1]
+    s = next((s for s in (actual or {}).get("sesiones", []) if (s.get("real") or {}).get("fecha") == _fecha(c)
+              and s["tipo"] != "extra"), None)
+    return {"fecha": _fecha(c), "km": round((c.get("distancia_m") or 0) / 1000, 1),
+            "titulo": s["titulo"] if s else (c.get("nombre") or tr("tu carrera", "your run", "sua corrida"))}
 
 
 def _resumen(out: list[dict], lunes_hoy: date, carga: dict, perfil: dict) -> list[str]:

@@ -55,7 +55,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -1452,6 +1452,23 @@ class Ajustes(BaseModel):
     fase: Literal["basica", "especifica", "competencia"] = "basica"
 
 
+class Sensacion(BaseModel):
+    fecha: date
+    nota: int = Field(ge=1, le=5)                     # 1 muy mal … 5 muy bien
+    dolor: Literal["rodilla", "tobillo", "gemelo", "cadera", "espalda", "otra"] | None = None
+
+
+class Pausa(BaseModel):
+    desde: date
+    hasta: date | None = None                         # último día sin correr; None = sigue en pausa
+    motivo: Literal["enfermedad", "lesion", "viaje", "otro"] = "otro"
+
+
+class Movida(BaseModel):
+    de: date
+    a: date
+
+
 class PerfilCoach(BaseModel):
     """El objetivo del Coach (pp_coach en el teléfono y en la cuenta)."""
     objetivo: Literal["5k", "10k", "21k", "42k", "forma"]
@@ -1462,6 +1479,18 @@ class PerfilCoach(BaseModel):
     tiempo_objetivo_s: float | None = Field(default=None, ge=600, le=30_000)
     dia_largo: int = Field(default=6, ge=0, le=6)       # 0 = lunes
     inicio: date | None = None          # desde cuándo vale el plan
+    dias_semana: list[int] | None = Field(default=None, max_length=7)    # 0 = lunes; si están, mandan sobre «dias»
+    sensaciones: list[Sensacion] = Field(default_factory=list, max_length=60)
+    pausas: list[Pausa] = Field(default_factory=list, max_length=20)
+    movidas: list[Movida] = Field(default_factory=list, max_length=30)
+
+    @field_validator("dias_semana")
+    @classmethod
+    def _dias_validos(cls, v: list[int] | None) -> list[int] | None:
+        if v is None:
+            return None
+        v = sorted({d for d in v if 0 <= d <= 6})
+        return v if 3 <= len(v) <= 7 else None
 
 
 class PedidoRevision(BaseModel):
