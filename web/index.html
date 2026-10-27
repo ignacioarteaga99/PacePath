@@ -3868,6 +3868,7 @@ Object.assign(EN, {
   "Ritmo series": "Rep pace",
   "FC series": "Rep HR",
   "Carga": "Load",
+  "Es un rodaje continuo (una vuelta automática por km): no son series. Si sí lo fueron, marca abajo cuáles vueltas son repeticiones.": "It's a continuous run (an automatic lap every km): not reps. If they were, mark below which laps are reps.",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -4203,6 +4204,7 @@ Object.assign(PT, {
   "Ritmo series": "Ritmo séries",
   "FC series": "FC séries",
   "Carga": "Carga",
+  "Es un rodaje continuo (una vuelta automática por km): no son series. Si sí lo fueron, marca abajo cuáles vueltas son repeticiones.": "É uma corrida contínua (uma volta automática por km): não são séries. Se foram, marque abaixo quais voltas são repetições.",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -5008,7 +5010,7 @@ function propuestaHtml(e) {
   if (pr.error) return `<div class="propuesta"><p class="aviso" style="margin:0">${esc(pr.error)}</p><div class="coach-acciones"><button type="button" class="sec" data-prop-no>${t("Cerrar")}</button></div></div>`;
   const r = pr.res, est = r.bloques.map(estructura).join(" + ");
   return `<div class="propuesta"><b>${t("Tiempos de Strava: revisa antes de usarlos")}</b>
-    <p class="sub" style="margin:4px 0 8px">${est ? t("Encontré {e}.", { e: est }) : t("No encontré series: marca abajo cuáles vueltas son repeticiones.")}
+    <p class="sub" style="margin:4px 0 8px">${est ? t("Encontré {e}.", { e: est }) : r.continuo ? t("Es un rodaje continuo (una vuelta automática por km): no son series. Si sí lo fueron, marca abajo cuáles vueltas son repeticiones.") : t("No encontré series: marca abajo cuáles vueltas son repeticiones.")}
       ${r.calentamiento_km ? " " + t("Calentamiento {k}", { k: fmtDistKm(r.calentamiento_km, 1) }) + "." : ""}${r.vuelta_calma_km ? " " + t("Vuelta a la calma {k}", { k: fmtDistKm(r.vuelta_calma_km, 1) }) + "." : ""}</p>
     <table class="vueltas"><thead><tr><th>#</th><th>${t("Dist.")}</th><th>${t("Tiempo")}</th><th>${t("Ritmo")}</th><th>${t("Es")}</th></tr></thead><tbody>
       ${r.vueltas.map((v, i) => `<tr class="${r.marcas[i]}"><td>${v.i}</td>
@@ -5095,7 +5097,7 @@ function pintarEditorEntrada() {
       <div id="bloquesEnt">${(e.bloques || []).map(bloqueHtml).join("")}</div>
       <div class="coach-acciones" style="margin-top:0"><button type="button" class="mini" data-nuevo-b="dist">+ ${t("Bloque por distancia")}</button>
         <button type="button" class="mini" data-nuevo-b="dur">+ ${t("Bloque por tiempo")}</button>
-        ${stravaId && !e._prop ? `<button type="button" class="mini" data-strava-t="${stravaId}">⤓ ${t("Tiempos de Strava")}</button>` : ""}</div>
+        ${stravaId && !e._prop && !["fondo", "suave"].includes(e.tipo) ? `<button type="button" class="mini" data-strava-t="${stravaId}">⤓ ${t("Tiempos de Strava")}</button>` : ""}</div>
       ${comparaHtml}
       <div class="rejilla-b"><label>${t("Calentamiento (km)")}<input id="calEnt" inputmode="decimal" value="${e.cal_km ?? ""}" placeholder="3"></label>
         <label>${t("Vuelta a la calma (km)")}<input id="vcEnt" inputmode="decimal" value="${e.vc_km ?? ""}" placeholder="2"></label></div>

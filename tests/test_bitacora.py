@@ -98,3 +98,13 @@ def test_fc_de_las_series_y_kpis():
                             "bloques": [b]}))
     assert k["Ritmo medio"] == "5:00/km" and k["Ritmo en las series"] == "3:14/km" and k["FC en las series"] == "173 ppm"
     assert k["FC media"] == "158 ppm" and k["Desnivel"] == "+42 m" and k["Cadencia"] == "178 spm" and k["Carga (RPE × min)"] == "360"
+
+
+def test_fondo_con_vuelta_automatica_no_son_series():
+    # 16 km con lap automático cada km (5:00–5:10) y el último, más corto y lento: es un fondo, no 15x1000.
+    laps = [{"distancia_m": 1000, "tiempo_s": t} for t in (308, 300, 302, 305, 299, 301, 303, 306, 300, 298, 304, 302, 307, 301, 300)]
+    laps.append({"distancia_m": 980, "tiempo_s": 360})
+    p = bitacora.proponer(laps)
+    assert p["bloques"] == [] and p["continuo"]
+    # Unas series de verdad (con pausas entre repeticiones) siguen saliendo.
+    assert bitacora.proponer(SESION)["bloques"] and not bitacora.proponer(SESION)["continuo"]

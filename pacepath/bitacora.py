@@ -71,11 +71,16 @@ def proponer(vueltas: list[dict], plan: dict | None = None, marcas: list[str] | 
     vuelta_calma_km, vueltas}. Sin series claras, bloques vacío."""
     vueltas = [{"distancia_m": float(v.get("distancia_m") or 0), "tiempo_s": float(v.get("tiempo_s") or 0),
                 "fc": v.get("fc")} for v in vueltas]
+    continuo = False
     if marcas and len(marcas) == len(vueltas) and all(m in MARCAS for m in marcas):
         reps = [i for i, m in enumerate(marcas) if m == "rep"]
     else:
         reps = (_reps_por_plan(vueltas, plan) if plan else []) or _reps_por_salto(vueltas)
         marcas = None
+        # Rodaje continuo con vuelta automática cada km (un fondo): las «repeticiones»
+        # van pegadas, sin pausa entre ellas. Unas series siempre tienen pausas.
+        if len(reps) >= 3 and sum(b - a > 1 for a, b in zip(reps, reps[1:])) < (len(reps) - 1) / 2:
+            reps, continuo = [], True
     if not marcas:
         marcas = ["pausa"] * len(vueltas)
         for i in reps:
@@ -87,6 +92,7 @@ def proponer(vueltas: list[dict], plan: dict | None = None, marcas: list[str] | 
                 marcas[i] = "vc"
     km = lambda tipo: round(sum(v["distancia_m"] for v, m in zip(vueltas, marcas) if m == tipo) / 1000, 1)  # noqa: E731
     out = {"marcas": marcas, "calentamiento_km": km("cal"), "vuelta_calma_km": km("vc"), "bloques": [],
+           "continuo": continuo,
            "vueltas": [{"i": i + 1, "distancia_m": round(v["distancia_m"]), "tiempo_s": round(v["tiempo_s"], 1),
                         "ritmo_s": round(r) if (r := _ritmo(v)) else None, "fc": v["fc"]} for i, v in enumerate(vueltas)]}
     if len(reps) < 2:
