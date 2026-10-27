@@ -1494,6 +1494,7 @@ class BloqueEnvio(BaseModel):
     p_rep: float | None = Field(default=None, ge=0, le=3600)
     p_serie: float | None = Field(default=None, ge=0, le=3600)
     tiempos: list[list[float | None]] = Field(default_factory=list, max_length=20)
+    fc_media: float | None = Field(default=None, ge=30, le=240)
 
     @field_validator("tiempos")
     @classmethod
@@ -1514,6 +1515,10 @@ class EntradaEnvio(BaseModel):
     vc_km: float | None = Field(default=None, ge=0, le=100)
     rpe: int | None = Field(default=None, ge=1, le=10)
     sensaciones: str | None = Field(default=None, max_length=800)
+    fc_media: float | None = Field(default=None, ge=30, le=240)
+    fc_max: float | None = Field(default=None, ge=30, le=250)
+    desnivel_m: float | None = Field(default=None, ge=0, le=10_000)
+    cadencia: float | None = Field(default=None, ge=50, le=260)
 
 
 class PedidoEnvio(BaseModel):

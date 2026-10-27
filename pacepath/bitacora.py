@@ -114,7 +114,8 @@ def _bloque(vueltas: list[dict], reps: list[int], plan: dict | None) -> dict:
     if len(reps) == 1:
         v = vueltas[reps[0]]
         return {"series": 1, "reps": 1, "dist_m": distancia_redonda(v["distancia_m"]),
-                "dur_s": None, "obj": None, "p_rep": None, "p_serie": None, "tiempos": [[round(v["tiempo_s"], 1)]]}
+                "dur_s": None, "obj": None, "p_rep": None, "p_serie": None, "tiempos": [[round(v["tiempo_s"], 1)]],
+                "fc_media": _fc(vueltas, reps)}
     # Pausa entre cada repetición y la siguiente: lo que hay entre ellas.
     pausas = [sum(vueltas[j]["tiempo_s"] for j in range(a + 1, b)) for a, b in zip(reps, reps[1:])]
     med = median(pausas)
@@ -150,7 +151,15 @@ def _bloque(vueltas: list[dict], reps: list[int], plan: dict | None) -> dict:
     entre = [pausas[k] for k in cortes] if iguales else []
     b["p_rep"] = int(_redondear(median(dentro), 5)) if dentro and median(dentro) > 0 else None
     b["p_serie"] = int(_redondear(median(entre), 5)) if entre else None
+    b["fc_media"] = _fc(vueltas, reps)
     return b
+
+
+def _fc(vueltas: list[dict], reps: list[int]) -> int | None:
+    """Pulso medio de las repeticiones (ponderado por su tiempo), si el reloj lo midió."""
+    con = [(vueltas[i]["fc"], vueltas[i]["tiempo_s"]) for i in reps if vueltas[i].get("fc")]
+    t = sum(x for _, x in con)
+    return round(sum(f * x for f, x in con) / t) if con and t else None
 
 
 # ── Una entrada, en palabras (para el correo al entrenador) ─────────────────
@@ -188,3 +197,45 @@ def stats_bloque(b: dict) -> dict | None:
     ritmo = (prom / (b["dist_m"] / 1000) if b.get("dist_m") else b["dur_s"] / (prom / 1000)) if not por_tiempo or prom else None
     return {"n": len(vals), "prom": prom, "mejor": max(vals) if por_tiempo else min(vals),
             "peor": min(vals) if por_tiempo else max(vals), "en_rango": en_rango, "ritmo_s_km": ritmo}
+
+
+def kpis(e: dict) -> list[tuple[str, str]]:
+    """Los números de la sesión, para el correo: distancia, tiempo, ritmo medio,
+    ritmo de las series, pulso, desnivel, cadencia, RPE y carga (RPE × minutos)."""
+    from .idioma import en, tr
+    coma = (lambda x: x) if en() else (lambda x: x.replace(".", ","))
+    out: list[tuple[str, str]] = []
+    km, dur = e.get("km"), e.get("dur_s")
+    if km:
+        out.append((tr("Distancia", "Distance", "Distância"), coma(f"{km:.1f} km")))
+    if dur:
+        out.append((tr("Tiempo", "Time", "Tempo"), _mmss(dur)))
+    if km and dur:
+        out.append((tr("Ritmo medio", "Avg pace", "Ritmo médio"), f"{_mmss(dur / km)}/km"))
+    t_rep = km_rep = 0.0
+    fc_t = fc_n = 0.0
+    for b in e.get("bloques") or []:
+        vals = [x for fila in b.get("tiempos") or [] for x in fila or [] if x]
+        if b.get("dist_m") and vals:
+            t_rep += sum(vals)
+            km_rep += len(vals) * b["dist_m"] / 1000
+            if b.get("fc_media"):
+                fc_t += b["fc_media"] * sum(vals)
+                fc_n += sum(vals)
+    if km_rep:
+        out.append((tr("Ritmo en las series", "Rep pace", "Ritmo nas séries"), f"{_mmss(t_rep / km_rep)}/km"))
+    if e.get("fc_media"):
+        out.append((tr("FC media", "Avg HR", "FC média"), f"{round(e['fc_media'])} ppm"))
+    if fc_n:
+        out.append((tr("FC en las series", "Rep HR", "FC nas séries"), f"{round(fc_t / fc_n)} ppm"))
+    if e.get("fc_max"):
+        out.append((tr("FC máx.", "Max HR", "FC máx."), f"{round(e['fc_max'])} ppm"))
+    if e.get("desnivel_m"):
+        out.append((tr("Desnivel", "Elevation", "Desnível"), f"+{round(e['desnivel_m'])} m"))
+    if e.get("cadencia"):
+        out.append((tr("Cadencia", "Cadence", "Cadência"), f"{round(e['cadencia'])} spm"))
+    if e.get("rpe"):
+        out.append(("RPE", f"{e['rpe']}/10"))
+        if dur:
+            out.append((tr("Carga (RPE × min)", "Load (RPE × min)", "Carga (RPE × min)"), str(round(e["rpe"] * dur / 60))))
+    return out

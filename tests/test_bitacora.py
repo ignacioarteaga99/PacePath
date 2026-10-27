@@ -87,3 +87,14 @@ def test_api():
     assert r.status_code == 200 and r.json()["bloques"][0]["reps"] == 3
     assert cli.post("/api/bitacora/series", json={"vueltas": SESION, "marcas": ["x"] * 13}).status_code == 422
     assert cli.get("/api/strava/vueltas?id=1").status_code == 401
+
+
+def test_fc_de_las_series_y_kpis():
+    laps = [{"distancia_m": d, "tiempo_s": t, "fc": f} for d, t, f in
+            [(2000, 640, 140), (1000, 195, 170), (200, 60, 150), (1000, 194, 174), (200, 60, 152), (1000, 192, 176), (1500, 500, 145)]]
+    b = bitacora.proponer(laps)["bloques"][0]
+    assert b["fc_media"] == 173
+    k = dict(bitacora.kpis({"km": 9.0, "dur_s": 2700, "rpe": 8, "fc_media": 158, "fc_max": 181, "desnivel_m": 42, "cadencia": 178,
+                            "bloques": [b]}))
+    assert k["Ritmo medio"] == "5:00/km" and k["Ritmo en las series"] == "3:14/km" and k["FC en las series"] == "173 ppm"
+    assert k["FC media"] == "158 ppm" and k["Desnivel"] == "+42 m" and k["Cadencia"] == "178 spm" and k["Carga (RPE × min)"] == "360"

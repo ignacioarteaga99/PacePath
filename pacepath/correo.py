@@ -157,7 +157,8 @@ def _pie() -> list[tuple[str, str]]:
 
 
 def _correo(titulo: str, parrafos: list[str], boton: tuple[str, str] | None = None,
-            nota: str | None = None, lista: list[str] | None = None, motivo: str | None = None) -> tuple[str, str]:
+            nota: str | None = None, lista: list[str] | None = None, motivo: str | None = None,
+            kpis: list[tuple[str, str]] | None = None) -> tuple[str, str]:
     """(texto plano, HTML). Los párrafos son texto (se escapa); `lista` son
     viñetas; `nota` va chica bajo el botón; `motivo`, al pie, por qué le llega."""
     e = html.escape
@@ -168,6 +169,7 @@ def _correo(titulo: str, parrafos: list[str], boton: tuple[str, str] | None = No
                           "Você recebe este e-mail por causa da sua conta no PacePath.")
     # Texto plano
     t = [titulo, ""] + [p + "\n" for p in parrafos]
+    t += [f"{k}: {v}" for k, v in (kpis or [])] + ([""] if kpis else [])
     t += [f"  · {x}" for x in (lista or [])] + ([""] if lista else [])
     if boton:
         t += [f"{boton[0]}: {boton[1]}", ""]
@@ -184,6 +186,14 @@ def _correo(titulo: str, parrafos: list[str], boton: tuple[str, str] | None = No
     fuente = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
     cuerpo = "".join(f'<p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:{TINTA}">{e(p)}</p>'
                      for p in parrafos)
+    if kpis:
+        # Fichas de 3 por fila (tablas: es lo que respetan todos los clientes de correo).
+        filas = [kpis[i:i + 3] for i in range(0, len(kpis), 3)]
+        cuerpo += '<table role="presentation" width="100%" cellpadding="0" cellspacing="6" style="margin:0 -6px 12px">' + "".join(
+            "<tr>" + "".join(f'<td width="33%" style="background:{FONDO};border-radius:12px;padding:10px 12px;vertical-align:top">'
+                             f'<div style="font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:{SUAVE}">{e(k)}</div>'
+                             f'<div style="font-size:17px;font-weight:800;color:{TINTA};margin-top:2px;white-space:nowrap">{e(v)}</div></td>'  for k, v in fila)
+            + "".join('<td width="33%"></td>' for _ in range(3 - len(fila))) + "</tr>" for fila in filas) + "</table>"
     if lista:
         cuerpo += '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 18px">' + "".join(
             f'<tr><td style="vertical-align:top;padding:4px 10px 4px 0;color:{ACENTO};font-size:16px">●</td>'
@@ -434,12 +444,8 @@ def sesion_entrenador(para: str, de_nombre: str, de_correo: str, entrenador: str
                 partes.append(tr(f"{s['en_rango']} de {s['n']} en el rango", f"{s['en_rango']} of {s['n']} on target",
                                  f"{s['en_rango']} de {s['n']} no alvo"))
             lista.append(" · ".join(partes))
-    totales = [f"{e['km']:.1f} km".replace(".", "," if not idioma.en() else ".") if e.get("km") else "",
-               bitacora._mmss(e["dur_s"]) if e.get("dur_s") else "",
-               tr(f"calentamiento {e['cal_km']} km", f"warm-up {e['cal_km']} km", f"aquecimento {e['cal_km']} km") if e.get("cal_km") else "",
-               tr(f"vuelta a la calma {e['vc_km']} km", f"cool-down {e['vc_km']} km", f"desaquecimento {e['vc_km']} km") if e.get("vc_km") else "",
-               tr(f"esfuerzo percibido (RPE) {e['rpe']}/10", f"perceived effort (RPE) {e['rpe']}/10",
-                  f"esforço percebido (RPE) {e['rpe']}/10") if e.get("rpe") else ""]
+    totales = [tr(f"calentamiento {e['cal_km']} km", f"warm-up {e['cal_km']} km", f"aquecimento {e['cal_km']} km") if e.get("cal_km") else "",
+               tr(f"vuelta a la calma {e['vc_km']} km", f"cool-down {e['vc_km']} km", f"desaquecimento {e['vc_km']} km") if e.get("vc_km") else ""]
     totales = " · ".join(x for x in totales if x)
     if totales:
         lista.append(totales)
@@ -450,7 +456,7 @@ def sesion_entrenador(para: str, de_nombre: str, de_correo: str, entrenador: str
     if nota:
         parrafos.append(tr(f"Nota de {de_nombre}: ", f"Note from {de_nombre}: ", f"Nota de {de_nombre}: ") + nota)
     texto, h = _correo(tr(f"{de_nombre} completó su sesión", f"{de_nombre} completed a session",
-                          f"{de_nombre} completou a sessão"), parrafos, lista=lista,
+                          f"{de_nombre} completou a sessão"), parrafos, lista=lista, kpis=bitacora.kpis(e),
                        nota=tr(f"Responde este correo para escribirle a {de_nombre}.",
                                f"Reply to this email to write to {de_nombre}.",
                                f"Responda este e-mail para escrever para {de_nombre}."),

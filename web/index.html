@@ -348,6 +348,12 @@
   .rpe { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
   .r1 { background: #e3f4e8; color: #1a7a35; } .r2 { background: #fff1d6; color: #8a5a00; } .r3 { background: #fde2cf; color: #9a3b0a; } .r4 { background: #fde4e4; color: #a32020; }
   .obj-dia { margin: 4px 0; font-size: 14px; }
+  .kpis-e { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 8px 0 2px; }
+  .kpis-e span { background: var(--fondo); border-radius: 10px; padding: 6px 8px; min-width: 0; }
+  .kpis-e small { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .2px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpis-e b { font-size: 15px; color: var(--tinta); white-space: nowrap; }
+  .coach-form .kpis-e span { background: var(--gris); }
+  .rejilla-b.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .obj-fila .faltan.res { color: var(--tinta); }
   .historial-obj { margin-top: 8px; } .historial-obj summary { font-size: 13px; color: var(--suave); cursor: pointer; }
   .entradas p.compara, .entradas small.compara { color: var(--acento-osc); font-weight: 600; }
@@ -3852,6 +3858,16 @@ Object.assign(EN, {
   "El envío de correos de PacePath no está activo en el servidor.": "PacePath email sending isn't active on the server.",
   "¿Prefieres mandarlo tú?": "Rather send it yourself?",
   "Abrir mi app de correo": "Open my email app",
+  "Ritmo en las series": "Rep pace",
+  "FC media": "Avg HR",
+  "FC en las series": "Rep HR",
+  "FC máx.": "Max HR",
+  "Cadencia": "Cadence",
+  "Carga (RPE × min)": "Load (RPE × min)",
+  "Desnivel (m)": "Elevation (m)",
+  "Ritmo series": "Rep pace",
+  "FC series": "Rep HR",
+  "Carga": "Load",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -4177,6 +4193,16 @@ Object.assign(PT, {
   "El envío de correos de PacePath no está activo en el servidor.": "O envio de e-mails do PacePath não está ativo no servidor.",
   "¿Prefieres mandarlo tú?": "Prefere mandar você mesmo?",
   "Abrir mi app de correo": "Abrir meu app de e-mail",
+  "Ritmo en las series": "Ritmo nas séries",
+  "FC media": "FC média",
+  "FC en las series": "FC nas séries",
+  "FC máx.": "FC máx.",
+  "Cadencia": "Cadência",
+  "Carga (RPE × min)": "Carga (RPE × min)",
+  "Desnivel (m)": "Desnível (m)",
+  "Ritmo series": "Ritmo séries",
+  "FC series": "FC séries",
+  "Carga": "Carga",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -4558,6 +4584,32 @@ function compararTxt(e) {
   const d = ya - antes, rpe = a.rpe && e.rpe ? (a.rpe === e.rpe ? t("mismo RPE") : `RPE ${a.rpe} → ${e.rpe}`) : "";
   return `${t("vs {f}", { f: fechaCorta(new Date(a.fecha + "T12:00")) })}: ${Math.abs(d) < 0.5 ? t("igual") : difTxt(d)}${rpe ? " · " + rpe : ""}`;
 }
+// Los números de la sesión: lo anotado y, si falta, lo de su carrera de Strava (pulso, desnivel, cadencia).
+function datosEntrada(e) {
+  const c = e.strava_id ? carrerasBitacora.find((x) => String(x.id) === String(e.strava_id)) : null;
+  return { ...e, fc_media: e.fc_media ?? c?.fc_media ?? null, fc_max: e.fc_max ?? c?.fc_max ?? null,
+           desnivel_m: e.desnivel_m ?? c?.desnivel_m ?? null, cadencia: e.cadencia ?? c?.cadencia ?? null };
+}
+function kpisEntrada(e) {
+  const d = datosEntrada(e), out = [];
+  let tRep = 0, kmRep = 0, fcT = 0, fcN = 0;
+  for (const b of d.bloques || []) {
+    const v = (b.tiempos || []).flat().filter((x) => x > 0);
+    if (b.dist_m && v.length) { const s = v.reduce((a, x) => a + x, 0); tRep += s; kmRep += v.length * b.dist_m / 1000; if (b.fc_media) { fcT += b.fc_media * s; fcN += s; } }
+  }
+  if (d.km) out.push(["Distancia", fmtDistKm(d.km, 1)]);
+  if (d.dur_s) out.push(["Tiempo", hms(d.dur_s)]);
+  if (d.km && d.dur_s) out.push(["Ritmo medio", ritmo(d.dur_s / d.km)]);
+  if (kmRep) out.push(["Ritmo series", ritmo(tRep / kmRep)]);
+  if (d.fc_media) out.push(["FC media", `${Math.round(d.fc_media)} ppm`]);
+  if (fcN) out.push(["FC series", `${Math.round(fcT / fcN)} ppm`]);
+  if (d.fc_max) out.push(["FC máx.", `${Math.round(d.fc_max)} ppm`]);
+  if (d.desnivel_m) out.push(["Desnivel", `+${Math.round(d.desnivel_m)} m`]);
+  if (d.cadencia) out.push(["Cadencia", `${Math.round(d.cadencia)} spm`]);
+  if (d.rpe) { out.push(["RPE", `${d.rpe}/10`]); if (d.dur_s) out.push(["Carga", num(d.rpe * d.dur_s / 60)]); }
+  return out;
+}
+const kpisHtml = (e) => { const k = kpisEntrada(e); return k.length ? `<div class="kpis-e">${k.map(([et, v]) => `<span><small>${t(et)}</small><b>${v}</b></span>`).join("")}</div>` : ""; };
 // Km de la sesión: calentamiento + repeticiones + vuelta a la calma (si no los escribiste).
 const kmAuto = (e) => { const k = (e.cal_km || 0) + (e.bloques || []).reduce((a, b) => a + (statsBloque(b)?.km || 0), 0) + (e.vc_km || 0);
   return k ? Math.round(k * 10) / 10 : null; };
@@ -4712,8 +4764,8 @@ function textoEntrada(e) {
       : t("Promedio {x} ({r})", { x: mmss(s.prom), r: b.dist_m ? ritmo(s.ritmo) : "" }).replace(" ()", "") + (s.enRango != null ? " · " + t("{n} de {m} en rango", { n: s.enRango, m: s.n }) : ""));
   }
   if (e.cal_km || e.vc_km) lin.push([e.cal_km ? t("Calentamiento {k}", { k: fmtDistKm(e.cal_km, 1) }) : "", e.vc_km ? t("Vuelta a la calma {k}", { k: fmtDistKm(e.vc_km, 1) }) : ""].filter(Boolean).join(" · "));
-  const tot = [e.km ? fmtDistKm(e.km, 1) : "", e.dur_s ? hms(e.dur_s) : "", e.rpe ? `RPE ${e.rpe}/10` : ""].filter(Boolean).join(" · ");
-  if (tot) lin.push(tot);
+  const k = kpisEntrada(e);
+  if (k.length) lin.push(k.map(([et, v]) => `${t(et)}: ${v}`).join(" · "));
   if (e.sensaciones) lin.push(`${t("Sensaciones")}: ${e.sensaciones}`);
   return lin.join("\n");
 }
@@ -4810,7 +4862,8 @@ function pintarBitacora() {
     ${entradasDia.length ? `<ul class="entradas">${entradasDia.map((e) => `<li>
       <div class="cab-e"><b>${e.turno ? `<span class="turno">${t(TURNOS.find(([k]) => k === e.turno)[1])}</span>` : ""}${esc(e.titulo || t(TIPOS_B.find(([k]) => k === e.tipo)?.[1] || "Sesión"))}</b>
         ${e.rpe ? `<span class="rpe r${Math.min(4, Math.ceil(e.rpe / 2.5))}">RPE ${e.rpe}</span>` : ""}</div>
-      <p>${esc(resumenEntrada(e))}</p>${compararTxt(e) ? `<p class="compara">📈 ${esc(compararTxt(e))}</p>` : ""}${e.sensaciones ? `<p class="sens">“${esc(e.sensaciones)}”</p>` : ""}
+      ${(e.bloques || []).length ? `<p>${esc((e.bloques || []).map((b) => { const s = statsBloque(b); return estructura(b) + (s ? ` · ${b.dur_s ? t("prom. {x} m", { x: num(s.prom) }) : t("prom. {x}", { x: mmss(s.prom) })}` : ""); }).join(" · "))}</p>` : ""}
+      ${kpisHtml(e)}${compararTxt(e) ? `<p class="compara">📈 ${esc(compararTxt(e))}</p>` : ""}${e.sensaciones ? `<p class="sens">“${esc(e.sensaciones)}”</p>` : ""}
       <div class="coach-acciones"><button type="button" class="mini" data-ent-ed="${e.id}">✎ ${t("Editar")}</button>
         <button type="button" class="mini" data-ent-copiar="${e.id}">⧉ ${t("Copiar")}</button>
         <button type="button" class="mini" data-ent-enviar="${e.id}">✈️ ${t("Enviar")}</button></div></li>`).join("")}</ul>`
@@ -4873,6 +4926,7 @@ function pintarBitacora() {
     const c = carrerasBitacora.find((c) => String(c.id) === x.dataset.entStrava);
     const l = leerSesion(c.nombre || "");
     nueva({ titulo: c.nombre || "", texto: l.bloques.length ? c.nombre : "", strava_id: c.id, km: Math.round(c.distancia_m / 100) / 10, km_manual: true, dur_s: c.tiempo_s,
+            fc_media: c.fc_media ?? null, fc_max: c.fc_max ?? null, desnivel_m: c.desnivel_m ?? null, cadencia: c.cadencia ?? null,
             turno: +(c.fecha_local || c.fecha).slice(11, 13) < 12 ? "manana" : +(c.fecha_local || c.fecha).slice(11, 13) < 19 ? "tarde" : "noche",
             tipo: l.tipo || (c.tipo_entreno === 3 ? "series" : "otro"), bloques: l.bloques });
     if (l.bloques.length || c.tipo_entreno === 3) traerStrava(c.id); }; });
@@ -4997,6 +5051,8 @@ function activarPropuesta(e) {
 function pintarEditorEntrada() {
   const e = editandoEntrada;
   if (e.km_manual === undefined) e.km_manual = !!e.km;
+  if (e.strava_id && e.fc_media == null && e.fc_max == null && e.desnivel_m == null) {
+    const d = datosEntrada(e); Object.assign(e, { fc_media: d.fc_media, fc_max: d.fc_max, desnivel_m: d.desnivel_m, cadencia: d.cadencia }); }
   const stravaId = e.strava_id || carrerasBitacora.find((c) => (c.fecha_local || c.fecha).slice(0, 10) === e.fecha)?.id;
   const prev = anteriores(e), yaProm = promRep(e);
   const comparaHtml = prev.length ? `<div class="bloque-rep"><b>${t("Las veces anteriores")} · ${esc(firma(e))}</b><ul class="previas">${prev.map((a) => { const pa = promRep(a);
@@ -5045,6 +5101,10 @@ function pintarEditorEntrada() {
         <label>${t("Vuelta a la calma (km)")}<input id="vcEnt" inputmode="decimal" value="${e.vc_km ?? ""}" placeholder="2"></label></div>
       <div class="rejilla-b"><label>${t("Km totales")}<input id="kmEnt" inputmode="decimal" value="${e.km_manual ? e.km ?? "" : ""}" placeholder="${kmAuto(e) ? t("auto: {k}", { k: num(kmAuto(e), 1) }) : "12"}"></label>
         <label>${t("Tiempo total")}<input id="durEnt" inputmode="text" value="${e.dur_s ? hms(e.dur_s) : ""}" placeholder="1:05:00"></label></div>
+      <div class="rejilla-b tres"><label>${t("FC media")}<input id="fcEnt" inputmode="numeric" value="${e.fc_media ?? ""}" placeholder="ppm"></label>
+        <label>${t("FC máx.")}<input id="fcMaxEnt" inputmode="numeric" value="${e.fc_max ?? ""}" placeholder="ppm"></label>
+        <label>${t("Desnivel (m)")}<input id="desnEnt" inputmode="numeric" value="${e.desnivel_m ?? ""}" placeholder="+m"></label></div>
+      ${kpisHtml({ ...e, km: e.km_manual ? e.km : kmAuto(e) })}
       <label>${t("Esfuerzo percibido (RPE)")}<div class="rpe-escala">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) =>
         `<button type="button" class="rpe-b r${Math.min(4, Math.ceil(n / 2.5))}${e.rpe === n ? " on" : ""}" data-rpe="${n}">${n}</button>`).join("")}</div>
         <small id="rpeTxt" style="font-weight:400">${e.rpe ? `${e.rpe} · ${t(RPE_TXT[e.rpe])}` : t("1 muy suave · 10 máximo")}</small></label>
@@ -5068,6 +5128,7 @@ function leerFormEntrada() {
   e.texto = $("textoEnt").value.trim();
   const num_ = (id) => { const x = parseFloat(($(id).value || "").replace(",", ".")); return Number.isFinite(x) && x > 0 ? x : null; };
   e.cal_km = num_("calEnt"); e.vc_km = num_("vcEnt");
+  e.fc_media = num_("fcEnt"); e.fc_max = num_("fcMaxEnt"); e.desnivel_m = num_("desnEnt");
   const km = num_("kmEnt");
   e.km_manual = km != null;
   e.km = km ?? kmAuto(e);
@@ -5198,11 +5259,11 @@ function pintarEnvio() {
     recordar();
     const btn = ev.submitter || $("formEnvio").querySelector("[type=submit]");
     btn.disabled = true; aviso(t("Enviando…"), true);
-    const { _sens, _prop, id, km_manual, strava_id, texto, tipo, ...entrada } = e;
+    const { _sens, _prop, id, km_manual, strava_id, texto, tipo, ...entrada } = datosEntrada(e);
     const r = await fetch("/api/bitacora/enviar", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ para: d.correo, entrenador: d.nombre || null, de_nombre: d.yo || null, nota: d.nota || null,
         compara: compararTxt(e) || null, entrada: { ...entrada, turno: entrada.turno || null,
-          bloques: (entrada.bloques || []).map(({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos }) => ({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos: tiempos || [] })) } }) }).catch(() => null);
+          bloques: (entrada.bloques || []).map(({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos, fc_media }) => ({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos: tiempos || [], fc_media: fc_media || null })) } }) }).catch(() => null);
     btn.disabled = false;
     if (r?.ok) {
       // Listo: se cierra y se vuelve a donde estabas, con la confirmación arriba.

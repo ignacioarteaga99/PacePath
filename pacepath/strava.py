@@ -293,6 +293,8 @@ def carreras(s: Sesion, pagina: int = 1, despues: int | None = None,
             "desnivel_m": round(a.get("total_elevation_gain") or 0),
             "fc_media": a.get("average_heartrate"),
             "fc_max": a.get("max_heartrate"),
+            # Strava da la cadencia de una pierna: ×2 = pasos por minuto.
+            "cadencia": round(a["average_cadence"] * 2) if a.get("average_cadence") else None,
             # 1 = carrera, 2 = fondo, 3 = entrenamiento (lo que marca el atleta)
             "tipo_entreno": a.get("workout_type"),
             "polilinea": linea,
@@ -304,7 +306,9 @@ def _resumen(a: dict) -> dict:
     return {"id": a["id"], "nombre": a.get("name", ""), "fecha": a.get("start_date", ""),
             "fecha_local": a.get("start_date_local", ""), "distancia_m": round(a.get("distance", 0)),
             "tiempo_s": int(a.get("moving_time") or 0), "fc_media": a.get("average_heartrate"),
-            "fc_max": a.get("max_heartrate"), "tipo_entreno": a.get("workout_type"), "cinta": True}
+            "fc_max": a.get("max_heartrate"), "tipo_entreno": a.get("workout_type"), "cinta": True,
+            "desnivel_m": round(a.get("total_elevation_gain") or 0),
+            "cadencia": round(a["average_cadence"] * 2) if a.get("average_cadence") else None}
 
 
 def histograma(s: Sesion, actividad: int) -> dict:

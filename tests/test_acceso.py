@@ -478,6 +478,7 @@ def test_enviar_sesion_al_entrenador(base, monkeypatch):
     from pacepath import correo
     cli = TestClient(app)
     entrada = {"fecha": "2026-10-27", "titulo": "Series en pista", "turno": "manana", "rpe": 8, "km": 12.4, "cal_km": 3,
+               "dur_s": 3600, "fc_media": 158, "fc_max": 181,
                "sensaciones": "Piernas pesadas en la 2.ª serie",
                "bloques": [{"series": 2, "reps": 3, "dist_m": 1000, "obj": [190, 200], "p_rep": 60, "p_serie": 120,
                             "tiempos": [[195, 194, 192], [198, 202, 188]]}]}
@@ -497,7 +498,8 @@ def test_enviar_sesion_al_entrenador(base, monkeypatch):
     para, asunto, texto, html_, resp = enviados[0]
     assert para == "coach@ejemplo.cl" and resp == "ana@ejemplo.cl" and "Ana" in asunto and "27/10/2026" in asunto
     for x in ("Hola, Pedro", "Ana realizó «Series en pista»", "2x3x1000m (3:10–3:20, 1' entre reps, 2' entre series)",
-              "S1: 3:15 · 3:14 · 3:12", "promedio 3:15", "4 de 6 en el rango", "RPE) 8/10", "calentamiento 3", "−4 s por rep",
+              "S1: 3:15 · 3:14 · 3:12", "promedio 3:15", "4 de 6 en el rango", "RPE: 8/10", "calentamiento 3", "−4 s por rep",
+              "Ritmo medio: 4:50/km", "FC media: 158 ppm", "FC máx.: 181 ppm", "Carga (RPE × min): 480",
               "Piernas pesadas"):
         assert x in texto, x
     assert "Series en pista" in html_
