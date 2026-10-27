@@ -1,0 +1,4 @@
+Fuentes de las historias para Instagram (subconjunto latino, woff2):
+- Inter Display (Medium, SemiBold, Bold) — © The Inter Project Authors — SIL Open Font License 1.1
+- JetBrains Mono (Medium, Bold) — © The JetBrains Mono Project Authors — SIL Open Font License 1.1
+Licencia: https://openfontlicense.org
