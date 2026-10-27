@@ -176,7 +176,7 @@ def guardar_strava(uid: str, cifrada: str | None) -> None:
     registro.sql("UPDATE pp_usuarios SET strava = ? WHERE id = ?", (cifrada, uid))
 
 
-DATOS_MAX = 256_000          # bytes: preferencias, zonas, favoritos, rutas guardadas
+DATOS_MAX = 1_000_000        # bytes: preferencias, zonas, favoritos, rutas guardadas, bitácora
 
 
 def datos_de(uid: str) -> tuple[dict, str | None]:

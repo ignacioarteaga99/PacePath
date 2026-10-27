@@ -316,6 +316,57 @@
   .coach-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--suave); }
   .coach-form input, .coach-form select { font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 10px;
     border: 1px solid var(--linea); background: #fff; }
+  .seg-entreno { margin: 2px 0 10px; } .seg-entreno .chip { font-size: 14px; padding: 7px 14px; }
+  .cab-bloque { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .objetivos { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; }
+  .obj-fila { width: 100%; display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; text-align: left;
+    background: var(--gris); border: 0; border-radius: 12px; padding: 9px 12px; color: var(--tinta); font: inherit; cursor: pointer; }
+  .obj-fila b { display: block; font-size: 15px; } .obj-fila small { color: var(--suave); font-size: 12.5px; }
+  .obj-fila .faltan { font-weight: 800; font-size: 13px; color: var(--acento-osc); white-space: nowrap; }
+  .prio { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 13px; color: #fff; }
+  .prio.pA { background: var(--acento); } .prio.pB { background: #2b6cb0; } .prio.pC { background: #8a8a94; }
+  .cal-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; } .cal-cab b { font-size: 16px; }
+  .cal-grilla { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-sem { text-align: center; font-size: 11px; font-weight: 700; color: var(--suave); padding-bottom: 2px; }
+  .cal-dia { min-height: 50px; border: 1px solid var(--linea); border-radius: 9px; background: var(--fondo); color: var(--tinta);
+    padding: 3px 2px; display: flex; flex-direction: column; align-items: center; gap: 2px; font: inherit; cursor: pointer; overflow: hidden; min-width: 0; }
+  .cal-dia .n { font-size: 13px; font-weight: 700; }
+  .cal-dia.hoy .n { background: var(--acento); color: #fff; border-radius: 999px; padding: 0 6px; }
+  .cal-dia.sel { border: 2px solid var(--tinta); }
+  .cal-dia.meta { background: #fff4ee; }
+  .cal-dia .obj { font-size: 9px; font-weight: 800; color: var(--acento-osc); line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-dia .puntos { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+  .cal-dia .puntos i, .pto { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .cal-dia .puntos i.e, .pto.e { background: var(--acento); } .cal-dia .puntos i.s, .pto.s { background: transparent; border: 1.5px solid var(--suave); }
+  .pto { margin: 0 4px 0 8px; vertical-align: 0; }
+  .entradas { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 8px; }
+  .entradas li { background: var(--gris); border-radius: 12px; padding: 10px 12px; }
+  .entradas .cab-e { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .entradas p { margin: 4px 0 0; font-size: 13.5px; color: var(--suave); } .entradas .sens { font-style: italic; }
+  .entradas .coach-acciones { margin-top: 8px; }
+  .turno { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--acento-osc); margin-right: 6px; }
+  .rpe { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .r1 { background: #e3f4e8; color: #1a7a35; } .r2 { background: #fff1d6; color: #8a5a00; } .r3 { background: #fde2cf; color: #9a3b0a; } .r4 { background: #fde4e4; color: #a32020; }
+  .obj-dia { margin: 4px 0; font-size: 14px; } .sugerencia-b { margin: 8px 0 0; font-size: 13.5px; color: var(--suave); }
+  .rejilla-b { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .rejilla-b label, .coach-form label { min-width: 0; }
+  .rejilla-b input, .coach-form textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+  .dos { display: flex; gap: 6px; min-width: 0; } .dos input { min-width: 0; flex: 1; width: 100%; box-sizing: border-box; }
+  .dos button { flex: none; }
+  #formEntrada, #formObjetivo { min-width: 0; max-width: 100%; }
+  .bloque-rep { border: 1px solid var(--linea); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
+  .bloque-rep .cab-bloque b { font-size: 17px; color: var(--tinta); }
+  .fila-rep { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; flex-wrap: wrap; }
+  .fila-rep .et-s { width: 22px; font-size: 12px; font-weight: 800; color: var(--suave); }
+  .coach-form input.t-rep { width: 62px; padding: 8px 4px; text-align: center; font-variant-numeric: tabular-nums; }
+  .t-rep.ok { border-color: #1a8f3c; background: #eefaf1; } .t-rep.lento { border-color: #c98500; background: #fff6e0; }
+  .t-rep.rapido { border-color: #2b6cb0; background: #eaf2fc; }
+  .stats-b { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: var(--tinta); }
+  .rpe-escala { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+  .rpe-b { border: 2px solid transparent; border-radius: 8px; padding: 8px 0; font-weight: 800; font-size: 14px; cursor: pointer; }
+  .rpe-b.on { border-color: var(--tinta); }
+  .coach-form textarea { font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--linea); background: #fff; resize: vertical; }
+  button.peligro { color: #a32020; }
   .coach-pie { display: flex; gap: 14px; margin-top: 12px; font-size: 13px; flex-wrap: wrap; }
   .coach-hoy p.porque, .coach-semana small.porque { color: var(--tinta); opacity: .8; }
   .coach-hoy.pausa { background: var(--gris); }
@@ -1724,7 +1775,8 @@ fetch("/api/cuenta").then((r) => r.json()).then((c) => {
 // servidor), pero la conexión con Strava sí viaja con la cuenta, así que en
 // un aparato nuevo la descarga parte sola y después sólo trae lo nuevo.
 const DATOS_CUENTA = ["pp_coach", "pp_entreno_ajustes", "pp_fase", "pp_segun_hora", "pp_forma", "pp_radio", "pp_favoritos",
-  "pp_guardadas", "pp_recientes", "pp_usar_frec", "pp_lang", "pp_unidad", "pp_noche", "pp_logros_vistos", "pp_pasaporte_abierto"];
+  "pp_guardadas", "pp_recientes", "pp_usar_frec", "pp_lang", "pp_unidad", "pp_noche", "pp_logros_vistos", "pp_pasaporte_abierto",
+  "pp_bitacora"];
 // Lo de Strava guardado en el teléfono: si entra otra cuenta en este aparato, se borra.
 const DATOS_STRAVA = ["pp_revision", "pp_sync", "pp_lugares", "pp_donde"];
 const hashTexto = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
@@ -3370,6 +3422,7 @@ async function calcularRevision(lista, hist) {
 
 let stravaEntreno = null;
 async function abrirEntreno() {
+  if (subEntreno === "bitacora") abrirBitacora();
   const guardada = leer("pp_revision", null);
   pintarEntreno(guardada);                             // al instante, la última
   stravaEntreno = await fetch("/api/strava/estado").then((r) => r.json()).catch(() => ({}));
@@ -3418,6 +3471,7 @@ function barrasZonas(id, semanas) {
 }
 
 function pintarEntreno(j) {
+  if (subEntreno === "bitacora") { if (!editandoEntrada && !editandoObjetivo) pintarBitacora(); return; }
   const a = ajustesEntreno(), z = j?.zonas, rev = j?.revision, fase = faseEntreno();
   // Con el Coach activo, la fase es la suya (no se elige a mano).
   const faseCoach = leer("pp_coach", null) && j?.coach?.semana?.fase;
@@ -3443,7 +3497,7 @@ function pintarEntreno(j) {
     : z?.fuente_fc === "fc_max_detectada" ? marca(t("vacío: se usa la más alta de tus carreras ({x})", { x: z.fc_max_detectada }), true) : "";
   const forma = rev && !rev.vacia && { polarizada: t("Polarizada"), piramidal: t("Piramidal"), umbral: t("De umbral"), mixta: t("Mixta") }[rev.forma];
   const umbral12 = rev?.semanas ? rev.semanas.reduce((s, w) => s + w.umbral, 0) : 0;
-  hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu entrenamiento")}</h2>
+  hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu entrenamiento")}</h2>${selectorEntreno()}
     <p class="pista" style="margin-top:0">${t("Últimos 3 meses · filosofía del método noruego")}</p>
     ${bloqueCoach(j)}
     ${faseCoach ? `<div class="bloque" style="margin-top:8px"><h3>${t("Fase")}: ${t(FASES.find(([k]) => k === faseCoach)[1])}</h3>
@@ -3506,6 +3560,7 @@ function pintarEntreno(j) {
     recalcularEntreno();
   };
   activarCoach();
+  activarSelectorEntreno();
 }
 
 // ── PacePath Coach (opcional) ───────────────────────────────────────────────
@@ -3572,8 +3627,98 @@ Object.assign(EN, {
   "movida desde el {d}": "moved from {d}",
   "deshacer": "undo",
   "Mover": "Move",
-  "Mañana": "Tomorrow",
+  "Mañana": "Morning",
   "Tu sesión «{s}» está lista: elige desde dónde sales (escribe una calle, usa «Cerca de mí» o toca el mapa) y pulsa «Crear ruta».": "Your «{s}» session is ready: choose where you start (type a street, use «Near me» or tap the map) and press «Create route».",
+
+  "1 muy suave · 10 máximo": "1 very easy · 10 max",
+  "A · la principal": "A · main race",
+  "B · importante": "B · important",
+  "C · de preparación": "C · tune-up",
+  "Agrega tus carreras objetivo (10K Fedachi, 42K MDS…) y aparecen en el calendario con la cuenta regresiva.": "Add your goal races (a 10K, a marathon…) and they show up on the calendar with a countdown.",
+  "Anotar": "Log it",
+  "Arma las series solas. También puedes agregar bloques a mano.": "Builds the reps for you. You can also add blocks by hand.",
+  "Armar": "Build",
+  "Bitácora": "Log",
+  "Bloque por distancia": "Distance block",
+  "Bloque por tiempo": "Time block",
+  "Carrera": "Race",
+  "Coach": "Coach",
+  "Copiada": "Copied",
+  "Copiar": "Copy",
+  "Cómo te sentiste, piernas, clima, qué cambiarías…": "How you felt, legs, weather, what you'd change…",
+  "Distancia (m)": "Distance (m)",
+  "Duración": "Duration",
+  "Elige la fecha.": "Pick the date.",
+  "Entradas": "Entries",
+  "Entrenamiento": "Training",
+  "Escribe la sesión": "Type the session",
+  "Esfuerzo percibido (RPE)": "Perceived effort (RPE)",
+  "Fecha": "Date",
+  "Fondo": "Long run",
+  "Km": "Km",
+  "Km anotados": "Km logged",
+  "Km totales": "Total km",
+  "Mes anterior": "Previous month",
+  "Mes siguiente": "Next month",
+  "Metros de cada repetición": "Meters of each rep",
+  "No entendí la sesión. Prueba con algo como 2x3x1000m (3:10-3:20, 1' entre reps, 2' entre series).": "I didn't get the session. Try something like 2x3x1000m (3:10-3:20, 1' between reps, 2' between sets).",
+  "No se pudo copiar": "Couldn't copy",
+  "Noche": "Night",
+  "Tarde": "Afternoon",
+  "Nombre": "Name",
+  "Nueva entrada": "New entry",
+  "Editar entrada": "Edit entry",
+  "Nuevo objetivo": "New goal",
+  "Editar objetivo": "Edit goal",
+  "Objetivo": "Goal",
+  "Objetivo (desde – hasta)": "Target (from – to)",
+  "Objetivos": "Goals",
+  "Pausa entre reps": "Rest between reps",
+  "Pausa entre series": "Rest between sets",
+  "Ponle un nombre.": "Give it a name.",
+  "Prioridad": "Priority",
+  "Promedio {x}": "Average {x}",
+  "Promedio {x} ({r})": "Average {x} ({r})",
+  "Promedio {x} m ({r})": "Average {x} m ({r})",
+  "Promedio {x} m · {r} · mejor {m} m": "Average {x} m · {r} · best {m} m",
+  "Quitar": "Remove",
+  "RPE medio": "Average RPE",
+  "Registrar": "Log",
+  "Reps": "Reps",
+  "Sensaciones": "How it felt",
+  "Serie {s}, repetición {r}": "Set {s}, rep {r}",
+  "Sin entradas este día.": "No entries this day.",
+  "Suave": "Easy",
+  "Muy suave": "Very easy",
+  "Moderado": "Moderate",
+  "Algo duro": "Somewhat hard",
+  "Duro": "Hard",
+  "Muy duro": "Very hard",
+  "Máximo": "Max",
+  "Tiempo de cada repetición (3:15, 3'15 o 315)": "Time of each rep (3:15, 3'15 or 315)",
+  "Tiempo total": "Total time",
+  "Tipo": "Type",
+  "Tu bitácora": "Your training log",
+  "Turno": "Time of day",
+  "Título": "Title",
+  "carrera de Strava sin anotar": "Strava run not logged",
+  "ej. 10K Fedachi, 42K MDS": "e.g. City 10K, Spring Marathon",
+  "ej. Series en pista": "e.g. Track reps",
+  "entrada de bitácora": "log entry",
+  "mejor {x}": "best {x}",
+  "meta {t}": "goal {t}",
+  "objetivo": "goal",
+  "peor {x}": "worst {x}",
+  "prom. {x}": "avg {x}",
+  "prom. {x} m": "avg {x} m",
+  "{k} en Strava": "{k} on Strava",
+  "{n} de {m} en rango": "{n} of {m} on target",
+  "{n} entradas": "{n} entries",
+  "{p} entre reps": "{p} between reps",
+  "{p} entre series": "{p} between sets",
+  "¡Hoy!": "Today!",
+  "¿Borrar esta entrada?": "Delete this entry?",
+  "¿Borrar este objetivo?": "Delete this goal?",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -3694,8 +3839,103 @@ Object.assign(PT, {
   "movida desde el {d}": "movida de {d}",
   "deshacer": "desfazer",
   "Mover": "Mover",
-  "Mañana": "Amanhã",
+  "Mañana": "Manhã",
   "Tu sesión «{s}» está lista: elige desde dónde sales (escribe una calle, usa «Cerca de mí» o toca el mapa) y pulsa «Crear ruta».": "Sua sessão «{s}» está pronta: escolha de onde você sai (digite uma rua, use «Perto de mim» ou toque no mapa) e toque em «Criar rota».",
+  "1 muy suave · 10 máximo": "1 muito leve · 10 máximo",
+  "A · la principal": "A · a principal",
+  "B · importante": "B · importante",
+  "C · de preparación": "C · de preparação",
+  "Agrega tus carreras objetivo (10K Fedachi, 42K MDS…) y aparecen en el calendario con la cuenta regresiva.": "Adicione suas provas-alvo (10K, maratona…) e elas aparecem no calendário com a contagem regressiva.",
+  "Anotar": "Anotar",
+  "Arma las series solas. También puedes agregar bloques a mano.": "Monta as séries sozinha. Você também pode adicionar blocos à mão.",
+  "Armar": "Montar",
+  "Bitácora": "Diário",
+  "Bloque por distancia": "Bloco por distância",
+  "Bloque por tiempo": "Bloco por tempo",
+  "Carrera": "Prova",
+  "Coach": "Coach",
+  "Copiada": "Copiada",
+  "Copiar": "Copiar",
+  "Cómo te sentiste, piernas, clima, qué cambiarías…": "Como você se sentiu, pernas, clima, o que mudaria…",
+  "Distancia (m)": "Distância (m)",
+  "Duración": "Duração",
+  "Elige la fecha.": "Escolha a data.",
+  "Entradas": "Entradas",
+  "Entrenamiento": "Treino",
+  "Escribe la sesión": "Escreva a sessão",
+  "Esfuerzo percibido (RPE)": "Esforço percebido (RPE)",
+  "Fecha": "Data",
+  "Fondo": "Longão",
+  "Km": "Km",
+  "Km anotados": "Km anotados",
+  "Km totales": "Km totais",
+  "Mes anterior": "Mês anterior",
+  "Mes siguiente": "Próximo mês",
+  "Metros de cada repetición": "Metros de cada repetição",
+  "No entendí la sesión. Prueba con algo como 2x3x1000m (3:10-3:20, 1' entre reps, 2' entre series).": "Não entendi a sessão. Tente algo como 2x3x1000m (3:10-3:20, 1' entre reps, 2' entre séries).",
+  "No se pudo copiar": "Não deu para copiar",
+  "Noche": "Noite",
+  "Tarde": "Tarde",
+  "Nombre": "Nome",
+  "Nueva entrada": "Nova entrada",
+  "Editar entrada": "Editar entrada",
+  "Nuevo objetivo": "Nova meta",
+  "Editar objetivo": "Editar meta",
+  "Objetivo": "Meta",
+  "Objetivo (desde – hasta)": "Alvo (de – até)",
+  "Objetivos": "Metas",
+  "Pausa entre reps": "Pausa entre reps",
+  "Pausa entre series": "Pausa entre séries",
+  "Ponle un nombre.": "Dê um nome.",
+  "Prioridad": "Prioridade",
+  "Promedio {x}": "Média {x}",
+  "Promedio {x} ({r})": "Média {x} ({r})",
+  "Promedio {x} m ({r})": "Média {x} m ({r})",
+  "Promedio {x} m · {r} · mejor {m} m": "Média {x} m · {r} · melhor {m} m",
+  "Quitar": "Remover",
+  "RPE medio": "RPE médio",
+  "Registrar": "Registrar",
+  "Reps": "Reps",
+  "Series": "Séries",
+  "Sensaciones": "Sensações",
+  "Serie {s}, repetición {r}": "Série {s}, repetição {r}",
+  "Sin entradas este día.": "Sem entradas neste dia.",
+  "Suave": "Leve",
+  "Tempo": "Tempo",
+  "Muy suave": "Muito leve",
+  "Moderado": "Moderado",
+  "Algo duro": "Um pouco duro",
+  "Duro": "Duro",
+  "Muy duro": "Muito duro",
+  "Máximo": "Máximo",
+  "Tiempo de cada repetición (3:15, 3'15 o 315)": "Tempo de cada repetição (3:15, 3'15 ou 315)",
+  "Tiempo total": "Tempo total",
+  "Tipo": "Tipo",
+  "Tu bitácora": "Seu diário de treino",
+  "Turno": "Turno",
+  "Título": "Título",
+  "Sesión": "Sessão",
+  "carrera de Strava sin anotar": "corrida do Strava sem anotar",
+  "ej. 10K Fedachi, 42K MDS": "ex. 10K da cidade, Maratona",
+  "ej. Series en pista": "ex. Tiros na pista",
+  "entrada de bitácora": "entrada do diário",
+  "mejor {x}": "melhor {x}",
+  "meta {t}": "meta {t}",
+  "objetivo": "meta",
+  "peor {x}": "pior {x}",
+  "prom. {x}": "méd. {x}",
+  "prom. {x} m": "méd. {x} m",
+  "{k} en Strava": "{k} no Strava",
+  "{n} de {m} en rango": "{n} de {m} no alvo",
+  "{n} entradas": "{n} entradas",
+  "{p} entre reps": "{p} entre reps",
+  "{p} entre series": "{p} entre séries",
+  "¡Hoy!": "Hoje!",
+  "hace {n} días": "há {n} dias",
+  "¿Borrar esta entrada?": "Apagar esta entrada?",
+  "¿Borrar este objetivo?": "Apagar esta meta?",
+  "Editar": "Editar",
+  "Borrar": "Apagar",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -3902,7 +4142,7 @@ function bloqueCoach(j) {
         <small>${fmtDistKm(s.real ? s.real.km : s.km, s.real ? 1 : 0)}${s.real && s.estado !== "extra" ? " / " + fmtDistKm(s.km, 0) : ""}${s.ritmo ? " · " + ritmoCoach(s.ritmo) : ""}${s.movida ? " · " + t("sugerida desde el {d}", { d: dia(s.movida) }) : ""}${s.movida_por_ti ? ` · ${t("movida desde el {d}", { d: dia(s.movida_por_ti) })} <button type="button" class="enlace" data-desmover="${s.movida_por_ti}|${s.fecha}">${t("deshacer")}</button>` : ""}</small>
         ${abierta && s.porque && s.fecha !== hoyF ? `<small class="porque">💡 ${esc(s.porque)}</small>` : ""}
         ${mover ? `<span class="acciones-dia"><button type="button" class="mini" data-mover="${s.fecha}">${t("Mover")}</button>${s.fecha !== hoyF ? rutaBtn(s, true) : ""}</span>` : ""}
-        ${moviendoCoach === s.fecha ? `<span class="fases mover-a">${quedan(s.fecha, s.tipo).map((f) => `<button type="button" class="chip" data-mover-a="${f}">${f === masDias(hoyF, 1) ? t("Mañana") : dia(f)}</button>`).join("")}</span>` : ""}</span>
+        ${moviendoCoach === s.fecha ? `<span class="fases mover-a">${quedan(s.fecha, s.tipo).map((f) => `<button type="button" class="chip" data-mover-a="${f}">${dia(f)}</button>`).join("")}</span>` : ""}</span>
       ${estado[s.estado] ? `<span class="e ${s.estado}">${estado[s.estado]}</span>` : "<span></span>"}</li>`; }).join("");
   const maxKm = Math.max(...c.semanas.map((w) => Math.max(w.km, w.km_real || 0)), 1);
   const FASE_TXT = { basica: "Básica", especifica: "Específica", competencia: "Competencia" };
@@ -4048,6 +4288,412 @@ function activarCoach() {
     editandoCoach = false;
     pintarEntreno(leer("pp_revision", null));
     recalcularEntreno();
+  };
+}
+
+// ── Bitácora del corredor ───────────────────────────────────────────────────
+// Lo que anotas de cada sesión (series con sus tiempos, pausas, RPE y
+// sensaciones) y tus objetivos (10K Fedachi, 42K MDS…), en un calendario: tu
+// journey. Se guarda en el teléfono y viaja con tu cuenta (es tuyo, no de Strava).
+let subEntreno = leer("pp_entreno_sub", "entreno"), editandoEntrada = null, editandoObjetivo = null;
+let mesBitacora = null, diaBitacora = null, carrerasBitacora = [];
+const MESES_LARGO = { es: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
+  en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+  pt: ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"] };
+const TURNOS = [["manana", "Mañana"], ["tarde", "Tarde"], ["noche", "Noche"]];
+const TIPOS_B = [["series", "Series"], ["tempo", "Tempo"], ["suave", "Suave"], ["fondo", "Fondo"], ["carrera", "Carrera"], ["otro", "Otro"]];
+const RPE_TXT = ["", "Muy suave", "Suave", "Suave", "Moderado", "Moderado", "Algo duro", "Duro", "Muy duro", "Máximo", "Máximo"];
+const DIST_OBJ = [["5k", "5K", 5], ["10k", "10K", 10], ["21k", "21K", 21.0975], ["42k", "42K", 42.195]];
+const bitacora = () => { const b = leer("pp_bitacora", null) || {}; return { entradas: b.entradas || [], objetivos: b.objetivos || [] }; };
+const guardarBitacora = (b) => escribir("pp_bitacora", { v: 1, entradas: b.entradas, objetivos: b.objetivos });
+const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+// «3:15», «3'15"», «3.15», «315» → 195 s; «75» → 75 s (lo corto, en segundos).
+function segRep(v) {
+  v = String(v ?? "").trim().replace(/[’´‘]/g, "'").replace(/[″“”]/g, '"');
+  if (!v) return null;
+  let m = v.match(/^(\d+)\s*[:'.,]\s*(\d{1,2})\s*(?:"|'')?$/);
+  if (m) return +m[1] * 60 + +m[2];
+  m = v.match(/^(\d+):(\d{2}):(\d{2})$/);
+  if (m) return +m[1] * 3600 + +m[2] * 60 + +m[3];
+  m = v.match(/^(\d+)\s*(?:'|min)$/);
+  if (m) return +m[1] * 60;
+  m = v.match(/^(\d+)\s*(?:"|s|seg)?$/);
+  if (m) { const n = +m[1]; return n >= 100 && n % 100 < 60 ? Math.floor(n / 100) * 60 + n % 100 : n; }
+  return NaN;
+}
+const mmss = (s) => s == null || !isFinite(s) ? "" : s >= 3600 ? hms(s) : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+const pausaTxt = (s) => !s ? "" : s % 60 === 0 ? `${s / 60}'` : s < 60 ? `${s}"` : `${Math.floor(s / 60)}'${String(s % 60).padStart(2, "0")}"`;
+const distTxt = (m) => m >= 1000 && m % 100 === 0 ? `${num(m / 1000, m % 1000 ? 1 : 0)} km` : `${num(m)} m`;
+
+// «2x3x1000m (3'10" - 3'20", 1' pausa entre repeticiones, 2' pausa entre series) + 4x200» → bloques.
+function leerSesion(txt) {
+  const out = { bloques: [], km: null, tipo: null };
+  const limpio = String(txt || "").replace(/[’´‘]/g, "'").replace(/[″“”]/g, '"').replace(/×/g, "x");
+  if (/fondo|long/i.test(limpio)) out.tipo = "fondo";
+  else if (/regenerativ|suave|easy|rodaje|leve/i.test(limpio)) out.tipo = "suave";
+  else if (/tempo/i.test(limpio)) out.tipo = "tempo";
+  for (const parte of limpio.split(/\s\+\s|;/)) {
+    let m = parte.match(/(\d+)\s*x\s*(\d+)\s*x\s*(\d+(?:[.,]\d+)?)\s*(km|k|m|min|'|"|s)?/i), series = 1, reps, val, uni;
+    if (m) [, series, reps, val, uni] = m;
+    else if ((m = parte.match(/(\d+)\s*x\s*(\d+(?:[.,]\d+)?)\s*(km|k|m|min|'|"|s)?/i))) [, reps, val, uni] = m;
+    else if (out.tipo === "tempo" && (m = parte.match(/(\d+(?:[.,]\d+)?)\s*(km|k)\b/i))) { reps = 1; [, val, uni] = m; }
+    else { const k = parte.match(/(\d+(?:[.,]\d+)?)\s*(km|k)\b/i); if (k) out.km = +k[1].replace(",", "."); continue; }
+    val = +String(val).replace(",", ".");
+    uni = (uni || "").toLowerCase();
+    const b = { series: +series, reps: +reps, dist_m: null, dur_s: null, obj: null, p_rep: null, p_serie: null, tiempos: [] };
+    if (uni === "k" || uni === "km") b.dist_m = Math.round(val * 1000);
+    else if (uni === "min" || uni === "'") b.dur_s = Math.round(val * 60);
+    else if (uni === '"' || uni === "s") b.dur_s = Math.round(val);
+    else b.dist_m = val < 50 ? Math.round(val * 1000) : Math.round(val);
+    // Lo que viene después: el objetivo («3'10" - 3'20"») y las pausas.
+    const resto = parte.slice(m.index + m[0].length).replace(/[()]/g, " ");
+    for (const trozo of resto.split(/,|\by\b/)) {
+      const tiempos = [...trozo.matchAll(/(\d+)\s*(?::|')\s*(\d{1,2})\s*(?:"|'')?|(\d+)\s*(?:'|min\b)|(\d+)\s*(?:"|s\b|seg)/gi)]
+        .map((x) => x[1] != null ? +x[1] * 60 + +x[2] : x[3] != null ? +x[3] * 60 : +x[4]);
+      if (!tiempos.length) continue;
+      if (/pausa|rec|desc|trote|entre|rest|jog/i.test(trozo)) {
+        // «75" rec 1'», «a 3:15 pausa 1'30»: el último tiempo es la pausa y lo de antes, el objetivo.
+        const p = tiempos.pop();
+        if (tiempos.length && !b.obj) b.obj = [Math.min(...tiempos), Math.max(...tiempos)];
+        if (/serie|set|bloque/i.test(trozo)) b.p_serie = p;
+        else if (/rep/i.test(trozo) || b.p_rep == null) b.p_rep = p;
+        else b.p_serie = p;
+      } else if (!b.obj) b.obj = [Math.min(...tiempos), Math.max(...tiempos)];
+    }
+    out.bloques.push(b);
+  }
+  if (out.bloques.length && !out.tipo) out.tipo = "series";
+  return out;
+}
+const estructura = (b) => `${b.series > 1 ? b.series + "x" : ""}${b.reps}x${b.dist_m ? (b.dist_m >= 2000 && b.dist_m % 1000 === 0 ? b.dist_m / 1000 + "k" : b.dist_m + "m") : pausaTxt(b.dur_s)}`;
+const detalleBloque = (b) => [b.obj ? (b.obj[0] === b.obj[1] ? mmss(b.obj[0]) : `${mmss(b.obj[0])}–${mmss(b.obj[1])}`) : "",
+  b.p_rep ? t("{p} entre reps", { p: pausaTxt(b.p_rep) }) : "", b.series > 1 && b.p_serie ? t("{p} entre series", { p: pausaTxt(b.p_serie) }) : ""].filter(Boolean).join(", ");
+// Cada repetición: su valor (tiempo, o metros si es por tiempo), ritmo y si cae en el objetivo.
+function statsBloque(b) {
+  const vals = (b.tiempos || []).flat().filter((x) => x != null && isFinite(x) && x > 0);
+  if (!vals.length) return null;
+  const prom = vals.reduce((a, x) => a + x, 0) / vals.length;
+  const ritmoDe = (x) => b.dist_m ? x / (b.dist_m / 1000) : b.dur_s / (x / 1000);
+  const enRango = b.obj ? vals.filter((x) => estadoRep(b, x) === "ok").length : null;
+  return { n: vals.length, prom, mejor: b.dur_s ? Math.max(...vals) : Math.min(...vals), peor: b.dur_s ? Math.min(...vals) : Math.max(...vals),
+           ritmo: ritmoDe(prom), enRango, km: b.dist_m ? vals.length * b.dist_m / 1000 : vals.reduce((a, x) => a + x, 0) / 1000 };
+}
+function estadoRep(b, x) {
+  if (!b.obj || x == null || !isFinite(x)) return "";
+  if (b.dur_s) return "";                                   // por tiempo: anotas metros, sin rango
+  return x < b.obj[0] - 1 ? "rapido" : x > b.obj[1] + 1 ? "lento" : "ok";
+}
+const resumenEntrada = (e) => [
+  ...(e.bloques || []).map((b) => { const s = statsBloque(b); return estructura(b) + (s ? ` · ${b.dur_s ? t("prom. {x} m", { x: num(s.prom) }) : t("prom. {x}", { x: mmss(s.prom) })}` : ""); }),
+  e.km ? fmtDistKm(e.km, 1) : "", e.dur_s ? hms(e.dur_s) : "", e.rpe ? `RPE ${e.rpe}` : ""].filter(Boolean).join(" · ");
+
+// El texto para pegar (WhatsApp, notas, tu entrenador).
+function textoEntrada(e) {
+  const d = new Date(e.fecha + "T12:00"), lin = [];
+  lin.push(`${fechaCorta(d)} ${d.getFullYear()}${e.turno ? " · " + t(TURNOS.find(([k]) => k === e.turno)[1]) : ""} · ${e.titulo || t(TIPOS_B.find(([k]) => k === e.tipo)?.[1] || "Sesión")}`);
+  for (const b of e.bloques || []) {
+    const det = detalleBloque(b);
+    lin.push(`${estructura(b)}${det ? ` (${det})` : ""}`);
+    (b.tiempos || []).forEach((fila, i) => { const v = fila.filter((x) => x != null);
+      if (v.length) lin.push(`${b.series > 1 ? `S${i + 1}: ` : ""}${v.map((x) => b.dur_s ? `${x} m` : mmss(x)).join(" · ")}`); });
+    const s = statsBloque(b);
+    if (s) lin.push(b.dur_s ? t("Promedio {x} m ({r})", { x: num(s.prom), r: ritmo(s.ritmo) })
+      : t("Promedio {x} ({r})", { x: mmss(s.prom), r: b.dist_m ? ritmo(s.ritmo) : "" }).replace(" ()", "") + (s.enRango != null ? " · " + t("{n} de {m} en rango", { n: s.enRango, m: s.n }) : ""));
+  }
+  const tot = [e.km ? fmtDistKm(e.km, 1) : "", e.dur_s ? hms(e.dur_s) : "", e.rpe ? `RPE ${e.rpe}/10` : ""].filter(Boolean).join(" · ");
+  if (tot) lin.push(tot);
+  if (e.sensaciones) lin.push(`${t("Sensaciones")}: ${e.sensaciones}`);
+  return lin.join("\n");
+}
+async function copiar(texto) {
+  try { await navigator.clipboard.writeText(texto); return true; } catch {}
+  try { const a = document.createElement("textarea"); a.value = texto; a.style.position = "fixed"; a.style.opacity = "0";
+    document.body.appendChild(a); a.select(); const ok = document.execCommand("copy"); a.remove(); return ok; } catch { return false; }
+}
+
+// Los objetivos: los tuyos y, si el Coach está activo, su carrera.
+function objetivosTodos() {
+  const lista = bitacora().objetivos.map((o) => ({ ...o, propio: true }));
+  const c = leer("pp_coach", null);
+  if (c?.fecha && c.objetivo !== "forma" && !lista.some((o) => o.fecha === c.fecha))
+    lista.push({ id: "coach", nombre: { "5k": "5K", "10k": "10K", "21k": "21K", "42k": "42K" }[c.objetivo] + " · Coach", fecha: c.fecha,
+                 dist: c.objetivo, meta_s: c.tiempo_objetivo_s, prioridad: "A" });
+  return lista.sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+const faltanDias = (f) => Math.round((new Date(f + "T12:00") - new Date(fechaLocal() + "T12:00")) / 864e5);
+
+async function abrirBitacora() {
+  if (editandoEntrada || editandoObjetivo) return;
+  pintarBitacora();
+  carrerasBitacora = await carrerasEntreno().catch(() => []);
+  if (vista === "entreno" && subEntreno === "bitacora" && !editandoEntrada && !editandoObjetivo) pintarBitacora();
+}
+const selectorEntreno = () => `<div class="fases seg-entreno" role="tablist">
+  <button type="button" class="chip${subEntreno === "entreno" ? " on" : ""}" role="tab" aria-selected="${subEntreno === "entreno"}" data-sub="entreno">${t("Entrenamiento")}</button>
+  <button type="button" class="chip${subEntreno === "bitacora" ? " on" : ""}" role="tab" aria-selected="${subEntreno === "bitacora"}" data-sub="bitacora">📓 ${t("Bitácora")}</button></div>`;
+function activarSelectorEntreno() {
+  document.querySelectorAll("[data-sub]").forEach((b) => { b.onclick = () => {
+    subEntreno = b.dataset.sub; escribir("pp_entreno_sub", subEntreno);
+    editandoEntrada = editandoObjetivo = null;
+    if (subEntreno === "bitacora") abrirBitacora(); else pintarEntreno(leer("pp_revision", null));
+  }; });
+}
+
+function pintarBitacora() {
+  if (editandoEntrada) return pintarEditorEntrada();
+  if (editandoObjetivo) return pintarEditorObjetivo();
+  const hoyF = fechaLocal(), b = bitacora(), objs = objetivosTodos();
+  if (!mesBitacora) mesBitacora = hoyF.slice(0, 7);
+  if (!diaBitacora) diaBitacora = hoyF;
+  const [an, me] = mesBitacora.split("-").map(Number);
+  const primero = new Date(an, me - 1, 1), dias = new Date(an, me, 0).getDate(), hueco = (primero.getDay() + 6) % 7;
+  const porDia = {}, stravaDia = {}, objDia = {};
+  for (const e of b.entradas) (porDia[e.fecha] ||= []).push(e);
+  for (const c of carrerasBitacora) (stravaDia[(c.fecha_local || c.fecha).slice(0, 10)] ||= []).push(c);
+  for (const o of objs) (objDia[o.fecha] ||= []).push(o);
+  let celdas = "";
+  for (let i = 0; i < hueco; i++) celdas += `<span class="cal-vacio"></span>`;
+  for (let d = 1; d <= dias; d++) {
+    const f = `${mesBitacora}-${String(d).padStart(2, "0")}`, en = porDia[f] || [], st = stravaDia[f] || [], ob = objDia[f] || [];
+    celdas += `<button type="button" class="cal-dia${f === hoyF ? " hoy" : ""}${f === diaBitacora ? " sel" : ""}${ob.length ? " meta" : ""}" data-dia="${f}"
+      aria-label="${d}${en.length ? ", " + t("{n} entradas", { n: en.length }) : ""}${ob.length ? ", " + esc(ob.map((o) => o.nombre).join(", ")) : ""}">
+      <span class="n">${d}</span>${ob.length ? `<span class="obj">🏁 ${esc(ob[0].nombre)}</span>` : ""}
+      <span class="puntos">${en.map(() => `<i class="e"></i>`).join("")}${en.length < st.length ? `<i class="s"></i>` : ""}</span></button>`;
+  }
+  // El mes: lo anotado.
+  const delMes = b.entradas.filter((e) => e.fecha.startsWith(mesBitacora));
+  const kmMes = delMes.reduce((a, e) => a + (e.km || 0), 0), rpes = delMes.filter((e) => e.rpe).map((e) => e.rpe);
+  const kmStrava = carrerasBitacora.filter((c) => (c.fecha_local || c.fecha).startsWith(mesBitacora)).reduce((a, c) => a + c.distancia_m / 1000, 0);
+  // Los próximos objetivos (y el último que pasó).
+  const prox = objs.filter((o) => o.fecha >= hoyF).slice(0, 3);
+  const objHtml = (o) => { const n = faltanDias(o.fecha);
+    return `<li><button type="button" class="obj-fila" data-obj-ed="${o.id}"><span class="prio p${o.prioridad || "B"}">${o.prioridad || "B"}</span>
+      <span><b>${esc(o.nombre)}</b><small>${fechaCorta(new Date(o.fecha + "T12:00"))} ${o.fecha.slice(0, 4)}${o.meta_s ? " · " + t("meta {t}", { t: hms(o.meta_s) }) : ""}</small></span>
+      <span class="faltan">${n === 0 ? t("¡Hoy!") : n > 0 ? t("{n} días", { n }) : t("hace {n} días", { n: -n })}</span></button></li>`; };
+  // El día elegido.
+  const fd = new Date(diaBitacora + "T12:00"), entradasDia = (porDia[diaBitacora] || []).sort((x, y) => (x.turno || "").localeCompare(y.turno || ""));
+  const yaLigadas = new Set(entradasDia.map((e) => e.strava_id).filter(Boolean));
+  const coachDia = (leer("pp_revision", null)?.coach?.semana?.sesiones || []).filter((s) => s.fecha === diaBitacora && s.texto && s.tipo !== "extra");
+  const diaHtml = `<div class="bloque"><h3>${(() => { const x = fd.toLocaleDateString(LOCALE[idioma], { weekday: "long", day: "numeric", month: "long" }); return x[0].toUpperCase() + x.slice(1); })()}</h3>
+    ${(objDia[diaBitacora] || []).map((o) => `<p class="obj-dia">🏁 <b>${esc(o.nombre)}</b>${o.meta_s ? " · " + t("meta {t}", { t: hms(o.meta_s) }) : ""}</p>`).join("")}
+    ${entradasDia.length ? `<ul class="entradas">${entradasDia.map((e) => `<li>
+      <div class="cab-e"><b>${e.turno ? `<span class="turno">${t(TURNOS.find(([k]) => k === e.turno)[1])}</span>` : ""}${esc(e.titulo || t(TIPOS_B.find(([k]) => k === e.tipo)?.[1] || "Sesión"))}</b>
+        ${e.rpe ? `<span class="rpe r${Math.min(4, Math.ceil(e.rpe / 2.5))}">RPE ${e.rpe}</span>` : ""}</div>
+      <p>${esc(resumenEntrada(e))}</p>${e.sensaciones ? `<p class="sens">“${esc(e.sensaciones)}”</p>` : ""}
+      <div class="coach-acciones"><button type="button" class="mini" data-ent-ed="${e.id}">✎ ${t("Editar")}</button>
+        <button type="button" class="mini" data-ent-copiar="${e.id}">⧉ ${t("Copiar")}</button></div></li>`).join("")}</ul>`
+      : `<p class="pista">${t("Sin entradas este día.")}</p>`}
+    ${coachDia.map((s) => `<p class="sugerencia-b">${t("Coach")}: <b>${esc(s.titulo)}</b> · ${esc(s.texto)} <button type="button" class="mini" data-ent-coach="${esc(s.texto)}" data-titulo="${esc(s.titulo)}">+ ${t("Registrar")}</button></p>`).join("")}
+    ${(stravaDia[diaBitacora] || []).filter((c) => !yaLigadas.has(c.id)).map((c) => `<p class="sugerencia-b">Strava: <b>${esc(c.nombre || "")}</b> · ${fmtDistKm(c.distancia_m / 1000, 1)} · ${hms(c.tiempo_s)}
+      <button type="button" class="mini" data-ent-strava="${c.id}">+ ${t("Anotar")}</button></p>`).join("")}
+    <div class="coach-acciones"><button type="button" class="coach-ruta" data-ent-nueva>+ ${t("Nueva entrada")}</button></div></div>`;
+  hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu bitácora")}</h2>${selectorEntreno()}
+    <div class="bloque"><div class="cab-bloque"><h3>${t("Objetivos")}</h3><button type="button" class="mini" data-obj-nuevo>+ ${t("Objetivo")}</button></div>
+      ${prox.length ? `<ul class="objetivos">${prox.map(objHtml).join("")}</ul>` : `<p class="pista">${t("Agrega tus carreras objetivo (10K Fedachi, 42K MDS…) y aparecen en el calendario con la cuenta regresiva.")}</p>`}</div>
+    <div class="bloque calendario"><div class="cal-cab"><button type="button" class="mini" data-mes="-1" aria-label="${t("Mes anterior")}">‹</button>
+      <b>${MESES_LARGO[idioma]?.[me - 1] || MESES_LARGO.es[me - 1]} ${an}</b><button type="button" class="mini" data-mes="1" aria-label="${t("Mes siguiente")}">›</button></div>
+      <div class="cal-grilla">${DIA_CORTO.map((d) => `<span class="cal-sem">${t(d)}</span>`).join("")}${celdas}</div>
+      <p class="nota-kpi"><i class="pto e"></i>${t("entrada de bitácora")} <i class="pto s"></i>${t("carrera de Strava sin anotar")} · 🏁 ${t("objetivo")}</p>
+      <div class="kpis"><div class="kpi"><span>${t("Entradas")}</span><b>${delMes.length}</b></div>
+        <div class="kpi"><span>${t("Km anotados")}</span><b>${num(kmMes, 0)}</b><small>${kmStrava ? t("{k} en Strava", { k: fmtDistKm(kmStrava, 0) }) : ""}</small></div>
+        <div class="kpi"><span>${t("RPE medio")}</span><b>${rpes.length ? num(rpes.reduce((a, x) => a + x, 0) / rpes.length, 1) : "–"}</b></div></div></div>
+    ${diaHtml}`);
+  activarSelectorEntreno();
+  document.querySelectorAll("[data-mes]").forEach((x) => { x.onclick = () => {
+    const d = new Date(an, me - 1 + +x.dataset.mes, 1); mesBitacora = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; pintarBitacora(); }; });
+  document.querySelectorAll("[data-dia]").forEach((x) => { x.onclick = () => { diaBitacora = x.dataset.dia; pintarBitacora(); }; });
+  document.querySelectorAll("[data-ent-ed]").forEach((x) => { x.onclick = () => {
+    editandoEntrada = structuredClone(bitacora().entradas.find((e) => e.id === x.dataset.entEd)); pintarBitacora(); }; });
+  document.querySelectorAll("[data-ent-copiar]").forEach((x) => { x.onclick = async () => {
+    const ok = await copiar(textoEntrada(bitacora().entradas.find((e) => e.id === x.dataset.entCopiar)));
+    x.textContent = ok ? "✓ " + t("Copiada") : t("No se pudo copiar"); }; });
+  const nueva = (extra = {}) => { editandoEntrada = { id: null, fecha: diaBitacora, turno: entradasDia.length ? "tarde" : "manana", tipo: "series", titulo: "",
+    bloques: [], km: null, dur_s: null, rpe: null, sensaciones: "", texto: "", ...extra }; pintarBitacora(); };
+  document.querySelector("[data-ent-nueva]").onclick = () => nueva();
+  document.querySelectorAll("[data-ent-coach]").forEach((x) => { x.onclick = () => {
+    const l = leerSesion(x.dataset.entCoach);
+    nueva({ titulo: x.dataset.titulo, texto: x.dataset.entCoach, tipo: l.tipo || "otro", bloques: l.bloques, km: l.km }); }; });
+  document.querySelectorAll("[data-ent-strava]").forEach((x) => { x.onclick = () => {
+    const c = carrerasBitacora.find((c) => String(c.id) === x.dataset.entStrava);
+    const l = leerSesion(c.nombre || "");
+    nueva({ titulo: c.nombre || "", strava_id: c.id, km: Math.round(c.distancia_m / 100) / 10, dur_s: c.tiempo_s,
+            turno: +(c.fecha_local || c.fecha).slice(11, 13) < 12 ? "manana" : +(c.fecha_local || c.fecha).slice(11, 13) < 19 ? "tarde" : "noche",
+            tipo: l.tipo || "otro", bloques: l.bloques }); }; });
+  document.querySelector("[data-obj-nuevo]").onclick = () => { editandoObjetivo = { id: null, nombre: "", fecha: diaBitacora > hoyF ? diaBitacora : "", dist: "10k", meta_s: null, prioridad: "A" }; pintarBitacora(); };
+  document.querySelectorAll("[data-obj-ed]").forEach((x) => { x.onclick = () => {
+    if (x.dataset.objEd === "coach") { subEntreno = "entreno"; escribir("pp_entreno_sub", "entreno"); editandoCoach = true; pintarEntreno(leer("pp_revision", null)); return; }
+    editandoObjetivo = structuredClone(bitacora().objetivos.find((o) => o.id === x.dataset.objEd)); pintarBitacora(); }; });
+}
+
+// ── Editor de una entrada ──
+function pintarEditorEntrada() {
+  const e = editandoEntrada;
+  const campoT = (v) => v == null ? "" : mmss(v);
+  const bloqueHtml = (b, i) => {
+    const filas = Array.from({ length: b.series }, (_, s) => `<div class="fila-rep"><span class="et-s">${b.series > 1 ? "S" + (s + 1) : ""}</span>
+      ${Array.from({ length: b.reps }, (_, r) => { const v = b.tiempos?.[s]?.[r];
+        return `<input class="t-rep ${estadoRep(b, v)}" data-b="${i}" data-s="${s}" data-r="${r}" inputmode="${b.dur_s ? "numeric" : "decimal"}"
+          placeholder="${b.dur_s ? "m" : r + 1}" aria-label="${t("Serie {s}, repetición {r}", { s: s + 1, r: r + 1 })}" value="${v == null ? "" : b.dur_s ? v : mmss(v)}">`; }).join("")}</div>`).join("");
+    const s = statsBloque(b);
+    return `<div class="bloque-rep" data-bloque="${i}">
+      <div class="cab-bloque"><b>${estructura(b)}</b><button type="button" class="enlace" data-quitar-b="${i}">${t("Quitar")}</button></div>
+      <div class="rejilla-b">
+        <label>${t("Series")}<input data-campo="series" data-b="${i}" inputmode="numeric" value="${b.series}"></label>
+        <label>${t("Reps")}<input data-campo="reps" data-b="${i}" inputmode="numeric" value="${b.reps}"></label>
+        <label>${b.dur_s ? t("Duración") : t("Distancia (m)")}<input data-campo="${b.dur_s ? "dur_s" : "dist_m"}" data-b="${i}" inputmode="${b.dur_s ? "text" : "numeric"}" value="${b.dur_s ? pausaTxt(b.dur_s) : b.dist_m || ""}"></label>
+        ${b.dur_s ? "" : `<label>${t("Objetivo (desde – hasta)")}<span class="dos"><input data-campo="obj0" data-b="${i}" inputmode="text" placeholder="3:10" value="${campoT(b.obj?.[0])}">
+          <input data-campo="obj1" data-b="${i}" inputmode="text" placeholder="3:20" value="${campoT(b.obj?.[1])}"></span></label>`}
+        <label>${t("Pausa entre reps")}<input data-campo="p_rep" data-b="${i}" inputmode="text" placeholder="1'" value="${pausaTxt(b.p_rep)}"></label>
+        ${b.series > 1 ? `<label>${t("Pausa entre series")}<input data-campo="p_serie" data-b="${i}" inputmode="text" placeholder="2'" value="${pausaTxt(b.p_serie)}"></label>` : ""}
+      </div>
+      <p class="sub" style="margin:8px 0 4px">${b.dur_s ? t("Metros de cada repetición") : t("Tiempo de cada repetición (3:15, 3'15 o 315)")}</p>
+      ${filas}
+      <p class="stats-b" id="stats-${i}">${s ? statsTxt(b, s) : ""}</p></div>`;
+  };
+  hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t(e.id ? "Editar entrada" : "Nueva entrada")}</h2>
+    <form id="formEntrada" class="coach-form">
+      <div class="rejilla-b"><label>${t("Fecha")}<input type="date" id="fechaEnt" value="${e.fecha}"></label>
+        <label>${t("Título")}<input id="tituloEnt" value="${esc(e.titulo || "")}" placeholder="${t("ej. Series en pista")}"></label></div>
+      <label>${t("Turno")}<div class="fases">${TURNOS.map(([k, et]) => `<button type="button" class="chip${e.turno === k ? " on" : ""}" data-turno="${k}">${t(et)}</button>`).join("")}</div></label>
+      <label>${t("Tipo")}<div class="fases">${TIPOS_B.map(([k, et]) => `<button type="button" class="chip${e.tipo === k ? " on" : ""}" data-tipo-e="${k}">${t(et)}</button>`).join("")}</div></label>
+      <label>${t("Escribe la sesión")}<span class="dos"><input id="textoEnt" value="${esc(e.texto || "")}" placeholder='2x3x1000m (3&#39;10" - 3&#39;20", 1&#39; pausa entre repeticiones, 2&#39; entre series)'>
+        <button type="button" class="sec" data-armar>${t("Armar")}</button></span>
+        <small style="font-weight:400">${t("Arma las series solas. También puedes agregar bloques a mano.")}</small></label>
+      <div id="bloquesEnt">${(e.bloques || []).map(bloqueHtml).join("")}</div>
+      <div class="coach-acciones" style="margin-top:0"><button type="button" class="mini" data-nuevo-b="dist">+ ${t("Bloque por distancia")}</button>
+        <button type="button" class="mini" data-nuevo-b="dur">+ ${t("Bloque por tiempo")}</button></div>
+      <div class="rejilla-b"><label>${t("Km totales")}<input id="kmEnt" inputmode="decimal" value="${e.km ?? ""}" placeholder="12"></label>
+        <label>${t("Tiempo total")}<input id="durEnt" inputmode="text" value="${e.dur_s ? hms(e.dur_s) : ""}" placeholder="1:05:00"></label></div>
+      <label>${t("Esfuerzo percibido (RPE)")}<div class="rpe-escala">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) =>
+        `<button type="button" class="rpe-b r${Math.min(4, Math.ceil(n / 2.5))}${e.rpe === n ? " on" : ""}" data-rpe="${n}">${n}</button>`).join("")}</div>
+        <small id="rpeTxt" style="font-weight:400">${e.rpe ? `${e.rpe} · ${t(RPE_TXT[e.rpe])}` : t("1 muy suave · 10 máximo")}</small></label>
+      <label>${t("Sensaciones")}<textarea id="sensEnt" rows="3" placeholder="${t("Cómo te sentiste, piernas, clima, qué cambiarías…")}">${esc(e.sensaciones || "")}</textarea></label>
+      <div class="coach-acciones"><button type="submit">${t("Guardar")}</button><button type="button" class="sec" data-ent-cancelar>${t("Cancelar")}</button>
+        <button type="button" class="sec" data-ent-copiar-ed>⧉ ${t("Copiar")}</button>
+        ${e.id ? `<button type="button" class="sec peligro" data-ent-borrar>${t("Borrar")}</button>` : ""}</div>
+      <p class="aviso" id="errorEnt" style="margin:0"></p></form>`);
+  activarEditorEntrada();
+}
+const statsTxt = (b, s) => b.dur_s
+  ? t("Promedio {x} m · {r} · mejor {m} m", { x: num(s.prom), r: ritmo(s.ritmo), m: num(s.mejor) })
+  : [t("Promedio {x}", { x: mmss(s.prom) }) + (b.dist_m ? ` (${ritmo(s.ritmo)})` : ""), t("mejor {x}", { x: mmss(s.mejor) }), t("peor {x}", { x: mmss(s.peor) }),
+     s.enRango != null ? t("{n} de {m} en rango", { n: s.enRango, m: s.n }) : ""].filter(Boolean).join(" · ");
+function leerFormEntrada() {
+  const e = editandoEntrada;
+  e.fecha = $("fechaEnt").value || e.fecha;
+  e.titulo = $("tituloEnt").value.trim();
+  e.texto = $("textoEnt").value.trim();
+  const km = parseFloat(($("kmEnt").value || "").replace(",", "."));
+  e.km = Number.isFinite(km) && km > 0 ? km : null;
+  const d = aSegundos($("durEnt").value);
+  e.dur_s = Number.isFinite(d) && d > 0 ? d : null;
+  e.sensaciones = $("sensEnt").value.trim();
+}
+function activarEditorEntrada() {
+  const e = editandoEntrada, f = $("formEntrada");
+  const repintar = () => { leerFormEntrada(); pintarEditorEntrada(); };
+  f.querySelectorAll("[data-turno]").forEach((x) => { x.onclick = () => { e.turno = e.turno === x.dataset.turno ? null : x.dataset.turno; repintar(); }; });
+  f.querySelectorAll("[data-tipo-e]").forEach((x) => { x.onclick = () => { e.tipo = x.dataset.tipoE; repintar(); }; });
+  f.querySelectorAll("[data-rpe]").forEach((x) => { x.onclick = () => { e.rpe = +x.dataset.rpe; repintar(); }; });
+  f.querySelector("[data-armar]").onclick = () => {
+    leerFormEntrada();
+    const l = leerSesion(e.texto);
+    if (!l.bloques.length && !l.km) return ($("errorEnt").textContent = t("No entendí la sesión. Prueba con algo como 2x3x1000m (3:10-3:20, 1' entre reps, 2' entre series)."));
+    e.bloques = l.bloques; if (l.km && !e.km) e.km = l.km; if (l.tipo) e.tipo = l.tipo;
+    pintarEditorEntrada();
+  };
+  f.querySelectorAll("[data-nuevo-b]").forEach((x) => { x.onclick = () => {
+    leerFormEntrada();
+    e.bloques = [...(e.bloques || []), x.dataset.nuevoB === "dur"
+      ? { series: 1, reps: 6, dist_m: null, dur_s: 180, obj: null, p_rep: 90, p_serie: null, tiempos: [] }
+      : { series: 1, reps: 5, dist_m: 1000, dur_s: null, obj: null, p_rep: 60, p_serie: null, tiempos: [] }];
+    pintarEditorEntrada(); }; });
+  f.querySelectorAll("[data-quitar-b]").forEach((x) => { x.onclick = () => { leerFormEntrada(); e.bloques.splice(+x.dataset.quitarB, 1); pintarEditorEntrada(); }; });
+  // Estructura del bloque: al cambiarla se rehace la grilla (los tiempos ya anotados se conservan).
+  f.querySelectorAll("[data-campo]").forEach((x) => { x.onchange = () => {
+    leerFormEntrada();
+    const b = e.bloques[+x.dataset.b], k = x.dataset.campo, v = x.value.trim();
+    if (k === "series" || k === "reps") b[k] = Math.max(1, Math.min(k === "reps" ? 40 : 10, parseInt(v) || 1));
+    else if (k === "dist_m") b.dist_m = Math.max(1, parseInt(v) || b.dist_m);
+    else if (k === "dur_s" || k === "p_rep" || k === "p_serie") { const s = segRep(/^\d+$/.test(v) && k !== "dur_s" ? v + "'" : v); b[k] = Number.isFinite(s) && s > 0 ? s : null; if (k === "dur_s" && !b.dur_s) b.dur_s = 60; }
+    else if (k === "obj0" || k === "obj1") {
+      const s = segRep(v), o = b.obj || [null, null];
+      o[k === "obj0" ? 0 : 1] = Number.isFinite(s) && s > 0 ? s : null;
+      b.obj = o[0] || o[1] ? [o[0] ?? o[1], o[1] ?? o[0]].sort((a, c) => a - c) : null;
+    }
+    pintarEditorEntrada();
+  }; });
+  // Tiempos: se guardan al escribir; color y estadísticas al instante.
+  f.querySelectorAll(".t-rep").forEach((x) => {
+    x.oninput = x.onchange = () => {
+      const b = e.bloques[+x.dataset.b], s = +x.dataset.s, r = +x.dataset.r;
+      b.tiempos ||= []; b.tiempos[s] ||= [];
+      const v = b.dur_s ? parseInt(x.value) : segRep(x.value);
+      b.tiempos[s][r] = Number.isFinite(v) && v > 0 ? v : null;
+      x.className = `t-rep ${estadoRep(b, b.tiempos[s][r])}`;
+      const st = statsBloque(b); $("stats-" + x.dataset.b).textContent = st ? statsTxt(b, st) : "";
+    };
+    x.onblur = () => { const b = e.bloques[+x.dataset.b], v = b.tiempos?.[+x.dataset.s]?.[+x.dataset.r];
+      if (v != null && !b.dur_s) x.value = mmss(v); };
+  });
+  f.querySelector("[data-ent-cancelar]").onclick = () => { editandoEntrada = null; pintarBitacora(); };
+  f.querySelector("[data-ent-copiar-ed]").onclick = async (ev) => { leerFormEntrada(); const ok = await copiar(textoEntrada(e));
+    ev.target.textContent = ok ? "✓ " + t("Copiada") : t("No se pudo copiar"); };
+  const borrar = f.querySelector("[data-ent-borrar]");
+  if (borrar) borrar.onclick = () => {
+    if (!confirm(t("¿Borrar esta entrada?"))) return;
+    const bt = bitacora(); bt.entradas = bt.entradas.filter((x) => x.id !== e.id); guardarBitacora(bt);
+    editandoEntrada = null; pintarBitacora();
+  };
+  f.onsubmit = (ev) => {
+    ev.preventDefault(); leerFormEntrada();
+    if (!e.fecha) return ($("errorEnt").textContent = t("Elige la fecha."));
+    // Los tiempos vacíos al final no se guardan; si no hay ninguno, la grilla queda vacía.
+    for (const b of e.bloques || []) b.tiempos = (b.tiempos || []).slice(0, b.series).map((fila) => (fila || []).slice(0, b.reps).map((x) => x ?? null));
+    if (!e.km) { const k = (e.bloques || []).reduce((a, b) => a + (statsBloque(b)?.km || 0), 0); if (k) e.km = Math.round(k * 10) / 10; }
+    const bt = bitacora(), limpio = { ...e, id: e.id || nuevoId() };
+    bt.entradas = [...bt.entradas.filter((x) => x.id !== limpio.id), limpio].sort((a, c) => a.fecha.localeCompare(c.fecha));
+    guardarBitacora(bt);
+    diaBitacora = limpio.fecha; mesBitacora = limpio.fecha.slice(0, 7);
+    editandoEntrada = null; pintarBitacora();
+  };
+}
+
+// ── Editor de un objetivo ──
+function pintarEditorObjetivo() {
+  const o = editandoObjetivo, otra = o.dist && !DIST_OBJ.some(([k]) => k === o.dist);
+  hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t(o.id ? "Editar objetivo" : "Nuevo objetivo")}</h2>
+    <form id="formObjetivo" class="coach-form">
+      <label>${t("Nombre")}<input id="nombreObj" value="${esc(o.nombre || "")}" placeholder="${t("ej. 10K Fedachi, 42K MDS")}" maxlength="40"></label>
+      <label>${t("Fecha")}<input type="date" id="fechaObj" value="${o.fecha || ""}"></label>
+      <label>${t("Distancia")}<div class="fases">${DIST_OBJ.map(([k, et]) => `<button type="button" class="chip${o.dist === k ? " on" : ""}" data-dist="${k}">${et}</button>`).join("")}
+        <button type="button" class="chip${otra ? " on" : ""}" data-dist="otra">${t("Otra")}</button></div></label>
+      <label id="campoKmObj"${otra ? "" : " hidden"}>${t("Km")}<input id="kmObj" inputmode="decimal" value="${otra ? esc(String(o.dist)) : ""}" placeholder="15"></label>
+      <label>${t("Tiempo objetivo (opcional)")}<input id="metaObj" value="${o.meta_s ? hms(o.meta_s) : ""}" placeholder="${t("ej. 3:30:00 o 45:00")}"></label>
+      <label>${t("Prioridad")}<div class="fases">${[["A", "A · la principal"], ["B", "B · importante"], ["C", "C · de preparación"]].map(([k, et]) =>
+        `<button type="button" class="chip${o.prioridad === k ? " on" : ""}" data-prio="${k}">${t(et)}</button>`).join("")}</div></label>
+      <div class="coach-acciones"><button type="submit">${t("Guardar")}</button><button type="button" class="sec" data-obj-cancelar>${t("Cancelar")}</button>
+        ${o.id ? `<button type="button" class="sec peligro" data-obj-borrar>${t("Borrar")}</button>` : ""}</div>
+      <p class="aviso" id="errorObj" style="margin:0"></p></form>`);
+  const f = $("formObjetivo");
+  const leerF = () => { o.nombre = $("nombreObj").value.trim(); o.fecha = $("fechaObj").value; const m = aSegundos($("metaObj").value); o.meta_s = Number.isFinite(m) && m > 0 ? m : null; };
+  f.querySelectorAll("[data-dist]").forEach((x) => { x.onclick = () => { leerF(); o.dist = x.dataset.dist === "otra" ? ($("kmObj").value || "15") : x.dataset.dist; pintarEditorObjetivo(); }; });
+  f.querySelectorAll("[data-prio]").forEach((x) => { x.onclick = () => { leerF(); o.prioridad = x.dataset.prio; pintarEditorObjetivo(); }; });
+  f.querySelector("[data-obj-cancelar]").onclick = () => { editandoObjetivo = null; pintarBitacora(); };
+  const borrar = f.querySelector("[data-obj-borrar]");
+  if (borrar) borrar.onclick = () => { if (!confirm(t("¿Borrar este objetivo?"))) return;
+    const bt = bitacora(); bt.objetivos = bt.objetivos.filter((x) => x.id !== o.id); guardarBitacora(bt); editandoObjetivo = null; pintarBitacora(); };
+  f.onsubmit = (ev) => {
+    ev.preventDefault(); leerF();
+    if (!$("campoKmObj").hidden) o.dist = ($("kmObj").value || "").replace(",", ".");
+    if (!o.nombre) return ($("errorObj").textContent = t("Ponle un nombre."));
+    if (!o.fecha) return ($("errorObj").textContent = t("Elige la fecha."));
+    const bt = bitacora(), limpio = { ...o, id: o.id || nuevoId() };
+    bt.objetivos = [...bt.objetivos.filter((x) => x.id !== limpio.id), limpio];
+    guardarBitacora(bt);
+    mesBitacora = limpio.fecha.slice(0, 7); diaBitacora = limpio.fecha;
+    editandoObjetivo = null; pintarBitacora();
   };
 }
 

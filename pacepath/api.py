@@ -351,7 +351,7 @@ async def _strava_en_cuenta(request: Request, call_next):
 # Preferencias que viajan con la cuenta (lo del teléfono que no es de Strava).
 DATOS_CUENTA = {"pp_coach", "pp_entreno_ajustes", "pp_fase", "pp_segun_hora", "pp_forma", "pp_radio", "pp_favoritos",
                 "pp_guardadas", "pp_recientes", "pp_usar_frec", "pp_lang", "pp_unidad", "pp_noche", "pp_logros_vistos",
-                "pp_pasaporte_abierto"}
+                "pp_pasaporte_abierto", "pp_bitacora"}
 
 
 class DatosCuenta(BaseModel):
