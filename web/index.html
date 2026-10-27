@@ -4787,7 +4787,7 @@ function objetivosTodos() {
 const faltanDias = (f) => Math.round((new Date(f + "T12:00") - new Date(fechaLocal() + "T12:00")) / 864e5);
 
 async function abrirBitacora() {
-  if (editandoBitacora()) return;
+  // Al entrar a la pestaña siempre se dibuja algo: si dejaste un editor abierto, vuelves a él.
   pintarBitacora();
   carrerasBitacora = await carrerasEntreno().catch(() => []);
   if (vista === "entreno" && subEntreno === "bitacora" && !editandoBitacora()) pintarBitacora();
