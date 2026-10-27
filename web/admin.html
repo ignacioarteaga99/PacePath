@@ -395,7 +395,8 @@ function pintarAcceso(a) {
   correoActivo = !!a.correo_activo;
   $("accCorreo").innerHTML = a.correo_activo
     ? 'Correos de verificación y recuperación: <b class="on">encendidos</b>'
-    : "Correos de verificación y recuperación: <b>apagados</b> (falta configurar el remitente; mientras, si alguien olvida su clave, pónle una nueva con «Editar»)";
+    : "Correos de verificación y recuperación: <b>apagados</b> (falta configurar el remitente; mientras, si alguien olvida su clave, pónle una nueva con «Editar»)"
+      + (a.correo_faltan?.length ? `<br><span class="mal">En Render falta: ${a.correo_faltan.map(esc).join(", ")}</span>` : "");
   const ce = a.correo_estado || {};
   if (a.correo_activo && ce.error) $("accCorreo").innerHTML += `<br><span class="mal">Último envío falló (${new Date(ce.error_ts * 1000).toLocaleString("es-CL")}): ${esc(ce.error)}</span>`;
   else if (a.correo_activo && ce.ok_ts) $("accCorreo").innerHTML += ` · último envío bien ${new Date(ce.ok_ts * 1000).toLocaleString("es-CL")}`;

@@ -936,7 +936,7 @@ def _solo_admin(request: Request) -> None:
 @app.get("/api/admin/acceso", include_in_schema=False)
 def admin_acceso(request: Request) -> dict:
     _solo_admin(request)
-    return acceso.estado() | {"correo_activo": correo.activo(), "correo_estado": correo.estado}
+    return acceso.estado() | {"correo_activo": correo.activo(), "correo_estado": correo.estado, "correo_faltan": correo.faltan()}
 
 
 @app.post("/api/admin/acceso", include_in_schema=False)
@@ -945,7 +945,7 @@ def admin_cambiar_acceso(body: AjustesAcceso, request: Request) -> dict:
     que Render duerma)."""
     _solo_admin(request)
     try:
-        return acceso.configurar(body.activo) | {"correo_activo": correo.activo(), "correo_estado": correo.estado}
+        return acceso.configurar(body.activo) | {"correo_activo": correo.activo(), "correo_estado": correo.estado, "correo_faltan": correo.faltan()}
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(503, f"No pude guardar en la base de datos: {type(exc).__name__}") from exc
 

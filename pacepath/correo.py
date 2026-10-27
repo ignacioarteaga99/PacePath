@@ -39,10 +39,17 @@ from . import idioma
 from .idioma import tr
 
 
+VARIABLES = ("PACEPATH_CORREO_SMTP", "PACEPATH_CORREO_USUARIO", "PACEPATH_CORREO_CLAVE", "PACEPATH_CORREO_DE")
+
+
 def activo() -> bool:
-    return os.environ.get("PACEPATH_CORREO_ACTIVO") == "1" and all(
-        os.environ.get(k) for k in ("PACEPATH_CORREO_SMTP", "PACEPATH_CORREO_USUARIO",
-                                    "PACEPATH_CORREO_CLAVE", "PACEPATH_CORREO_DE"))
+    return not faltan()
+
+
+def faltan() -> list[str]:
+    """Qué le falta al envío para encenderse (sólo los nombres, nunca los valores)."""
+    out = [] if os.environ.get("PACEPATH_CORREO_ACTIVO", "").strip() == "1" else ["PACEPATH_CORREO_ACTIVO=1"]
+    return out + [k for k in VARIABLES if not os.environ.get(k, "").strip()]
 
 
 def enviar(para: str, asunto: str, texto: str, html_: str | None = None, responder_a: str | None = None) -> None:

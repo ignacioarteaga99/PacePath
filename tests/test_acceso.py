@@ -506,3 +506,16 @@ def test_enviar_sesion_al_entrenador(base, monkeypatch):
     for _ in range(api.ENVIOS_DIA - 1):
         cli.post("/api/bitacora/enviar", json=cuerpo)
     assert cli.post("/api/bitacora/enviar", json=cuerpo).status_code == 429
+
+
+def test_correo_dice_que_falta(monkeypatch):
+    from pacepath import correo
+    for k in ("PACEPATH_CORREO_ACTIVO", *correo.VARIABLES):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("PACEPATH_CORREO_ACTIVO", "true")                       # tiene que ser «1»
+    monkeypatch.setenv("PACEPATH_CORREO_SMTP", "smtp.resend.com:465")
+    assert correo.faltan() == ["PACEPATH_CORREO_ACTIVO=1", "PACEPATH_CORREO_USUARIO", "PACEPATH_CORREO_CLAVE", "PACEPATH_CORREO_DE"]
+    for k, v in {"PACEPATH_CORREO_ACTIVO": "1", "PACEPATH_CORREO_USUARIO": "resend", "PACEPATH_CORREO_CLAVE": "x",
+                 "PACEPATH_CORREO_DE": "PacePath <support@pacepathapp.com>"}.items():
+        monkeypatch.setenv(k, v)
+    assert correo.faltan() == [] and correo.activo()
