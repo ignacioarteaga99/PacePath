@@ -342,6 +342,14 @@ def histograma(s: Sesion, actividad: int) -> dict:
             "fc_max": fc_max, "s": round(total)}
 
 
+def vueltas(s: Sesion, actividad: int) -> list[dict]:
+    """Las vueltas (laps) de una carrera: distancia, tiempo total (con lo
+    detenido: es el de la repetición o de la pausa) y pulso medio."""
+    d = _http("GET", f"{API}/activities/{int(actividad)}/laps", token=s.access_token)
+    return [{"distancia_m": round(v.get("distance") or 0, 1), "tiempo_s": v.get("elapsed_time") or v.get("moving_time") or 0,
+             "fc": v.get("average_heartrate")} for v in (d if isinstance(d, list) else [])]
+
+
 def _totales(t: dict | None) -> dict:
     t = t or {}
     return {"carreras": int(t.get("count") or 0), "km": round((t.get("distance") or 0) / 1000, 1),

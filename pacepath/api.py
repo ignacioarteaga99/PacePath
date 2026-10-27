@@ -61,7 +61,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import numpy as np
 
-from . import acceso, cancelar, ciudades, coach, comunas, prediccion, correo, cuentas, entreno, momento, oauth, frecuencia, idioma, lugares, nombres, recientes, registro, rendimiento, strava, uso, zonas
+from . import acceso, bitacora, cancelar, ciudades, coach, comunas, prediccion, correo, cuentas, entreno, momento, oauth, frecuencia, idioma, lugares, nombres, recientes, registro, rendimiento, strava, uso, zonas
 from .idioma import tr
 from .gpx import plan_a_gpx
 from .sesion import Sesion, interpretar
@@ -1438,6 +1438,51 @@ def strava_histograma(request: Request, id: int) -> Response:
     if renovada:
         _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
     return resp
+
+
+@app.get("/api/strava/vueltas")
+def strava_vueltas(request: Request, id: int) -> Response:
+    """Las vueltas (laps) de una carrera, para llenar la bitácora. No se guarda."""
+    s = strava.Sesion.descifrar(request.cookies.get(strava.COOKIE))
+    if s is None:
+        raise HTTPException(401, tr("Conecta tu cuenta de Strava.", "Connect your Strava account.",
+                                                                    "Conecte sua conta do Strava."))
+    try:
+        s, renovada = strava.vigente(s)
+        v = strava.vueltas(s, id)
+    except strava.StravaError as exc:
+        raise _error_strava(exc) from exc
+    resp = JSONResponse({"vueltas": v})
+    if renovada:
+        _poner_cookie(resp, request, strava.COOKIE, s.cifrar(), 180 * 24 * 3600)
+    return resp
+
+
+class Vuelta(BaseModel):
+    distancia_m: float = Field(ge=0, le=100_000)
+    tiempo_s: float = Field(ge=0, le=86_400)
+    fc: float | None = None
+
+
+class PlanSerie(BaseModel):
+    series: int = Field(default=1, ge=1, le=20)
+    reps: int = Field(ge=1, le=60)
+    dist_m: float | None = Field(default=None, gt=0, le=50_000)
+    dur_s: float | None = Field(default=None, gt=0, le=7200)
+    obj: list[float] | None = None
+
+
+class PedidoSeries(BaseModel):
+    vueltas: list[Vuelta] = Field(max_length=300)
+    plan: PlanSerie | None = None
+    marcas: list[Literal["rep", "pausa", "cal", "vc"]] | None = Field(default=None, max_length=300)
+
+
+@app.post("/api/bitacora/series")
+def bitacora_series(body: PedidoSeries) -> dict:
+    """De las vueltas a las series (propuesta para revisar antes de guardar)."""
+    return bitacora.proponer([v.model_dump() for v in body.vueltas],
+                             body.plan.model_dump() if body.plan else None, body.marcas)
 
 
 class Ajustes(BaseModel):

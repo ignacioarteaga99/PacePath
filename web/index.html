@@ -348,6 +348,21 @@
   .rpe { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
   .r1 { background: #e3f4e8; color: #1a7a35; } .r2 { background: #fff1d6; color: #8a5a00; } .r3 { background: #fde2cf; color: #9a3b0a; } .r4 { background: #fde4e4; color: #a32020; }
   .obj-dia { margin: 4px 0; font-size: 14px; }
+  .obj-fila .faltan.res { color: var(--tinta); }
+  .historial-obj { margin-top: 8px; } .historial-obj summary { font-size: 13px; color: var(--suave); cursor: pointer; }
+  .entradas p.compara, .entradas small.compara { color: var(--acento-osc); font-weight: 600; }
+  .fila-lista { width: 100%; display: grid; grid-template-columns: 58px 1fr; gap: 8px; text-align: left; background: none; border: 0; padding: 0; color: var(--tinta); font: inherit; cursor: pointer; }
+  .fila-lista .f { font-size: 12px; font-weight: 800; color: var(--suave); } .fila-lista small { display: block; color: var(--suave); font-size: 13px; }
+  .buscar-b { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--linea); margin: 8px 0; }
+  .propuesta { border: 2px solid var(--acento); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; background: #fffaf7; }
+  .vueltas { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .vueltas th { text-align: left; font-size: 11px; color: var(--suave); padding: 2px 4px; } .vueltas td { padding: 3px 4px; border-top: 1px solid var(--linea); }
+  .vueltas tr.rep td { background: #eefaf1; font-weight: 700; } .vueltas tr.cal td, .vueltas tr.vc td { color: var(--suave); }
+  .coach-form .vueltas input.t-vuelta { width: 58px; padding: 4px; font-size: 16px; text-align: center; }
+  .vueltas select { font: inherit; font-size: 14px; padding: 3px; border-radius: 8px; border: 1px solid var(--linea); background: #fff; max-width: 92px; }
+  .prev-b { font-size: 13px; margin: 8px 0 0; line-height: 1.5; }
+  .previas { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; font-size: 13.5px; }
+  .previas li { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 6px; } .previas .dif { font-weight: 800; color: var(--acento-osc); }
   .fila-b { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--gris); border-radius: 12px; padding: 8px 12px; margin: 6px 0; font-size: 14px; }
   .cal-dia.en-pausa { background: repeating-linear-gradient(135deg, var(--gris) 0 6px, var(--fondo) 6px 12px); }
   .cal-dia .ico { font-size: 11px; line-height: 1; } .cal-dia .ico.dolor { filter: drop-shadow(0 0 1px #c92a2a); } .sugerencia-b { margin: 8px 0 0; font-size: 13.5px; color: var(--suave); }
@@ -368,6 +383,9 @@
   .rpe-escala { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
   .rpe-b { border: 2px solid transparent; border-radius: 8px; padding: 8px 0; font-weight: 800; font-size: 14px; cursor: pointer; }
   .rpe-b.on { border-color: var(--tinta); }
+  .coach-form [hidden] { display: none !important; }
+  .coach-form label.dolor { display: flex; gap: 8px; align-items: center; font-size: 14px; font-weight: 600; color: var(--tinta); margin: 6px 0; }
+  .coach-form label.dolor input { width: 20px; height: 20px; margin: 0; flex: none; }
   .coach-form textarea { font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--linea); background: #fff; resize: vertical; }
   button.peligro { color: #a32020; }
   .coach-pie { display: flex; gap: 14px; margin-top: 12px; font-size: 13px; flex-wrap: wrap; }
@@ -3742,6 +3760,66 @@ Object.assign(EN, {
   "El término no puede ser antes del inicio.": "The end can't be before the start.",
   "Se cruza con otra pausa: edita esa.": "It overlaps another break: edit that one.",
   "Es el del día: el Coach lo usa para ajustar tu plan.": "It's for the whole day: the Coach uses it to adjust your plan.",
+  "1 entrada · {k}": "1 entry · {k}",
+  "{n} entradas · {k}": "{n} entries · {k}",
+  "A {s} de la meta": "{s} off the goal",
+  "Anotar resultado": "Log result",
+  "Bajando las vueltas de Strava…": "Getting laps from Strava…",
+  "Buscar (ej. 1000, pista, viento)": "Search (e.g. 1000, track, wind)",
+  "Calent.": "Warm-up",
+  "Calentamiento (km)": "Warm-up (km)",
+  "Calentamiento {k}": "Warm-up {k}",
+  "Calidad anotada": "Quality logged",
+  "Cerrar": "Close",
+  "Clima, estrategia, qué aprendiste…": "Weather, pacing, what you learned…",
+  "Copiar mes": "Copy month",
+  "Copiar semana": "Copy week",
+  "Cómo te fue": "How it went",
+  "Después puedes corregir cualquier tiempo antes de guardar la entrada.": "You can still fix any time before saving the entry.",
+  "Dist.": "Dist.",
+  "El camino hasta aquí": "The road here",
+  "Encontré {e}.": "Found {e}.",
+  "Es": "Is",
+  "Esta carrera no tiene vueltas (laps) en Strava. La próxima vez marca lap en cada repetición y en cada pausa.": "This run has no laps on Strava. Next time press lap at each rep and each rest.",
+  "Fondo más largo": "Longest run",
+  "La diferencia es la de hoy contra esa vez: negativo = más rápido.": "Difference is today vs that time: negative = faster.",
+  "Las veces anteriores": "Previous times",
+  "Meta cumplida por {s}": "Goal beaten by {s}",
+  "No corrida": "Not run",
+  "No encontré series: marca abajo cuáles vueltas son repeticiones.": "No reps found: mark below which laps are reps.",
+  "No hay entradas con ese filtro.": "No entries match that filter.",
+  "No la corrí": "I didn't run it",
+  "No pude armar las series.": "Couldn't build the reps.",
+  "No pude bajar las vueltas de Strava.": "Couldn't get the laps from Strava.",
+  "Objetivos cumplidos y pasados": "Past goals",
+  "Puesto (opcional)": "Place (optional)",
+  "Qué es la vuelta {n}": "What lap {n} is",
+  "Rep.": "Rep",
+  "Resultado": "Result",
+  "Revisa tu tiempo: por ejemplo 38:12 o 1:32:40.": "Check your time: e.g. 38:12 or 1:32:40.",
+  "Semana del {a} al {b}": "Week of {a} to {b}",
+  "Sin entradas": "No entries",
+  "Tiempo": "Time",
+  "Tiempo de la vuelta {n}": "Lap {n} time",
+  "Tiempos de Strava": "Strava times",
+  "Tiempos de Strava: revisa antes de usarlos": "Strava times: check before using them",
+  "Todas": "All",
+  "Tu tiempo": "Your time",
+  "Usar": "Use",
+  "Usar estos tiempos": "Use these times",
+  "V. calma": "Cool-down",
+  "Vuelta a la calma (km)": "Cool-down (km)",
+  "Vuelta a la calma {k}": "Cool-down {k}",
+  "auto: {k}": "auto: {k}",
+  "desde el {f} · {n} semanas": "since {f} · {n} weeks",
+  "ej. 12 de 340": "e.g. 12 of 340",
+  "igual": "same",
+  "mismo RPE": "same RPE",
+  "por rep": "per rep",
+  "vs {f}": "vs {f}",
+  "¿Cómo te fue?": "How did it go?",
+  "☰ Lista": "☰ List",
+  "📅 Calendario": "📅 Calendar",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -3979,6 +4057,66 @@ Object.assign(PT, {
   "El término no puede ser antes del inicio.": "O fim não pode ser antes do início.",
   "Se cruza con otra pausa: edita esa.": "Cruza com outra pausa: edite essa.",
   "Es el del día: el Coach lo usa para ajustar tu plan.": "Vale para o dia: o Coach usa para ajustar seu plano.",
+  "1 entrada · {k}": "1 entrada · {k}",
+  "{n} entradas · {k}": "{n} entradas · {k}",
+  "A {s} de la meta": "A {s} da meta",
+  "Anotar resultado": "Anotar resultado",
+  "Bajando las vueltas de Strava…": "Baixando as voltas do Strava…",
+  "Buscar (ej. 1000, pista, viento)": "Buscar (ex. 1000, pista, vento)",
+  "Calent.": "Aquec.",
+  "Calentamiento (km)": "Aquecimento (km)",
+  "Calentamiento {k}": "Aquecimento {k}",
+  "Calidad anotada": "Qualidade anotada",
+  "Cerrar": "Fechar",
+  "Clima, estrategia, qué aprendiste…": "Clima, estratégia, o que aprendeu…",
+  "Copiar mes": "Copiar mês",
+  "Copiar semana": "Copiar semana",
+  "Cómo te fue": "Como foi",
+  "Después puedes corregir cualquier tiempo antes de guardar la entrada.": "Depois você pode corrigir qualquer tempo antes de salvar a entrada.",
+  "Dist.": "Dist.",
+  "El camino hasta aquí": "O caminho até aqui",
+  "Encontré {e}.": "Encontrei {e}.",
+  "Es": "É",
+  "Esta carrera no tiene vueltas (laps) en Strava. La próxima vez marca lap en cada repetición y en cada pausa.": "Esta corrida não tem voltas (laps) no Strava. Da próxima vez marque lap em cada repetição e em cada pausa.",
+  "Fondo más largo": "Longão mais longo",
+  "La diferencia es la de hoy contra esa vez: negativo = más rápido.": "A diferença é a de hoje contra aquela vez: negativo = mais rápido.",
+  "Las veces anteriores": "As vezes anteriores",
+  "Meta cumplida por {s}": "Meta batida por {s}",
+  "No corrida": "Não corrida",
+  "No encontré series: marca abajo cuáles vueltas son repeticiones.": "Não encontrei séries: marque abaixo quais voltas são repetições.",
+  "No hay entradas con ese filtro.": "Nenhuma entrada com esse filtro.",
+  "No la corrí": "Não corri",
+  "No pude armar las series.": "Não consegui montar as séries.",
+  "No pude bajar las vueltas de Strava.": "Não consegui baixar as voltas do Strava.",
+  "Objetivos cumplidos y pasados": "Metas passadas",
+  "Puesto (opcional)": "Colocação (opcional)",
+  "Qué es la vuelta {n}": "O que é a volta {n}",
+  "Rep.": "Rep.",
+  "Resultado": "Resultado",
+  "Revisa tu tiempo: por ejemplo 38:12 o 1:32:40.": "Confira seu tempo: por exemplo 38:12 ou 1:32:40.",
+  "Semana del {a} al {b}": "Semana de {a} a {b}",
+  "Sin entradas": "Sem entradas",
+  "Tiempo": "Tempo",
+  "Tiempo de la vuelta {n}": "Tempo da volta {n}",
+  "Tiempos de Strava": "Tempos do Strava",
+  "Tiempos de Strava: revisa antes de usarlos": "Tempos do Strava: confira antes de usar",
+  "Todas": "Todas",
+  "Tu tiempo": "Seu tempo",
+  "Usar": "Usar",
+  "Usar estos tiempos": "Usar estes tempos",
+  "V. calma": "Desaq.",
+  "Vuelta a la calma (km)": "Desaquecimento (km)",
+  "Vuelta a la calma {k}": "Desaquecimento {k}",
+  "auto: {k}": "auto: {k}",
+  "desde el {f} · {n} semanas": "desde {f} · {n} semanas",
+  "ej. 12 de 340": "ex. 12 de 340",
+  "igual": "igual",
+  "mismo RPE": "mesmo RPE",
+  "por rep": "por rep",
+  "vs {f}": "vs {f}",
+  "¿Cómo te fue?": "Como foi?",
+  "☰ Lista": "☰ Lista",
+  "📅 Calendario": "📅 Calendário",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -4169,10 +4307,10 @@ function bloqueCoach(j) {
       <div class="fases">${MOTIVOS_P.map(([k, et, ic]) => `<button type="button" class="chip${pausandoCoach.motivo === k ? " on" : ""}" data-motivo="${k}">${ic} ${t(et)}</button>`).join("")}</div>
       <label class="coach-form" style="margin-top:8px"><span>${t("Desde el día")}</span><input type="date" id="desdePausa" max="${hoyF}" value="${pausandoCoach.desde || hoyF}"></label>
       <div class="coach-acciones"><button type="button" class="coach-ruta" data-pausa-ok>⏸️ ${t("Pausar")}</button><button type="button" class="sec" data-pausa-cancelar>${t("Cancelar")}</button></div></div>` : "";
-  // Días a los que se puede mover una sesión: los que quedan de la semana (una calidad no va al día del fondo o la carrera).
+  // Días a los que se puede mover una sesión: los que quedan de la semana, menos el del fondo o la carrera.
   const fijos = new Set((c.semana?.sesiones || []).filter((s) => s.tipo === "fondo" || s.tipo === "carrera").map((s) => s.fecha));
   const quedan = (f, tipo) => { const out = []; for (let x = hoyF > c.semana.lunes ? hoyF : c.semana.lunes; x <= domingo; x = masDias(x, 1))
-    if (x !== f && !(["umbral", "intensa", "fondo"].includes(tipo) && fijos.has(x))) out.push(x); return out; };
+    if (x !== f && !fijos.has(x)) out.push(x); return out; };
   const semana = (c.semana?.sesiones || []).map((s) => {
     const abierta = s.estado === "hoy" || s.estado === "pendiente";
     const mover = abierta && s.turno !== 2 && !s.real && !c.pausa && quedan(s.fecha, s.tipo).length;
@@ -4338,6 +4476,23 @@ function activarCoach() {
 // journey. Se guarda en el teléfono y viaja con tu cuenta (es tuyo, no de Strava).
 let subEntreno = leer("pp_entreno_sub", "entreno"), editandoEntrada = null, editandoObjetivo = null, editandoPausa = null, editandoSens = null;
 const editandoBitacora = () => editandoEntrada || editandoObjetivo || editandoPausa;
+let vistaBitacora = leer("pp_bitacora_vista", "cal"), filtroBitacora = "todas", buscarBitacora = "";
+// La misma sesión otra vez (2x3x1000m, 10x400m…): para ver cómo cambia con el tiempo.
+const firma = (e) => (e.bloques || []).map(estructura).join(" + ");
+const anteriores = (e) => { const f = firma(e); if (!f) return [];
+  return bitacora().entradas.filter((x) => x.id !== e.id && x.fecha < e.fecha && firma(x) === f).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5); };
+// El promedio por repetición del primer bloque con tiempos (lo que se compara).
+const promRep = (e) => { for (const b of e.bloques || []) { const s = statsBloque(b); if (s && !b.dur_s) return s.prom; } return null; };
+const difTxt = (d) => `${d < 0 ? "−" : "+"}${num(Math.abs(d), Math.abs(d) < 10 ? 1 : 0)} s ${t("por rep")}`;
+function compararTxt(e) {
+  const a = anteriores(e)[0], ya = promRep(e), antes = a && promRep(a);
+  if (!a || !ya || !antes) return "";
+  const d = ya - antes, rpe = a.rpe && e.rpe ? (a.rpe === e.rpe ? t("mismo RPE") : `RPE ${a.rpe} → ${e.rpe}`) : "";
+  return `${t("vs {f}", { f: fechaCorta(new Date(a.fecha + "T12:00")) })}: ${Math.abs(d) < 0.5 ? t("igual") : difTxt(d)}${rpe ? " · " + rpe : ""}`;
+}
+// Km de la sesión: calentamiento + repeticiones + vuelta a la calma (si no los escribiste).
+const kmAuto = (e) => { const k = (e.cal_km || 0) + (e.bloques || []).reduce((a, b) => a + (statsBloque(b)?.km || 0), 0) + (e.vc_km || 0);
+  return k ? Math.round(k * 10) / 10 : null; };
 let mesBitacora = null, diaBitacora = null, carrerasBitacora = [];
 const MESES_LARGO = { es: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
   en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
@@ -4411,6 +4566,8 @@ function leerSesion(txt) {
     if (m) [, series, reps, val, uni] = m;
     else if ((m = parte.match(/(\d+)\s*x\s*(\d+(?:[.,]\d+)?)\s*(km|k|m|min|'|"|s)?/i))) [, reps, val, uni] = m;
     else if (out.tipo === "tempo" && (m = parte.match(/(\d+(?:[.,]\d+)?)\s*(km|k)\b/i))) { reps = 1; [, val, uni] = m; }
+    // Un tramo suelto dentro de una sesión de series: «3000m (3.20-3.25) + 3x1000m …».
+    else if (!/fondo|long|regenerativ|suave|rodaje/i.test(parte) && (m = parte.match(/^\s*(\d+(?:[.,]\d+)?)\s*(m|km|k)\b/i)) && limpio.includes("x")) { reps = 1; [, val, uni] = m; }
     else { const k = parte.match(/(\d+(?:[.,]\d+)?)\s*(km|k)\b/i); if (k) out.km = +k[1].replace(",", "."); continue; }
     val = +String(val).replace(",", ".");
     uni = (uni || "").toLowerCase();
@@ -4422,7 +4579,7 @@ function leerSesion(txt) {
     // Lo que viene después: el objetivo («3'10" - 3'20"») y las pausas.
     const resto = parte.slice(m.index + m[0].length).replace(/[()]/g, " ");
     for (const trozo of resto.split(/,|\by\b/)) {
-      const tiempos = [...trozo.matchAll(/(\d+)\s*(?::|')\s*(\d{1,2})\s*(?:"|'')?|(\d+)\s*(?:'|min\b)|(\d+)\s*(?:"|s\b|seg)/gi)]
+      const tiempos = [...trozo.matchAll(/(\d+)\s*(?::|'|\.(?=\d{2}))\s*(\d{1,2})\s*(?:"|'')?|(\d+)\s*(?:'|min\b)|(\d+)\s*(?:"|s\b|seg)/gi)]
         .map((x) => x[1] != null ? +x[1] * 60 + +x[2] : x[3] != null ? +x[3] * 60 : +x[4]);
       if (!tiempos.length) continue;
       if (/pausa|rec|desc|trote|entre|rest|jog/i.test(trozo)) {
@@ -4432,14 +4589,20 @@ function leerSesion(txt) {
         if (/serie|set|bloque/i.test(trozo)) b.p_serie = p;
         else if (/rep/i.test(trozo) || b.p_rep == null) b.p_rep = p;
         else b.p_serie = p;
-      } else if (!b.obj) b.obj = [Math.min(...tiempos), Math.max(...tiempos)];
+      } else if (!b.obj) {
+        // «3'30"-3'35"/km» en repeticiones de 2000 m: el objetivo de cada una es el ritmo por los km que mide.
+        // También si el tiempo es imposible para la distancia entera (un 3000 en «3.20»): es por km.
+        const porKm = b.dist_m && (/\/\s*km/i.test(trozo) || Math.min(...tiempos) / (b.dist_m / 1000) < 150);
+        const f = porKm ? b.dist_m / 1000 : 1;
+        b.obj = [Math.round(Math.min(...tiempos) * f), Math.round(Math.max(...tiempos) * f)];
+      }
     }
     out.bloques.push(b);
   }
   if (out.bloques.length && !out.tipo) out.tipo = "series";
   return out;
 }
-const estructura = (b) => `${b.series > 1 ? b.series + "x" : ""}${b.reps}x${b.dist_m ? (b.dist_m >= 2000 && b.dist_m % 1000 === 0 ? b.dist_m / 1000 + "k" : b.dist_m + "m") : pausaTxt(b.dur_s)}`;
+const estructura = (b) => `${b.series > 1 ? b.series + "x" : ""}${b.reps}x${b.dist_m ? b.dist_m + "m" : pausaTxt(b.dur_s)}`;
 const detalleBloque = (b) => [b.obj ? (b.obj[0] === b.obj[1] ? mmss(b.obj[0]) : `${mmss(b.obj[0])}–${mmss(b.obj[1])}`) : "",
   b.p_rep ? t("{p} entre reps", { p: pausaTxt(b.p_rep) }) : "", b.series > 1 && b.p_serie ? t("{p} entre series", { p: pausaTxt(b.p_serie) }) : ""].filter(Boolean).join(", ");
 // Cada repetición: su valor (tiempo, o metros si es por tiempo), ritmo y si cae en el objetivo.
@@ -4462,6 +4625,12 @@ const resumenEntrada = (e) => [
   e.km ? fmtDistKm(e.km, 1) : "", e.dur_s ? hms(e.dur_s) : "", e.rpe ? `RPE ${e.rpe}` : ""].filter(Boolean).join(" · ");
 
 // El texto para pegar (WhatsApp, notas, tu entrenador).
+// Varias entradas (una semana, un mes) con sus totales.
+function textoPeriodo(titulo, entradas) {
+  const km = entradas.reduce((a, e) => a + (e.km || 0), 0), rpes = entradas.filter((e) => e.rpe).map((e) => e.rpe);
+  return [titulo, t(entradas.length === 1 ? "1 entrada · {k}" : "{n} entradas · {k}", { n: entradas.length, k: fmtDistKm(km, 1) }) + (rpes.length ? ` · RPE ${num(rpes.reduce((a, x) => a + x, 0) / rpes.length, 1)}` : ""),
+    ...entradas.map((e) => "\n" + textoEntrada(e))].join("\n");
+}
 function textoEntrada(e) {
   const d = new Date(e.fecha + "T12:00"), lin = [];
   lin.push(`${fechaCorta(d)} ${d.getFullYear()}${e.turno ? " · " + t(TURNOS.find(([k]) => k === e.turno)[1]) : ""} · ${e.titulo || t(TIPOS_B.find(([k]) => k === e.tipo)?.[1] || "Sesión")}`);
@@ -4474,6 +4643,7 @@ function textoEntrada(e) {
     if (s) lin.push(b.dur_s ? t("Promedio {x} m ({r})", { x: num(s.prom), r: ritmo(s.ritmo) })
       : t("Promedio {x} ({r})", { x: mmss(s.prom), r: b.dist_m ? ritmo(s.ritmo) : "" }).replace(" ()", "") + (s.enRango != null ? " · " + t("{n} de {m} en rango", { n: s.enRango, m: s.n }) : ""));
   }
+  if (e.cal_km || e.vc_km) lin.push([e.cal_km ? t("Calentamiento {k}", { k: fmtDistKm(e.cal_km, 1) }) : "", e.vc_km ? t("Vuelta a la calma {k}", { k: fmtDistKm(e.vc_km, 1) }) : ""].filter(Boolean).join(" · "));
   const tot = [e.km ? fmtDistKm(e.km, 1) : "", e.dur_s ? hms(e.dur_s) : "", e.rpe ? `RPE ${e.rpe}/10` : ""].filter(Boolean).join(" · ");
   if (tot) lin.push(tot);
   if (e.sensaciones) lin.push(`${t("Sensaciones")}: ${e.sensaciones}`);
@@ -4535,19 +4705,23 @@ function pintarBitacora() {
     const pz = pausaDe(f), se = sensDe[f];
     celdas += `<button type="button" class="cal-dia${f === hoyF ? " hoy" : ""}${f === diaBitacora ? " sel" : ""}${ob.length ? " meta" : ""}${pz ? " en-pausa" : ""}" data-dia="${f}"
       aria-label="${d}${en.length ? ", " + t("{n} entradas", { n: en.length }) : ""}${ob.length ? ", " + esc(ob.map((o) => o.nombre).join(", ")) : ""}${pz ? ", " + t(MOTIVOS_P.find(([k]) => k === pz.motivo)[1]) : ""}${se ? ", " + t(CARAS[se.nota - 1][1]) + (se.dolor ? ", " + t("con dolor") : "") : ""}">
-      <span class="n">${d}</span>${ob.length ? `<span class="obj">🏁 ${esc(ob[0].nombre)}</span>` : ""}
+      <span class="n">${d}</span>${ob.length ? `<span class="obj">${ob[0].resultado_s && ob[0].meta_s && ob[0].resultado_s <= ob[0].meta_s ? "✓" : "🏁"} ${esc(ob[0].nombre)}</span>` : ""}
       <span class="puntos">${pz ? `<span class="ico">${MOTIVOS_P.find(([k]) => k === pz.motivo)[2]}</span>` : ""}${se ? `<span class="ico${se.dolor ? " dolor" : ""}">${CARAS[se.nota - 1][0]}</span>` : ""}${en.map(() => `<i class="e"></i>`).join("")}${en.length < st.length ? `<i class="s"></i>` : ""}</span></button>`;
   }
   // El mes: lo anotado.
   const delMes = b.entradas.filter((e) => e.fecha.startsWith(mesBitacora));
   const kmMes = delMes.reduce((a, e) => a + (e.km || 0), 0), rpes = delMes.filter((e) => e.rpe).map((e) => e.rpe);
   const kmStrava = carrerasBitacora.filter((c) => (c.fecha_local || c.fecha).startsWith(mesBitacora)).reduce((a, c) => a + c.distancia_m / 1000, 0);
-  // Los próximos objetivos (y el último que pasó).
-  const prox = objs.filter((o) => o.fecha >= hoyF).slice(0, 3);
+  // Objetivos: los que vienen, los que pasaron sin resultado y los ya cerrados.
+  const cerrado = (o) => o.resultado_s || o.no_corrida;
+  const prox = objs.filter((o) => o.fecha > hoyF).slice(0, 3);
+  const porCerrar = objs.filter((o) => o.fecha <= hoyF && !cerrado(o) && o.fecha >= masDias(hoyF, -60));
+  const historial = objs.filter(cerrado).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 4);
   const objHtml = (o) => { const n = faltanDias(o.fecha);
+    const res = o.no_corrida ? t("No corrida") : o.resultado_s ? `${hms(o.resultado_s)} ${o.meta_s ? (o.resultado_s <= o.meta_s ? "✓" : "✗") : ""}` : "";
     return `<li><button type="button" class="obj-fila" data-obj-ed="${o.id}"><span class="prio p${o.prioridad || "B"}">${o.prioridad || "B"}</span>
       <span><b>${esc(o.nombre)}</b><small>${fechaCorta(new Date(o.fecha + "T12:00"))} ${o.fecha.slice(0, 4)}${o.meta_s ? " · " + t("meta {t}", { t: hms(o.meta_s) }) : ""}</small></span>
-      <span class="faltan">${n === 0 ? t("¡Hoy!") : n > 0 ? t("{n} días", { n }) : t("hace {n} días", { n: -n })}</span></button></li>`; };
+      <span class="faltan${res ? " res" : ""}">${res || (n === 0 ? t("¡Hoy!") : n > 0 ? t("{n} días", { n }) : t("Anotar resultado"))}</span></button></li>`; };
   // El día elegido.
   const fd = new Date(diaBitacora + "T12:00"), entradasDia = (porDia[diaBitacora] || []).sort((x, y) => (x.turno || "").localeCompare(y.turno || ""));
   const yaLigadas = new Set(entradasDia.map((e) => e.strava_id).filter(Boolean));
@@ -4567,7 +4741,7 @@ function pintarBitacora() {
     ${entradasDia.length ? `<ul class="entradas">${entradasDia.map((e) => `<li>
       <div class="cab-e"><b>${e.turno ? `<span class="turno">${t(TURNOS.find(([k]) => k === e.turno)[1])}</span>` : ""}${esc(e.titulo || t(TIPOS_B.find(([k]) => k === e.tipo)?.[1] || "Sesión"))}</b>
         ${e.rpe ? `<span class="rpe r${Math.min(4, Math.ceil(e.rpe / 2.5))}">RPE ${e.rpe}</span>` : ""}</div>
-      <p>${esc(resumenEntrada(e))}</p>${e.sensaciones ? `<p class="sens">“${esc(e.sensaciones)}”</p>` : ""}
+      <p>${esc(resumenEntrada(e))}</p>${compararTxt(e) ? `<p class="compara">📈 ${esc(compararTxt(e))}</p>` : ""}${e.sensaciones ? `<p class="sens">“${esc(e.sensaciones)}”</p>` : ""}
       <div class="coach-acciones"><button type="button" class="mini" data-ent-ed="${e.id}">✎ ${t("Editar")}</button>
         <button type="button" class="mini" data-ent-copiar="${e.id}">⧉ ${t("Copiar")}</button></div></li>`).join("")}</ul>`
       : `<p class="pista">${t("Sin entradas este día.")}</p>`}
@@ -4579,16 +4753,35 @@ function pintarBitacora() {
       ${pd ? "" : `<button type="button" class="mini" data-pausa-nueva>+ ${t("Pausa desde este día")}</button>`}</div></div>`;
   hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu bitácora")}</h2>${selectorEntreno()}
     <div class="bloque"><div class="cab-bloque"><h3>${t("Objetivos")}</h3><button type="button" class="mini" data-obj-nuevo>+ ${t("Objetivo")}</button></div>
-      ${prox.length ? `<ul class="objetivos">${prox.map(objHtml).join("")}</ul>` : `<p class="pista">${t("Agrega tus carreras objetivo (10K Fedachi, 42K MDS…) y aparecen en el calendario con la cuenta regresiva.")}</p>`}</div>
+      ${porCerrar.length ? `<p class="sub" style="margin:6px 0 0">${t("¿Cómo te fue?")}</p><ul class="objetivos">${porCerrar.map(objHtml).join("")}</ul>` : ""}
+      ${prox.length ? `<ul class="objetivos">${prox.map(objHtml).join("")}</ul>` : porCerrar.length || historial.length ? "" : `<p class="pista">${t("Agrega tus carreras objetivo (10K Fedachi, 42K MDS…) y aparecen en el calendario con la cuenta regresiva.")}</p>`}
+      ${historial.length ? `<details class="historial-obj"><summary>${t("Objetivos cumplidos y pasados")}</summary><ul class="objetivos">${historial.map(objHtml).join("")}</ul></details>` : ""}</div>
+    <div class="fases seg-entreno">${[["cal", "📅 Calendario"], ["lista", "☰ Lista"]].map(([k, et]) =>
+      `<button type="button" class="chip${vistaBitacora === k ? " on" : ""}" data-vista-b="${k}">${t(et)}</button>`).join("")}</div>
+    ${vistaBitacora === "lista" ? listaBitacoraHtml() : `
     <div class="bloque calendario"><div class="cal-cab"><button type="button" class="mini" data-mes="-1" aria-label="${t("Mes anterior")}">‹</button>
       <b>${MESES_LARGO[idioma]?.[me - 1] || MESES_LARGO.es[me - 1]} ${an}</b><button type="button" class="mini" data-mes="1" aria-label="${t("Mes siguiente")}">›</button></div>
       <div class="cal-grilla">${DIA_CORTO.map((d) => `<span class="cal-sem">${t(d)}</span>`).join("")}${celdas}</div>
       <p class="nota-kpi"><i class="pto e"></i>${t("entrada de bitácora")} <i class="pto s"></i>${t("carrera de Strava sin anotar")} · 🏁 ${t("objetivo")} · 🙂 ${t("cómo te sentiste")} · 🤒 ${t("pausa")}</p>
       <div class="kpis"><div class="kpi"><span>${t("Entradas")}</span><b>${delMes.length}</b></div>
         <div class="kpi"><span>${t("Km anotados")}</span><b>${num(kmMes, 0)}</b><small>${kmStrava ? t("{k} en Strava", { k: fmtDistKm(kmStrava, 0) }) : ""}</small></div>
-        <div class="kpi"><span>${t("RPE medio")}</span><b>${rpes.length ? num(rpes.reduce((a, x) => a + x, 0) / rpes.length, 1) : "–"}</b></div></div></div>
-    ${diaHtml}`);
+        <div class="kpi"><span>${t("RPE medio")}</span><b>${rpes.length ? num(rpes.reduce((a, x) => a + x, 0) / rpes.length, 1) : "–"}</b></div></div>
+      <div class="coach-acciones"><button type="button" class="mini" data-copiar-per="semana">⧉ ${t("Copiar semana")}</button>
+        <button type="button" class="mini" data-copiar-per="mes">⧉ ${t("Copiar mes")}</button></div></div>
+    ${diaHtml}`}`);
   activarSelectorEntreno();
+  document.querySelectorAll("[data-vista-b]").forEach((x) => { x.onclick = () => { vistaBitacora = x.dataset.vistaB; escribir("pp_bitacora_vista", vistaBitacora); pintarBitacora(); }; });
+  if (vistaBitacora === "lista") activarListaBitacora();
+  document.querySelectorAll("[data-copiar-per]").forEach((x) => { x.onclick = async () => {
+    let ini, fin, titulo;
+    if (x.dataset.copiarPer === "semana") {
+      const d = new Date(diaBitacora + "T12:00"); ini = masDias(diaBitacora, -((d.getDay() + 6) % 7)); fin = masDias(ini, 6);
+      titulo = t("Semana del {a} al {b}", { a: fechaCorta(new Date(ini + "T12:00")), b: fechaCorta(new Date(fin + "T12:00")) + " " + fin.slice(0, 4) });
+    } else { ini = mesBitacora + "-01"; fin = mesBitacora + "-31"; titulo = `${MESES_LARGO[idioma]?.[me - 1] || MESES_LARGO.es[me - 1]} ${an}`; }
+    const es = bitacora().entradas.filter((e) => e.fecha >= ini && e.fecha <= fin).sort((a, b) => (a.fecha + (a.turno || "")).localeCompare(b.fecha + (b.turno || "")));
+    if (!es.length) { x.textContent = t("Sin entradas"); return; }
+    const ok = await copiar(textoPeriodo(titulo, es));
+    x.textContent = ok ? "✓ " + t("Copiada") : t("No se pudo copiar"); }; });
   document.querySelectorAll("[data-mes]").forEach((x) => { x.onclick = () => {
     const d = new Date(an, me - 1 + +x.dataset.mes, 1); mesBitacora = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; pintarBitacora(); }; });
   document.querySelectorAll("[data-dia]").forEach((x) => { x.onclick = () => { diaBitacora = x.dataset.dia; pintarBitacora(); }; });
@@ -4599,16 +4792,18 @@ function pintarBitacora() {
     x.textContent = ok ? "✓ " + t("Copiada") : t("No se pudo copiar"); }; });
   const nueva = (extra = {}) => { editandoEntrada = { id: null, fecha: diaBitacora, turno: entradasDia.length ? "tarde" : "manana", tipo: "series", titulo: "",
     bloques: [], km: null, dur_s: null, rpe: null, sensaciones: "", texto: "", ...extra }; pintarBitacora(); };
-  document.querySelector("[data-ent-nueva]").onclick = () => nueva();
+  const bNueva = document.querySelector("[data-ent-nueva]");
+  if (bNueva) bNueva.onclick = () => nueva();
   document.querySelectorAll("[data-ent-coach]").forEach((x) => { x.onclick = () => {
     const l = leerSesion(x.dataset.entCoach);
     nueva({ titulo: x.dataset.titulo, texto: x.dataset.entCoach, tipo: l.tipo || "otro", bloques: l.bloques, km: l.km }); }; });
   document.querySelectorAll("[data-ent-strava]").forEach((x) => { x.onclick = () => {
     const c = carrerasBitacora.find((c) => String(c.id) === x.dataset.entStrava);
     const l = leerSesion(c.nombre || "");
-    nueva({ titulo: c.nombre || "", strava_id: c.id, km: Math.round(c.distancia_m / 100) / 10, dur_s: c.tiempo_s,
+    nueva({ titulo: c.nombre || "", texto: l.bloques.length ? c.nombre : "", strava_id: c.id, km: Math.round(c.distancia_m / 100) / 10, km_manual: true, dur_s: c.tiempo_s,
             turno: +(c.fecha_local || c.fecha).slice(11, 13) < 12 ? "manana" : +(c.fecha_local || c.fecha).slice(11, 13) < 19 ? "tarde" : "noche",
-            tipo: l.tipo || "otro", bloques: l.bloques }); }; });
+            tipo: l.tipo || (c.tipo_entreno === 3 ? "series" : "otro"), bloques: l.bloques });
+    if (l.bloques.length || c.tipo_entreno === 3) traerStrava(c.id); }; });
   // Cómo te sentiste ese día: ver, editar, borrar.
   document.querySelectorAll("[data-sens-ed]").forEach((x) => { x.onclick = () => { editandoSens = { fecha: diaBitacora, nota: sd?.nota ?? null, dolor: sd?.dolor ?? null }; pintarBitacora(); }; });
   document.querySelectorAll("[data-dnota]").forEach((x) => { x.onclick = () => { editandoSens.nota = +x.dataset.dnota; pintarBitacora(); }; });
@@ -4627,13 +4822,111 @@ function pintarBitacora() {
   document.querySelectorAll("[data-pausa-ed]").forEach((x) => { x.onclick = () => { editandoPausa = structuredClone(bitacora().pausas.find((y) => y.id === x.dataset.pausaEd)); pintarBitacora(); }; });
   document.querySelector("[data-obj-nuevo]").onclick = () => { editandoObjetivo = { id: null, nombre: "", fecha: diaBitacora > hoyF ? diaBitacora : "", dist: "10k", meta_s: null, prioridad: "A" }; pintarBitacora(); };
   document.querySelectorAll("[data-obj-ed]").forEach((x) => { x.onclick = () => {
+    const oc = objetivosTodos().find((o) => o.id === "coach");
+    if (x.dataset.objEd === "coach" && oc && oc.fecha <= hoyF) { const { propio, ...resto } = oc; editandoObjetivo = { ...resto, id: null, nombre: oc.nombre.replace(" · Coach", "") }; pintarBitacora(); return; }
     if (x.dataset.objEd === "coach") { subEntreno = "entreno"; escribir("pp_entreno_sub", "entreno"); editandoCoach = true; pintarEntreno(leer("pp_revision", null)); return; }
     editandoObjetivo = structuredClone(bitacora().objetivos.find((o) => o.id === x.dataset.objEd)); pintarBitacora(); }; });
+}
+
+// ── Lista de entradas, con filtro por tipo y búsqueda ──
+function filasLista() {
+  const q = buscarBitacora.trim().toLowerCase();
+  const es = bitacora().entradas.filter((e) => (filtroBitacora === "todas" || e.tipo === filtroBitacora)
+    && (!q || `${e.titulo || ""} ${firma(e)} ${e.texto || ""} ${e.sensaciones || ""}`.toLowerCase().includes(q)))
+    .sort((a, b) => (b.fecha + (b.turno || "")).localeCompare(a.fecha + (a.turno || "")));
+  if (!es.length) return `<p class="pista">${t("No hay entradas con ese filtro.")}</p>`;
+  return `<p class="sub">${t(es.length === 1 ? "1 entrada · {k}" : "{n} entradas · {k}", { n: es.length, k: fmtDistKm(es.reduce((a, e) => a + (e.km || 0), 0), 0) })}</p>
+    <ul class="entradas">${es.slice(0, 150).map((e) => `<li><button type="button" class="fila-lista" data-ent-ed="${e.id}">
+      <span class="f">${fechaCorta(new Date(e.fecha + "T12:00"))}${e.fecha.slice(0, 4) !== fechaLocal().slice(0, 4) ? " " + e.fecha.slice(0, 4) : ""}</span>
+      <span><b>${esc(e.titulo || t(TIPOS_B.find(([k]) => k === e.tipo)?.[1] || "Sesión"))}</b><small>${esc(resumenEntrada(e))}</small>
+        ${compararTxt(e) ? `<small class="compara">📈 ${esc(compararTxt(e))}</small>` : ""}</span></button></li>`).join("")}</ul>`;
+}
+const listaBitacoraHtml = () => `<div class="bloque"><div class="fases">${[["todas", "Todas"], ...TIPOS_B].map(([k, et]) =>
+    `<button type="button" class="chip${filtroBitacora === k ? " on" : ""}" data-filtro-b="${k}">${t(et)}</button>`).join("")}</div>
+  <input id="buscarB" class="buscar-b" type="search" value="${esc(buscarBitacora)}" placeholder="${t("Buscar (ej. 1000, pista, viento)")}">
+  <div id="filasB">${filasLista()}</div></div>`;
+function activarListaBitacora() {
+  document.querySelectorAll("[data-filtro-b]").forEach((x) => { x.onclick = () => { filtroBitacora = x.dataset.filtroB; pintarBitacora(); }; });
+  const enlazar = () => document.querySelectorAll("#filasB [data-ent-ed]").forEach((x) => { x.onclick = () => {
+    editandoEntrada = structuredClone(bitacora().entradas.find((e) => e.id === x.dataset.entEd)); pintarBitacora(); }; });
+  $("buscarB").oninput = (ev) => { buscarBitacora = ev.target.value; $("filasB").innerHTML = filasLista(); enlazar(); };
+  enlazar();
+}
+
+// ── Tiempos desde Strava: las vueltas → una propuesta que revisas y confirmas ──
+const proponerSeries = (vueltas, plan, marcas) => fetch("/api/bitacora/series", { method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ vueltas: vueltas.map(({ distancia_m, tiempo_s, fc }) => ({ distancia_m, tiempo_s, fc })), plan, marcas }) })
+  .then((r) => { if (!r.ok) throw new Error(t("No pude armar las series.")); return r.json(); });
+async function traerStrava(id) {
+  const e = editandoEntrada;
+  if (!e) return;
+  if ($("formEntrada")) leerFormEntrada();
+  e._prop = { cargando: true, strava_id: id };
+  pintarEditorEntrada();
+  try {
+    const r = await fetch(`/api/strava/vueltas?id=${encodeURIComponent(id)}`);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || t("No pude bajar las vueltas de Strava."));
+    const { vueltas } = await r.json();
+    if (vueltas.length < 2) throw new Error(t("Esta carrera no tiene vueltas (laps) en Strava. La próxima vez marca lap en cada repetición y en cada pausa."));
+    const b0 = e.bloques?.length === 1 && e.bloques[0].reps ? e.bloques[0] : null;
+    const plan = b0 && (b0.dist_m || b0.dur_s) ? { series: b0.series, reps: b0.reps, dist_m: b0.dist_m, dur_s: b0.dur_s, obj: b0.obj } : null;
+    e._prop = { strava_id: id, vueltas, plan, res: await proponerSeries(vueltas, plan, null) };
+  } catch (err) { e._prop = { error: err.message }; }
+  if (editandoEntrada === e) { if ($("formEntrada")) leerFormEntrada(); pintarEditorEntrada(); }
+}
+const MARCAS_V = [["rep", "Rep."], ["pausa", "Pausa"], ["cal", "Calent."], ["vc", "V. calma"]];
+function propuestaHtml(e) {
+  const pr = e._prop;
+  if (!pr) return "";
+  if (pr.cargando) return `<div class="propuesta"><div class="cargando"><div class="rueda"></div>${t("Bajando las vueltas de Strava…")}</div></div>`;
+  if (pr.error) return `<div class="propuesta"><p class="aviso" style="margin:0">${esc(pr.error)}</p><div class="coach-acciones"><button type="button" class="sec" data-prop-no>${t("Cerrar")}</button></div></div>`;
+  const r = pr.res, est = r.bloques.map(estructura).join(" + ");
+  return `<div class="propuesta"><b>${t("Tiempos de Strava: revisa antes de usarlos")}</b>
+    <p class="sub" style="margin:4px 0 8px">${est ? t("Encontré {e}.", { e: est }) : t("No encontré series: marca abajo cuáles vueltas son repeticiones.")}
+      ${r.calentamiento_km ? " " + t("Calentamiento {k}", { k: fmtDistKm(r.calentamiento_km, 1) }) + "." : ""}${r.vuelta_calma_km ? " " + t("Vuelta a la calma {k}", { k: fmtDistKm(r.vuelta_calma_km, 1) }) + "." : ""}</p>
+    <table class="vueltas"><thead><tr><th>#</th><th>${t("Dist.")}</th><th>${t("Tiempo")}</th><th>${t("Ritmo")}</th><th>${t("Es")}</th></tr></thead><tbody>
+      ${r.vueltas.map((v, i) => `<tr class="${r.marcas[i]}"><td>${v.i}</td><td>${num(v.distancia_m)} m</td>
+        <td><input class="t-vuelta" data-vt="${i}" inputmode="decimal" value="${mmss(v.tiempo_s)}" aria-label="${t("Tiempo de la vuelta {n}", { n: v.i })}"></td>
+        <td>${v.ritmo_s ? ritmo(v.ritmo_s).replace(/\s*\/.*/, "") : "–"}</td>
+        <td><select data-vm="${i}" aria-label="${t("Qué es la vuelta {n}", { n: v.i })}">${MARCAS_V.map(([k, et]) => `<option value="${k}"${r.marcas[i] === k ? " selected" : ""}>${t(et)}</option>`).join("")}</select></td></tr>`).join("")}
+    </tbody></table>
+    ${r.bloques.map((b) => `<p class="prev-b"><b>${estructura(b)}</b>${detalleBloque(b) ? ` (${esc(detalleBloque(b))})` : ""}<br>${b.tiempos.map((f, k) =>
+      `${b.series > 1 ? `S${k + 1}: ` : ""}${f.map((x) => b.dur_s ? `${num(x)} m` : mmss(x)).join(" · ")}`).join("<br>")}</p>`).join("")}
+    <div class="coach-acciones"><button type="button" class="coach-ruta" data-prop-ok${r.bloques.length ? "" : " disabled"}>✓ ${t("Usar estos tiempos")}</button>
+      <button type="button" class="sec" data-prop-no>${t("Cancelar")}</button></div>
+    <small>${t("Después puedes corregir cualquier tiempo antes de guardar la entrada.")}</small></div>`;
+}
+function activarPropuesta(e) {
+  const pr = e._prop;
+  document.querySelectorAll("[data-prop-no]").forEach((x) => { x.onclick = () => { leerFormEntrada(); e._prop = null; pintarEditorEntrada(); }; });
+  const ok = document.querySelector("[data-prop-ok]");
+  if (ok) ok.onclick = () => {
+    leerFormEntrada();
+    const r = pr.res;
+    e.bloques = r.bloques.map((b) => { const antes = (e.bloques || []).find((x) => (b.dist_m && x.dist_m === b.dist_m) || (b.dur_s && x.dur_s === b.dur_s));
+      return { ...b, obj: b.obj || antes?.obj || null }; });
+    e.cal_km = r.calentamiento_km || null; e.vc_km = r.vuelta_calma_km || null; e.strava_id = pr.strava_id;
+    if (!["series", "tempo", "carrera"].includes(e.tipo)) e.tipo = "series";
+    e._prop = null; pintarEditorEntrada();
+  };
+  // Corregir: qué es cada vuelta, o su tiempo → se vuelve a armar.
+  const rehacer = async () => { try { pr.res = await proponerSeries(pr.vueltas, pr.plan, pr.res.marcas); } catch (err) { pr.error = err.message; }
+    if (editandoEntrada === e) { leerFormEntrada(); pintarEditorEntrada(); } };
+  document.querySelectorAll("[data-vm]").forEach((x) => { x.onchange = () => { pr.res.marcas[+x.dataset.vm] = x.value; rehacer(); }; });
+  document.querySelectorAll("[data-vt]").forEach((x) => { x.onchange = () => { const v = segRep(x.value);
+    if (Number.isFinite(v) && v > 0) { pr.vueltas[+x.dataset.vt].tiempo_s = v; rehacer(); } else x.value = mmss(pr.vueltas[+x.dataset.vt].tiempo_s); }; });
 }
 
 // ── Editor de una entrada ──
 function pintarEditorEntrada() {
   const e = editandoEntrada;
+  if (e.km_manual === undefined) e.km_manual = !!e.km;
+  const stravaId = e.strava_id || carrerasBitacora.find((c) => (c.fecha_local || c.fecha).slice(0, 10) === e.fecha)?.id;
+  const prev = anteriores(e), yaProm = promRep(e);
+  const comparaHtml = prev.length ? `<div class="bloque-rep"><b>${t("Las veces anteriores")} · ${esc(firma(e))}</b><ul class="previas">${prev.map((a) => { const pa = promRep(a);
+    return `<li><span>${fechaCorta(new Date(a.fecha + "T12:00"))} ${a.fecha.slice(0, 4)}</span><span>${pa ? t("prom. {x}", { x: mmss(pa) }) : "–"}${a.rpe ? " · RPE " + a.rpe : ""}</span>
+      <span class="dif">${pa && yaProm ? difTxt(yaProm - pa) : ""}</span></li>`; }).join("")}</ul>
+    <small>${t("La diferencia es la de hoy contra esa vez: negativo = más rápido.")}</small></div>` : "";
   if (e._sens === undefined) { const x = bitacora().sensaciones.find((y) => y.fecha === e.fecha); e._sens = x ? { nota: x.nota, dolor: x.dolor || null } : null; }
   const campoT = (v) => v == null ? "" : mmss(v);
   const bloqueHtml = (b, i) => {
@@ -4666,10 +4959,15 @@ function pintarEditorEntrada() {
       <label>${t("Escribe la sesión")}<span class="dos"><input id="textoEnt" value="${esc(e.texto || "")}" placeholder='2x3x1000m (3&#39;10" - 3&#39;20", 1&#39; pausa entre repeticiones, 2&#39; entre series)'>
         <button type="button" class="sec" data-armar>${t("Armar")}</button></span>
         <small style="font-weight:400">${t("Arma las series solas. También puedes agregar bloques a mano.")}</small></label>
+      ${propuestaHtml(e)}
       <div id="bloquesEnt">${(e.bloques || []).map(bloqueHtml).join("")}</div>
       <div class="coach-acciones" style="margin-top:0"><button type="button" class="mini" data-nuevo-b="dist">+ ${t("Bloque por distancia")}</button>
-        <button type="button" class="mini" data-nuevo-b="dur">+ ${t("Bloque por tiempo")}</button></div>
-      <div class="rejilla-b"><label>${t("Km totales")}<input id="kmEnt" inputmode="decimal" value="${e.km ?? ""}" placeholder="12"></label>
+        <button type="button" class="mini" data-nuevo-b="dur">+ ${t("Bloque por tiempo")}</button>
+        ${stravaId && !e._prop ? `<button type="button" class="mini" data-strava-t="${stravaId}">⤓ ${t("Tiempos de Strava")}</button>` : ""}</div>
+      ${comparaHtml}
+      <div class="rejilla-b"><label>${t("Calentamiento (km)")}<input id="calEnt" inputmode="decimal" value="${e.cal_km ?? ""}" placeholder="3"></label>
+        <label>${t("Vuelta a la calma (km)")}<input id="vcEnt" inputmode="decimal" value="${e.vc_km ?? ""}" placeholder="2"></label></div>
+      <div class="rejilla-b"><label>${t("Km totales")}<input id="kmEnt" inputmode="decimal" value="${e.km_manual ? e.km ?? "" : ""}" placeholder="${kmAuto(e) ? t("auto: {k}", { k: num(kmAuto(e), 1) }) : "12"}"></label>
         <label>${t("Tiempo total")}<input id="durEnt" inputmode="text" value="${e.dur_s ? hms(e.dur_s) : ""}" placeholder="1:05:00"></label></div>
       <label>${t("Esfuerzo percibido (RPE)")}<div class="rpe-escala">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) =>
         `<button type="button" class="rpe-b r${Math.min(4, Math.ceil(n / 2.5))}${e.rpe === n ? " on" : ""}" data-rpe="${n}">${n}</button>`).join("")}</div>
@@ -4691,14 +4989,20 @@ function leerFormEntrada() {
   e.fecha = $("fechaEnt").value || e.fecha;
   e.titulo = $("tituloEnt").value.trim();
   e.texto = $("textoEnt").value.trim();
-  const km = parseFloat(($("kmEnt").value || "").replace(",", "."));
-  e.km = Number.isFinite(km) && km > 0 ? km : null;
+  const num_ = (id) => { const x = parseFloat(($(id).value || "").replace(",", ".")); return Number.isFinite(x) && x > 0 ? x : null; };
+  e.cal_km = num_("calEnt"); e.vc_km = num_("vcEnt");
+  const km = num_("kmEnt");
+  e.km_manual = km != null;
+  e.km = km ?? kmAuto(e);
   const d = aSegundos($("durEnt").value);
   e.dur_s = Number.isFinite(d) && d > 0 ? d : null;
   e.sensaciones = $("sensEnt").value.trim();
 }
 function activarEditorEntrada() {
   const e = editandoEntrada, f = $("formEntrada");
+  if (e._prop) activarPropuesta(e);
+  const bt = f.querySelector("[data-strava-t]");
+  if (bt) bt.onclick = () => traerStrava(bt.dataset.stravaT);
   const repintar = () => { leerFormEntrada(); pintarEditorEntrada(); };
   f.querySelectorAll("[data-turno]").forEach((x) => { x.onclick = () => { e.turno = e.turno === x.dataset.turno ? null : x.dataset.turno; repintar(); }; });
   f.querySelectorAll("[data-tipo-e]").forEach((x) => { x.onclick = () => { e.tipo = x.dataset.tipoE; repintar(); }; });
@@ -4760,8 +5064,8 @@ function activarEditorEntrada() {
     if (!e.fecha) return ($("errorEnt").textContent = t("Elige la fecha."));
     // Los tiempos vacíos al final no se guardan; si no hay ninguno, la grilla queda vacía.
     for (const b of e.bloques || []) b.tiempos = (b.tiempos || []).slice(0, b.series).map((fila) => (fila || []).slice(0, b.reps).map((x) => x ?? null));
-    if (!e.km) { const k = (e.bloques || []).reduce((a, b) => a + (statsBloque(b)?.km || 0), 0); if (k) e.km = Math.round(k * 10) / 10; }
-    const { _sens, ...resto } = e;
+    if (!e.km_manual) e.km = kmAuto(e);
+    const { _sens, _prop, ...resto } = e;
     const bt = bitacora(), limpio = { ...resto, id: e.id || nuevoId() };
     bt.entradas = [...bt.entradas.filter((x) => x.id !== limpio.id), limpio].sort((a, c) => a.fecha.localeCompare(c.fecha));
     if (_sens?.nota) bt.sensaciones = [...bt.sensaciones.filter((y) => y.fecha !== e.fecha), { fecha: e.fecha, nota: _sens.nota, ...(_sens.dolor ? { dolor: _sens.dolor } : {}) }];
@@ -4807,8 +5111,37 @@ function pintarEditorPausa() {
 }
 
 // ── Editor de un objetivo ──
+// El bloque que llevó a un objetivo: desde el objetivo anterior (o 12 semanas) hasta la víspera.
+function resumenBloque(o) {
+  const antes = bitacora().objetivos.filter((x) => x.id !== o.id && x.fecha < o.fecha).map((x) => x.fecha).sort().pop();
+  const desde = antes && antes > masDias(o.fecha, -168) ? masDias(antes, 1) : masDias(o.fecha, -84), hasta = masDias(o.fecha, -1);
+  const runs = carrerasBitacora.filter((c) => { const f = (c.fecha_local || c.fecha).slice(0, 10); return f >= desde && f <= hasta; });
+  const es = bitacora().entradas.filter((e) => e.fecha >= desde && e.fecha <= hasta), rpes = es.filter((e) => e.rpe).map((e) => e.rpe);
+  const semanas = Math.max(1, Math.round((new Date(o.fecha) - new Date(desde)) / 6048e5));
+  return { desde, semanas, km: runs.reduce((a, c) => a + c.distancia_m / 1000, 0), carreras: runs.length,
+    largo: Math.max(0, ...runs.map((c) => c.distancia_m / 1000)), calidad: es.filter((e) => ["series", "tempo"].includes(e.tipo)).length,
+    entradas: es.length, rpe: rpes.length ? rpes.reduce((a, x) => a + x, 0) / rpes.length : null };
+}
 function pintarEditorObjetivo() {
   const o = editandoObjetivo, otra = o.dist && !DIST_OBJ.some(([k]) => k === o.dist);
+  const pasado = o.fecha && o.fecha <= fechaLocal();
+  const kmObj = (DIST_OBJ.find(([k]) => k === o.dist) || [, , parseFloat(o.dist)])[2];
+  // ¿La corriste con Strava ese día? Se ofrece su tiempo.
+  const deStrava = pasado ? carrerasBitacora.filter((c) => (c.fecha_local || c.fecha).slice(0, 10) === o.fecha
+    && (!kmObj || Math.abs(c.distancia_m / 1000 - kmObj) <= 0.1 * kmObj)) : [];
+  const rb = pasado ? resumenBloque(o) : null;
+  const resultadoHtml = pasado ? `<div class="bloque-rep"><b>${t("Resultado")}</b>
+      ${deStrava.map((c) => `<p class="sugerencia-b">Strava: <b>${esc(c.nombre || "")}</b> · ${fmtDistKm(c.distancia_m / 1000, 2)} · ${hms(c.tiempo_s)}
+        <button type="button" class="mini" data-usar-t="${c.tiempo_s}">${t("Usar")}</button></p>`).join("")}
+      <label class="dolor"><input type="checkbox" id="noCorrida"${o.no_corrida ? " checked" : ""}> ${t("No la corrí")}</label>
+      <div class="rejilla-b"${o.no_corrida ? " hidden" : ""} id="camposRes"><label>${t("Tu tiempo")}<input id="resObj" value="${o.resultado_s ? hms(o.resultado_s) : ""}" placeholder="38:12"></label>
+        <label>${t("Puesto (opcional)")}<input id="puestoObj" value="${esc(o.puesto || "")}" placeholder="${t("ej. 12 de 340")}" maxlength="30"></label></div>
+      ${o.resultado_s && o.meta_s ? `<p class="stats-b">${o.resultado_s <= o.meta_s ? "✓ " + t("Meta cumplida por {s}", { s: hms(o.meta_s - o.resultado_s) || "0:00" }) : "✗ " + t("A {s} de la meta", { s: hms(o.resultado_s - o.meta_s) })}</p>` : ""}
+      <label>${t("Cómo te fue")}<textarea id="notasObj" rows="2" placeholder="${t("Clima, estrategia, qué aprendiste…")}">${esc(o.notas || "")}</textarea></label></div>
+    <div class="bloque-rep"><b>${t("El camino hasta aquí")}</b> <small>${t("desde el {f} · {n} semanas", { f: fechaCorta(new Date(rb.desde + "T12:00")), n: rb.semanas })}</small>
+      <div class="kpis"><div class="kpi"><span>${t("Km")}</span><b>${num(rb.km, 0)}</b><small>${t("{n} carreras", { n: rb.carreras })}</small></div>
+        <div class="kpi"><span>${t("Fondo más largo")}</span><b>${rb.largo ? fmtDistKm(rb.largo, 1) : "–"}</b></div>
+        <div class="kpi"><span>${t("Calidad anotada")}</span><b>${rb.calidad}</b><small>${rb.rpe ? "RPE " + num(rb.rpe, 1) : ""}</small></div></div></div>` : "";
   hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t(o.id ? "Editar objetivo" : "Nuevo objetivo")}</h2>
     <form id="formObjetivo" class="coach-form">
       <label>${t("Nombre")}<input id="nombreObj" value="${esc(o.nombre || "")}" placeholder="${t("ej. 10K Fedachi, 42K MDS")}" maxlength="40"></label>
@@ -4819,11 +5152,20 @@ function pintarEditorObjetivo() {
       <label>${t("Tiempo objetivo (opcional)")}<input id="metaObj" value="${o.meta_s ? hms(o.meta_s) : ""}" placeholder="${t("ej. 3:30:00 o 45:00")}"></label>
       <label>${t("Prioridad")}<div class="fases">${[["A", "A · la principal"], ["B", "B · importante"], ["C", "C · de preparación"]].map(([k, et]) =>
         `<button type="button" class="chip${o.prioridad === k ? " on" : ""}" data-prio="${k}">${t(et)}</button>`).join("")}</div></label>
+      ${resultadoHtml}
       <div class="coach-acciones"><button type="submit">${t("Guardar")}</button><button type="button" class="sec" data-obj-cancelar>${t("Cancelar")}</button>
         ${o.id ? `<button type="button" class="sec peligro" data-obj-borrar>${t("Borrar")}</button>` : ""}</div>
       <p class="aviso" id="errorObj" style="margin:0"></p></form>`);
   const f = $("formObjetivo");
-  const leerF = () => { o.nombre = $("nombreObj").value.trim(); o.fecha = $("fechaObj").value; const m = aSegundos($("metaObj").value); o.meta_s = Number.isFinite(m) && m > 0 ? m : null; };
+  const leerF = () => { o.nombre = $("nombreObj").value.trim(); o.fecha = $("fechaObj").value; const m = aSegundos($("metaObj").value); o.meta_s = Number.isFinite(m) && m > 0 ? m : null;
+    if ($("resObj")) { const r = aSegundos($("resObj").value); o.resultado_s = Number.isFinite(r) && r > 0 ? r : null;
+      o.puesto = $("puestoObj").value.trim() || null; o.notas = $("notasObj").value.trim() || null; o.no_corrida = $("noCorrida").checked || null;
+      if (o.no_corrida) o.resultado_s = null; } };
+  f.querySelectorAll("[data-usar-t]").forEach((b) => { b.onclick = () => { leerF(); o.resultado_s = +b.dataset.usarT; o.no_corrida = null; pintarEditorObjetivo(); }; });
+  const nc = $("noCorrida");
+  if (nc) nc.onchange = () => { leerF(); pintarEditorObjetivo(); };
+  const fo = $("fechaObj");
+  fo.onchange = () => { leerF(); pintarEditorObjetivo(); };
   f.querySelectorAll("[data-dist]").forEach((x) => { x.onclick = () => { leerF(); o.dist = x.dataset.dist === "otra" ? ($("kmObj").value || "15") : x.dataset.dist; pintarEditorObjetivo(); }; });
   f.querySelectorAll("[data-prio]").forEach((x) => { x.onclick = () => { leerF(); o.prioridad = x.dataset.prio; pintarEditorObjetivo(); }; });
   f.querySelector("[data-obj-cancelar]").onclick = () => { editandoObjetivo = null; pintarBitacora(); };
@@ -4835,6 +5177,7 @@ function pintarEditorObjetivo() {
     if (!$("campoKmObj").hidden) o.dist = ($("kmObj").value || "").replace(",", ".");
     if (!o.nombre) return ($("errorObj").textContent = t("Ponle un nombre."));
     if (!o.fecha) return ($("errorObj").textContent = t("Elige la fecha."));
+    if ($("resObj") && $("resObj").value.trim() && !o.resultado_s) return ($("errorObj").textContent = t("Revisa tu tiempo: por ejemplo 38:12 o 1:32:40."));
     const bt = bitacora(), limpio = { ...o, id: o.id || nuevoId() };
     bt.objetivos = [...bt.objetivos.filter((x) => x.id !== limpio.id), limpio];
     guardarBitacora(bt);
