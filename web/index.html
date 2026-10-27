@@ -364,6 +364,7 @@
   .prev-b { font-size: 13px; margin: 8px 0 0; line-height: 1.5; }
   .vista-envio { white-space: pre-wrap; font: inherit; font-size: 13px; line-height: 1.45; background: var(--gris); border-radius: 10px; padding: 10px; margin: 8px 0 0; color: var(--tinta); }
   #estadoEnvio.ok { color: #1a7a35; }
+  .aviso-ok { background: #e3f4e8; color: #1a7a35; border-radius: 12px; padding: 10px 12px; font-size: 14px; font-weight: 600; margin: 8px 0; }
   .previas { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; font-size: 13.5px; }
   .previas li { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 6px; } .previas .dif { font-weight: 800; color: var(--acento-osc); }
   .fila-b { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--gris); border-radius: 12px; padding: 8px 12px; margin: 6px 0; font-size: 14px; }
@@ -4534,7 +4535,14 @@ function activarCoach() {
 // sensaciones) y tus objetivos (10K Fedachi, 42K MDS…), en un calendario: tu
 // journey. Se guarda en el teléfono y viaja con tu cuenta (es tuyo, no de Strava).
 let subEntreno = leer("pp_entreno_sub", "entreno"), editandoEntrada = null, editandoObjetivo = null, editandoPausa = null, editandoSens = null;
-let editandoEnvio = null;           // { e: la entrada, volver: el editor del que se vino (o null) }
+let editandoEnvio = null, avisoBitacora = null;     // avisoBitacora: «✓ Enviado a …», una vez, al volver
+// El aviso de una vez (se muestra al volver y se va solo).
+function mostrarAvisoBitacora() {
+  if (!avisoBitacora) return "";
+  const m = avisoBitacora; avisoBitacora = null;
+  setTimeout(() => document.querySelectorAll(".aviso-ok").forEach((x) => x.remove()), 6000);
+  return `<p class="aviso-ok" role="status">${esc(m)}</p>`;
+}           // { e: la entrada, volver: el editor del que se vino (o null) }
 const editandoBitacora = () => editandoEntrada || editandoObjetivo || editandoPausa || editandoEnvio;
 let vistaBitacora = leer("pp_bitacora_vista", "cal"), filtroBitacora = "todas", buscarBitacora = "";
 // La misma sesión otra vez (2x3x1000m, 10x400m…): para ver cómo cambia con el tiempo.
@@ -4813,7 +4821,7 @@ function pintarBitacora() {
     <div class="coach-acciones"><button type="button" class="coach-ruta" data-ent-nueva>+ ${t("Nueva entrada")}</button>
       ${diaBitacora <= hoyF && !sd && !editandoSens ? `<button type="button" class="mini" data-sens-ed>+ ${t("Cómo me sentí")}</button>` : ""}
       ${pd ? "" : `<button type="button" class="mini" data-pausa-nueva>+ ${t("Pausa desde este día")}</button>`}</div></div>`;
-  hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu bitácora")}</h2>${selectorEntreno()}
+  hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu bitácora")}</h2>${selectorEntreno()}${mostrarAvisoBitacora()}
     <div class="bloque"><div class="cab-bloque"><h3>${t("Objetivos")}</h3><button type="button" class="mini" data-obj-nuevo>+ ${t("Objetivo")}</button></div>
       ${porCerrar.length ? `<p class="sub" style="margin:6px 0 0">${t("¿Cómo te fue?")}</p><ul class="objetivos">${porCerrar.map(objHtml).join("")}</ul>` : ""}
       ${prox.length ? `<ul class="objetivos">${prox.map(objHtml).join("")}</ul>` : porCerrar.length || historial.length ? "" : `<p class="pista">${t("Agrega tus carreras objetivo (10K Fedachi, 42K MDS…) y aparecen en el calendario con la cuenta regresiva.")}</p>`}
@@ -5018,7 +5026,7 @@ function pintarEditorEntrada() {
       ${filas}
       <p class="stats-b" id="stats-${i}">${s ? statsTxt(b, s) : ""}</p></div>`;
   };
-  hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t(e.id ? "Editar entrada" : "Nueva entrada")}</h2>
+  hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t(e.id ? "Editar entrada" : "Nueva entrada")}</h2>${mostrarAvisoBitacora()}
     <form id="formEntrada" class="coach-form">
       <div class="rejilla-b"><label>${t("Fecha")}<input type="date" id="fechaEnt" value="${e.fecha}"></label>
         <label>${t("Título")}<input id="tituloEnt" value="${esc(e.titulo || "")}" placeholder="${t("ej. Series en pista")}"></label></div>
@@ -5196,7 +5204,12 @@ function pintarEnvio() {
         compara: compararTxt(e) || null, entrada: { ...entrada, turno: entrada.turno || null,
           bloques: (entrada.bloques || []).map(({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos }) => ({ series, reps, dist_m, dur_s, obj, p_rep, p_serie, tiempos: tiempos || [] })) } }) }).catch(() => null);
     btn.disabled = false;
-    if (r?.ok) return aviso("✓ " + t("Enviado a {c}. Si te responde, le llega a tu correo.", { c: d.correo }), true);
+    if (r?.ok) {
+      // Listo: se cierra y se vuelve a donde estabas, con la confirmación arriba.
+      avisoBitacora = "✓ " + t("Enviado a {c}. Si te responde, le llega a tu correo.", { c: d.correo });
+      editandoEntrada = editandoEnvio.volver; editandoEnvio = null;
+      return pintarBitacora();
+    }
     // No salió desde PacePath: se dice por qué, y tu app de correo queda como opción (no se abre sola).
     const j = r ? await r.json().catch(() => ({})) : {};
     aviso(!r ? t("Sin conexión: no pude enviar el correo.")
