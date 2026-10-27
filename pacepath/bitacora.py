@@ -18,6 +18,17 @@ from __future__ import annotations
 from statistics import median
 
 MARCAS = ("rep", "pausa", "cal", "vc")
+# Distancias de pista y de series: el GPS mide 407 m y fue un 400.
+REDONDAS = (100, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1200, 1500, 1600, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000)
+
+
+def distancia_redonda(m: float) -> int:
+    """La distancia «de verdad» de una repetición: la redonda más cercana si el
+    GPS se desvió poco (≤ 6 %); si no, a 50 m (o 100 m desde 1 km)."""
+    cerca = min(REDONDAS, key=lambda r: abs(m - r))
+    if abs(m - cerca) <= 0.06 * cerca:
+        return cerca
+    return int(_redondear(m, 50 if m < 1000 else 100))
 
 
 def _ritmo(v: dict) -> float | None:
@@ -89,6 +100,12 @@ def proponer(vueltas: list[dict], plan: dict | None = None, marcas: list[str] | 
         else:
             grupos.append([i])
     out["bloques"] = [_bloque(vueltas, g, plan if len(grupos) == 1 else None) for g in grupos]
+    # Cada repetición, con la distancia de su bloque (la que corriste, sin el error del GPS).
+    for g, b in zip(grupos, out["bloques"]):
+        for i in g:
+            if b["dist_m"]:
+                out["vueltas"][i]["redonda"] = b["dist_m"]
+                out["vueltas"][i]["ritmo_s"] = round(vueltas[i]["tiempo_s"] / b["dist_m"] * 1000)
     return out
 
 
@@ -96,7 +113,7 @@ def _bloque(vueltas: list[dict], reps: list[int], plan: dict | None) -> dict:
     """Un bloque (series × reps × distancia o tiempo, pausas y tiempos) con sus repeticiones."""
     if len(reps) == 1:
         v = vueltas[reps[0]]
-        return {"series": 1, "reps": 1, "dist_m": int(_redondear(v["distancia_m"], 50 if v["distancia_m"] < 1000 else 100)),
+        return {"series": 1, "reps": 1, "dist_m": distancia_redonda(v["distancia_m"]),
                 "dur_s": None, "obj": None, "p_rep": None, "p_serie": None, "tiempos": [[round(v["tiempo_s"], 1)]]}
     # Pausa entre cada repetición y la siguiente: lo que hay entre ellas.
     pausas = [sum(vueltas[j]["tiempo_s"] for j in range(a + 1, b)) for a, b in zip(reps, reps[1:])]
@@ -126,7 +143,7 @@ def _bloque(vueltas: list[dict], reps: list[int], plan: dict | None) -> dict:
     else:
         m = median(dist)
         plan_d = (plan or {}).get("dist_m")
-        b["dist_m"] = int(plan_d if plan_d and abs(m - plan_d) <= 0.15 * plan_d else _redondear(m, 50 if m < 1000 else 100))
+        b["dist_m"] = int(plan_d if plan_d and abs(m - plan_d) <= 0.15 * plan_d else distancia_redonda(m))
         valores = [round(x, 1) for x in tiem]
     b["tiempos"] = [valores[s * por_serie:(s + 1) * por_serie] for s in range(series)]
     dentro = [p for k, p in enumerate(pausas) if k not in cortes] if iguales else pausas

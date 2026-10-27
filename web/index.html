@@ -358,7 +358,8 @@
   .vueltas { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
   .vueltas th { text-align: left; font-size: 11px; color: var(--suave); padding: 2px 4px; } .vueltas td { padding: 3px 4px; border-top: 1px solid var(--linea); }
   .vueltas tr.rep td { background: #eefaf1; font-weight: 700; } .vueltas tr.cal td, .vueltas tr.vc td { color: var(--suave); }
-  .coach-form .vueltas input.t-vuelta { width: 58px; padding: 4px; font-size: 16px; text-align: center; }
+  .coach-form .vueltas input.t-vuelta, .coach-form .vueltas input.d-vuelta { width: 58px; padding: 4px; font-size: 16px; text-align: center; }
+  .vueltas small.gps { display: block; font-size: 10.5px; color: var(--suave); font-weight: 400; }
   .vueltas select { font: inherit; font-size: 14px; padding: 3px; border-radius: 8px; border: 1px solid var(--linea); background: #fff; max-width: 92px; }
   .prev-b { font-size: 13px; margin: 8px 0 0; line-height: 1.5; }
   .previas { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; font-size: 13.5px; }
@@ -3800,7 +3801,7 @@ Object.assign(EN, {
   "Semana del {a} al {b}": "Week of {a} to {b}",
   "Sin entradas": "No entries",
   "Tiempo": "Time",
-  "Tiempo de la vuelta {n}": "Lap {n} time",
+  "Tiempo de la vuelta {n}": "Lap {n} time", "Distancia de la vuelta {n} (m)": "Lap {n} distance (m)",
   "Tiempos de Strava": "Strava times",
   "Tiempos de Strava: revisa antes de usarlos": "Strava times: check before using them",
   "Todas": "All",
@@ -4097,7 +4098,7 @@ Object.assign(PT, {
   "Semana del {a} al {b}": "Semana de {a} a {b}",
   "Sin entradas": "Sem entradas",
   "Tiempo": "Tempo",
-  "Tiempo de la vuelta {n}": "Tempo da volta {n}",
+  "Tiempo de la vuelta {n}": "Tempo da volta {n}", "Distancia de la vuelta {n} (m)": "Distância da volta {n} (m)",
   "Tiempos de Strava": "Tempos do Strava",
   "Tiempos de Strava: revisa antes de usarlos": "Tempos do Strava: confira antes de usar",
   "Todas": "Todas",
@@ -4885,7 +4886,8 @@ function propuestaHtml(e) {
     <p class="sub" style="margin:4px 0 8px">${est ? t("Encontré {e}.", { e: est }) : t("No encontré series: marca abajo cuáles vueltas son repeticiones.")}
       ${r.calentamiento_km ? " " + t("Calentamiento {k}", { k: fmtDistKm(r.calentamiento_km, 1) }) + "." : ""}${r.vuelta_calma_km ? " " + t("Vuelta a la calma {k}", { k: fmtDistKm(r.vuelta_calma_km, 1) }) + "." : ""}</p>
     <table class="vueltas"><thead><tr><th>#</th><th>${t("Dist.")}</th><th>${t("Tiempo")}</th><th>${t("Ritmo")}</th><th>${t("Es")}</th></tr></thead><tbody>
-      ${r.vueltas.map((v, i) => `<tr class="${r.marcas[i]}"><td>${v.i}</td><td>${num(v.distancia_m)} m</td>
+      ${r.vueltas.map((v, i) => `<tr class="${r.marcas[i]}"><td>${v.i}</td>
+        <td><input class="d-vuelta" data-vd="${i}" inputmode="numeric" value="${v.redonda || v.distancia_m}" aria-label="${t("Distancia de la vuelta {n} (m)", { n: v.i })}">${v.redonda && v.redonda !== v.distancia_m ? `<small class="gps">GPS ${num(v.distancia_m)}</small>` : ""}</td>
         <td><input class="t-vuelta" data-vt="${i}" inputmode="decimal" value="${mmss(v.tiempo_s)}" aria-label="${t("Tiempo de la vuelta {n}", { n: v.i })}"></td>
         <td>${v.ritmo_s ? ritmo(v.ritmo_s).replace(/\s*\/.*/, "") : "–"}</td>
         <td><select data-vm="${i}" aria-label="${t("Qué es la vuelta {n}", { n: v.i })}">${MARCAS_V.map(([k, et]) => `<option value="${k}"${r.marcas[i] === k ? " selected" : ""}>${t(et)}</option>`).join("")}</select></td></tr>`).join("")}
@@ -4913,6 +4915,9 @@ function activarPropuesta(e) {
   const rehacer = async () => { try { pr.res = await proponerSeries(pr.vueltas, pr.plan, pr.res.marcas); } catch (err) { pr.error = err.message; }
     if (editandoEntrada === e) { leerFormEntrada(); pintarEditorEntrada(); } };
   document.querySelectorAll("[data-vm]").forEach((x) => { x.onchange = () => { pr.res.marcas[+x.dataset.vm] = x.value; rehacer(); }; });
+  // Distancia: la que corriste de verdad (el GPS se equivoca); al cambiarla se vuelve a armar.
+  document.querySelectorAll("[data-vd]").forEach((x) => { x.onchange = () => { const d = parseFloat(x.value.replace(",", "."));
+    if (Number.isFinite(d) && d > 0 && d <= 50000) { pr.vueltas[+x.dataset.vd].distancia_m = d; rehacer(); } else x.value = Math.round(pr.vueltas[+x.dataset.vd].distancia_m); }; });
   document.querySelectorAll("[data-vt]").forEach((x) => { x.onchange = () => { const v = segRep(x.value);
     if (Number.isFinite(v) && v > 0) { pr.vueltas[+x.dataset.vt].tiempo_s = v; rehacer(); } else x.value = mmss(pr.vueltas[+x.dataset.vt].tiempo_s); }; });
 }

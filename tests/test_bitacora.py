@@ -71,6 +71,14 @@ def test_vueltas_reales_3x2000_mas_5x400():
     assert [(x["series"], x["reps"], x["dist_m"]) for x in b] == [(1, 3, 2000), (1, 5, 400)]
     assert b[0]["p_rep"] in (125, 130) and b[1]["p_rep"] == 60
     assert b[1]["tiempos"] == [[72, 72, 71, 70, 67]]
+    # Cada repetición trae su distancia sin el error del GPS (407 m → 400 m).
+    v = bitacora.proponer(laps)["vueltas"]
+    assert v[6]["distancia_m"] == 407 and v[6]["redonda"] == 400 and v[0]["redonda"] == 2000 and "redonda" not in v[1]
+    assert v[6]["ritmo_s"] == 180                         # 1:12 en 400 m = 3:00/km (no 2:57 de los 407 del GPS)
+
+
+def test_distancia_redonda():
+    assert [bitacora.distancia_redonda(m) for m in (407, 391, 1013, 968, 1580, 750, 1340)] == [400, 400, 1000, 1000, 1600, 750, 1300]
 
 
 def test_api():
