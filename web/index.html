@@ -347,7 +347,10 @@
   .turno { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--acento-osc); margin-right: 6px; }
   .rpe { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
   .r1 { background: #e3f4e8; color: #1a7a35; } .r2 { background: #fff1d6; color: #8a5a00; } .r3 { background: #fde2cf; color: #9a3b0a; } .r4 { background: #fde4e4; color: #a32020; }
-  .obj-dia { margin: 4px 0; font-size: 14px; } .sugerencia-b { margin: 8px 0 0; font-size: 13.5px; color: var(--suave); }
+  .obj-dia { margin: 4px 0; font-size: 14px; }
+  .fila-b { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--gris); border-radius: 12px; padding: 8px 12px; margin: 6px 0; font-size: 14px; }
+  .cal-dia.en-pausa { background: repeating-linear-gradient(135deg, var(--gris) 0 6px, var(--fondo) 6px 12px); }
+  .cal-dia .ico { font-size: 11px; line-height: 1; } .cal-dia .ico.dolor { filter: drop-shadow(0 0 1px #c92a2a); } .sugerencia-b { margin: 8px 0 0; font-size: 13.5px; color: var(--suave); }
   .rejilla-b { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
   .rejilla-b label, .coach-form label { min-width: 0; }
   .rejilla-b input, .coach-form textarea { width: 100%; min-width: 0; box-sizing: border-box; }
@@ -3412,7 +3415,7 @@ async function calcularRevision(lista, hist) {
   const d = new Date(), hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const r = await fetch("/api/entreno/revision", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ajustes: { ...ajustesEntreno(), fase: faseEntreno() }, carreras: carreras.slice(-600), hoy,
-                           coach: leer("pp_coach", null) }) });
+                           coach: coachPayload() }) });
   if (!r.ok) throw new Error(t("No pude calcular la revisión ahora."));
   const j = { ...(await r.json()), calculada: Date.now() };
   escribir("pp_revision", j);
@@ -3471,7 +3474,7 @@ function barrasZonas(id, semanas) {
 }
 
 function pintarEntreno(j) {
-  if (subEntreno === "bitacora") { if (!editandoEntrada && !editandoObjetivo) pintarBitacora(); return; }
+  if (subEntreno === "bitacora") { if (!editandoBitacora()) pintarBitacora(); return; }
   const a = ajustesEntreno(), z = j?.zonas, rev = j?.revision, fase = faseEntreno();
   // Con el Coach activo, la fase es la suya (no se elige a mano).
   const faseCoach = leer("pp_coach", null) && j?.coach?.semana?.fase;
@@ -3719,6 +3722,26 @@ Object.assign(EN, {
   "¡Hoy!": "Today!",
   "¿Borrar esta entrada?": "Delete this entry?",
   "¿Borrar este objetivo?": "Delete this goal?",
+  "dolor: {z}": "pain: {z}",
+  "Sin dolor": "No pain",
+  "con dolor": "with pain",
+  "sigue": "ongoing",
+  "¿Cómo te sentiste?": "How did you feel?",
+  "Cómo te sentiste": "How you felt",
+  "Cómo me sentí": "How I felt",
+  "Pausa desde este día": "Break from this day",
+  "cómo te sentiste": "how you felt",
+  "pausa": "break",
+  "Editar pausa": "Edit break",
+  "Nueva pausa": "New break",
+  "Los días en pausa no cuentan como sesiones no hechas, y al volver el Coach arma una reentrada según los días parado.": "Days on a break don't count as missed sessions, and when you're back the Coach plans a return based on the days off.",
+  "Motivo": "Reason",
+  "Hasta (último día sin correr)": "Until (last day off)",
+  "Déjalo vacío si todavía sigue.": "Leave it empty if it's still going.",
+  "¿Borrar esta pausa?": "Delete this break?",
+  "El término no puede ser antes del inicio.": "The end can't be before the start.",
+  "Se cruza con otra pausa: edita esa.": "It overlaps another break: edit that one.",
+  "Es el del día: el Coach lo usa para ajustar tu plan.": "It's for the whole day: the Coach uses it to adjust your plan.",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -3936,6 +3959,26 @@ Object.assign(PT, {
   "¿Borrar este objetivo?": "Apagar esta meta?",
   "Editar": "Editar",
   "Borrar": "Apagar",
+  "dolor: {z}": "dor: {z}",
+  "Sin dolor": "Sem dor",
+  "con dolor": "com dor",
+  "sigue": "continua",
+  "¿Cómo te sentiste?": "Como você se sentiu?",
+  "Cómo te sentiste": "Como você se sentiu",
+  "Cómo me sentí": "Como me senti",
+  "Pausa desde este día": "Pausa a partir deste dia",
+  "cómo te sentiste": "como você se sentiu",
+  "pausa": "pausa",
+  "Editar pausa": "Editar pausa",
+  "Nueva pausa": "Nova pausa",
+  "Los días en pausa no cuentan como sesiones no hechas, y al volver el Coach arma una reentrada según los días parado.": "Os dias em pausa não contam como sessões não feitas, e ao voltar o Coach monta um retorno conforme os dias parado.",
+  "Motivo": "Motivo",
+  "Hasta (último día sin correr)": "Até (último dia sem correr)",
+  "Déjalo vacío si todavía sigue.": "Deixe vazio se ainda continua.",
+  "¿Borrar esta pausa?": "Apagar esta pausa?",
+  "El término no puede ser antes del inicio.": "O fim não pode ser antes do início.",
+  "Se cruza con otra pausa: edita esa.": "Cruza com outra pausa: edite essa.",
+  "Es el del día: el Coach lo usa para ajustar tu plan.": "Vale para o dia: o Coach usa para ajustar seu plano.",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -4116,19 +4159,16 @@ function bloqueCoach(j) {
   else hoyHtml = `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${t(c.descanso ? "Descanso sugerido" : "Descanso")}</b><p>${esc(c.descanso || t("El descanso también entrena: hoy el cuerpo asimila."))}</p></div>`;
   // ¿Cómo te sentiste? (la última salida sin responder)
   const pr = c.preguntar && !(p.omitidas || []).includes(c.preguntar.fecha) ? c.preguntar : null;
-  const CARAS = [["😫", "Muy mal"], ["😕", "Mal"], ["😐", "Normal"], ["🙂", "Bien"], ["😄", "Muy bien"]];
-  const ZONAS_D = [["rodilla", "Rodilla"], ["tobillo", "Tobillo o pie"], ["gemelo", "Gemelo o Aquiles"], ["cadera", "Cadera"], ["espalda", "Espalda"], ["otra", "Otra"]];
   const sentir = pr ? `<div class="coach-sentir" data-fecha="${pr.fecha}"><b>${t("¿Cómo te sentiste en {s} del {d} ({k})?", { s: esc(pr.titulo), d: dia(pr.fecha), k: fmtDistKm(pr.km, 1) })}</b>
       <div class="caras">${CARAS.map(([e, et], i) => `<button type="button" data-nota="${i + 1}" aria-label="${t(et)}" class="${sintiendo?.nota === i + 1 ? "on" : ""}">${e}<small>${t(et)}</small></button>`).join("")}</div>
       <label class="dolor"><input type="checkbox" id="dolorCoach"${sintiendo?.dolor ? " checked" : ""}> ${t("Me duele algo")}</label>
       <div class="fases" id="zonasDolor"${sintiendo?.dolor ? "" : " hidden"}>${ZONAS_D.map(([k, et]) => `<button type="button" class="chip${sintiendo?.dolor === k ? " on" : ""}" data-dolor="${k}">${t(et)}</button>`).join("")}</div>
       <div class="coach-acciones"><button type="button" class="coach-ruta" data-sentir-ok${sintiendo?.nota ? "" : " disabled"}>${t("Guardar")}</button><button type="button" class="sec" data-sentir-omitir>${t("Ahora no")}</button></div></div>` : "";
-  const MOTIVOS_P = [["enfermedad", "Enfermedad"], ["lesion", "Lesión"], ["viaje", "Viaje"], ["otro", "Otro"]];
   const formPausa = pausandoCoach ? `<div class="coach-sentir"><b>${t("Pausar el plan")}</b>
       <p class="pista" style="margin:4px 0 8px">${t("Mientras dure, no hay sesiones. Al volver, armo una reentrada según los días que estuviste parado.")}</p>
-      <div class="fases">${MOTIVOS_P.map(([k, et]) => `<button type="button" class="chip${pausandoCoach.motivo === k ? " on" : ""}" data-motivo="${k}">${t(et)}</button>`).join("")}</div>
+      <div class="fases">${MOTIVOS_P.map(([k, et, ic]) => `<button type="button" class="chip${pausandoCoach.motivo === k ? " on" : ""}" data-motivo="${k}">${ic} ${t(et)}</button>`).join("")}</div>
       <label class="coach-form" style="margin-top:8px"><span>${t("Desde el día")}</span><input type="date" id="desdePausa" max="${hoyF}" value="${pausandoCoach.desde || hoyF}"></label>
-      <div class="coach-acciones"><button type="button" class="coach-ruta" data-pausa-ok>⏸ ${t("Pausar")}</button><button type="button" class="sec" data-pausa-cancelar>${t("Cancelar")}</button></div></div>` : "";
+      <div class="coach-acciones"><button type="button" class="coach-ruta" data-pausa-ok>⏸️ ${t("Pausar")}</button><button type="button" class="sec" data-pausa-cancelar>${t("Cancelar")}</button></div></div>` : "";
   // Días a los que se puede mover una sesión: los que quedan de la semana (una calidad no va al día del fondo o la carrera).
   const fijos = new Set((c.semana?.sesiones || []).filter((s) => s.tipo === "fondo" || s.tipo === "carrera").map((s) => s.fecha));
   const quedan = (f, tipo) => { const out = []; for (let x = hoyF > c.semana.lunes ? hoyF : c.semana.lunes; x <= domingo; x = masDias(x, 1))
@@ -4201,10 +4241,10 @@ function activarCoach() {
   document.querySelectorAll("[data-motivo]").forEach((b) => { b.onclick = () => { pausandoCoach.motivo = b.dataset.motivo; pausandoCoach.desde = $("desdePausa").value; repintar(); }; });
   const pOk = document.querySelector("[data-pausa-ok]");
   if (pOk) pOk.onclick = () => {
-    const hoy = fechaLocal(), desde = $("desdePausa").value || hoy, motivo = pausandoCoach.motivo || "otro";
-    const pausas = (p0.pausas || []).filter((x) => x.hasta);                 // a lo más una abierta
+    const hoy = fechaLocal(), desde = $("desdePausa").value || hoy, motivo = pausandoCoach.motivo || "otro", b = bitacora();
+    b.pausas = [...b.pausas.filter((x) => x.hasta), { id: nuevoId(), desde: desde > hoy ? hoy : desde, motivo }];   // a lo más una abierta
     pausandoCoach = false;
-    guardarCoach({ pausas: [...pausas, { desde: desde > hoy ? hoy : desde, motivo }].slice(-20) });
+    guardarYRecalcular(b);
   };
   const pNo = document.querySelector("[data-pausa-cancelar]");
   if (pNo) pNo.onclick = () => { pausandoCoach = false; repintar(); };
@@ -4212,8 +4252,9 @@ function activarCoach() {
   if (reanudar) reanudar.onclick = () => {
     const hoy = fechaLocal(), ayer = masDias(hoy, -1);
     // Si la pausa empezó hoy mismo, se borra (fue un error o un día suelto); si no, termina ayer.
-    const pausas = (p0.pausas || []).flatMap((x) => x.hasta ? [x] : x.desde >= hoy ? [] : [{ ...x, hasta: ayer }]);
-    guardarCoach({ pausas });
+    const b = bitacora();
+    b.pausas = b.pausas.flatMap((x) => x.hasta ? [x] : x.desde >= hoy ? [] : [{ ...x, hasta: ayer }]);
+    guardarYRecalcular(b);
   };
   // ¿Cómo te sentiste?
   const caja = document.querySelector(".coach-sentir[data-fecha]");
@@ -4225,10 +4266,10 @@ function activarCoach() {
     caja.querySelectorAll("[data-dolor]").forEach((b) => { b.onclick = () => { sintiendo.dolor = b.dataset.dolor; repintar(); }; });
     caja.querySelector("[data-sentir-ok]").onclick = () => {
       if (!sintiendo.nota) return;
-      const lista = (p0.sensaciones || []).filter((x) => x.fecha !== fecha && x.fecha >= masDias(fechaLocal(), -45));
-      const nueva = { fecha, nota: sintiendo.nota, ...(sintiendo.dolor ? { dolor: sintiendo.dolor } : {}) };
+      const b = bitacora();
+      b.sensaciones = [...b.sensaciones.filter((x) => x.fecha !== fecha), { fecha, nota: sintiendo.nota, ...(sintiendo.dolor ? { dolor: sintiendo.dolor } : {}) }];
       sintiendo = null;
-      guardarCoach({ sensaciones: [...lista, nueva].slice(-60) });
+      guardarYRecalcular(b);
     };
     caja.querySelector("[data-sentir-omitir]").onclick = () => {
       sintiendo = null;
@@ -4295,7 +4336,8 @@ function activarCoach() {
 // Lo que anotas de cada sesión (series con sus tiempos, pausas, RPE y
 // sensaciones) y tus objetivos (10K Fedachi, 42K MDS…), en un calendario: tu
 // journey. Se guarda en el teléfono y viaja con tu cuenta (es tuyo, no de Strava).
-let subEntreno = leer("pp_entreno_sub", "entreno"), editandoEntrada = null, editandoObjetivo = null;
+let subEntreno = leer("pp_entreno_sub", "entreno"), editandoEntrada = null, editandoObjetivo = null, editandoPausa = null, editandoSens = null;
+const editandoBitacora = () => editandoEntrada || editandoObjetivo || editandoPausa;
 let mesBitacora = null, diaBitacora = null, carrerasBitacora = [];
 const MESES_LARGO = { es: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
   en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
@@ -4304,8 +4346,39 @@ const TURNOS = [["manana", "Mañana"], ["tarde", "Tarde"], ["noche", "Noche"]];
 const TIPOS_B = [["series", "Series"], ["tempo", "Tempo"], ["suave", "Suave"], ["fondo", "Fondo"], ["carrera", "Carrera"], ["otro", "Otro"]];
 const RPE_TXT = ["", "Muy suave", "Suave", "Suave", "Moderado", "Moderado", "Algo duro", "Duro", "Muy duro", "Máximo", "Máximo"];
 const DIST_OBJ = [["5k", "5K", 5], ["10k", "10K", 10], ["21k", "21K", 21.0975], ["42k", "42K", 42.195]];
-const bitacora = () => { const b = leer("pp_bitacora", null) || {}; return { entradas: b.entradas || [], objetivos: b.objetivos || [] }; };
-const guardarBitacora = (b) => escribir("pp_bitacora", { v: 1, entradas: b.entradas, objetivos: b.objetivos });
+// También guarda cómo te sentiste cada día y tus pausas (enfermedad, lesión, viaje): el Coach las lee de aquí.
+let bitacoraMigrada = false;
+function migrarBitacora() {
+  // Antes vivían en el perfil del Coach: se pasan una vez a la bitácora.
+  if (bitacoraMigrada) return;
+  bitacoraMigrada = true;
+  const c = leer("pp_coach", null);
+  if (!c || (!c.sensaciones?.length && !c.pausas?.length)) return;
+  const b = leer("pp_bitacora", null) || {};
+  const sens = [...(b.sensaciones || [])], paus = [...(b.pausas || [])];
+  for (const x of c.sensaciones || []) if (!sens.some((y) => y.fecha === x.fecha)) sens.push(x);
+  for (const x of c.pausas || []) if (!paus.some((y) => y.desde === x.desde)) paus.push({ id: nuevoId(), ...x });
+  escribir("pp_bitacora", { ...b, v: 2, sensaciones: sens, pausas: paus });
+  const { sensaciones, pausas, ...resto } = c;
+  escribir("pp_coach", resto);
+}
+const bitacora = () => { migrarBitacora(); const b = leer("pp_bitacora", null) || {};
+  return { entradas: b.entradas || [], objetivos: b.objetivos || [], sensaciones: b.sensaciones || [], pausas: b.pausas || [] }; };
+const guardarBitacora = (b) => escribir("pp_bitacora", { v: 2, entradas: b.entradas, objetivos: b.objetivos,
+  sensaciones: b.sensaciones.sort((x, y) => x.fecha.localeCompare(y.fecha)), pausas: b.pausas.sort((x, y) => x.desde.localeCompare(y.desde)) });
+// Lo que el Coach necesita saber: su perfil, más tus sensaciones recientes y tus pausas.
+const coachPayload = () => { const p = leer("pp_coach", null); if (!p) return null; const b = bitacora();
+  return { ...p, sensaciones: b.sensaciones.filter((x) => x.fecha >= masDias(fechaLocal(), -45)).slice(-60), pausas: b.pausas.slice(-20) }; };
+// Guardar algo que cambia el plan: se ve al tiro y el Coach se recalcula.
+const guardarYRecalcular = (b) => { guardarBitacora(b); pintarEntreno(leer("pp_revision", null)); if (leer("pp_coach", null)) recalcularEntreno(); };
+const CARAS = [["😫", "Muy mal"], ["😕", "Mal"], ["😐", "Normal"], ["🙂", "Bien"], ["😄", "Muy bien"]];
+const ZONAS_D = [["rodilla", "Rodilla"], ["tobillo", "Tobillo o pie"], ["gemelo", "Gemelo o Aquiles"], ["cadera", "Cadera"], ["espalda", "Espalda"], ["otra", "Otra"]];
+const MOTIVOS_P = [["enfermedad", "Enfermedad", "🤒"], ["lesion", "Lesión", "🩹"], ["viaje", "Viaje", "✈️"], ["otro", "Otro", "⏸️"]];
+const txtSens = (x) => `${CARAS[x.nota - 1][0]} ${t(CARAS[x.nota - 1][1])}${x.dolor ? " · " + t("dolor: {z}", { z: t(ZONAS_D.find(([k]) => k === x.dolor)?.[1] || "Otra") }) : ""}`;
+// Las caritas y el dolor (en el Coach, en el día de la bitácora y en cada entrada).
+const elegirSens = (x, pre) => `<div class="caras">${CARAS.map(([e, et], i) => `<button type="button" data-${pre}nota="${i + 1}" aria-label="${t(et)}" class="${x?.nota === i + 1 ? "on" : ""}">${e}<small>${t(et)}</small></button>`).join("")}</div>
+  <div class="fases"><button type="button" class="chip${x?.nota && !x?.dolor ? " on" : ""}" data-${pre}dolor="">${t("Sin dolor")}</button>${ZONAS_D.map(([k, et]) =>
+    `<button type="button" class="chip${x?.dolor === k ? " on" : ""}" data-${pre}dolor="${k}">${t(et)}</button>`).join("")}</div>`;
 const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 // «3:15», «3'15"», «3.15», «315» → 195 s; «75» → 75 s (lo corto, en segundos).
@@ -4424,10 +4497,10 @@ function objetivosTodos() {
 const faltanDias = (f) => Math.round((new Date(f + "T12:00") - new Date(fechaLocal() + "T12:00")) / 864e5);
 
 async function abrirBitacora() {
-  if (editandoEntrada || editandoObjetivo) return;
+  if (editandoBitacora()) return;
   pintarBitacora();
   carrerasBitacora = await carrerasEntreno().catch(() => []);
-  if (vista === "entreno" && subEntreno === "bitacora" && !editandoEntrada && !editandoObjetivo) pintarBitacora();
+  if (vista === "entreno" && subEntreno === "bitacora" && !editandoBitacora()) pintarBitacora();
 }
 const selectorEntreno = () => `<div class="fases seg-entreno" role="tablist">
   <button type="button" class="chip${subEntreno === "entreno" ? " on" : ""}" role="tab" aria-selected="${subEntreno === "entreno"}" data-sub="entreno">${t("Entrenamiento")}</button>
@@ -4435,7 +4508,7 @@ const selectorEntreno = () => `<div class="fases seg-entreno" role="tablist">
 function activarSelectorEntreno() {
   document.querySelectorAll("[data-sub]").forEach((b) => { b.onclick = () => {
     subEntreno = b.dataset.sub; escribir("pp_entreno_sub", subEntreno);
-    editandoEntrada = editandoObjetivo = null;
+    editandoEntrada = editandoObjetivo = editandoPausa = editandoSens = null;
     if (subEntreno === "bitacora") abrirBitacora(); else pintarEntreno(leer("pp_revision", null));
   }; });
 }
@@ -4443,7 +4516,10 @@ function activarSelectorEntreno() {
 function pintarBitacora() {
   if (editandoEntrada) return pintarEditorEntrada();
   if (editandoObjetivo) return pintarEditorObjetivo();
+  if (editandoPausa) return pintarEditorPausa();
   const hoyF = fechaLocal(), b = bitacora(), objs = objetivosTodos();
+  const sensDe = Object.fromEntries(b.sensaciones.map((x) => [x.fecha, x]));
+  const pausaDe = (f) => b.pausas.find((x) => x.desde <= f && f <= (x.hasta || hoyF));
   if (!mesBitacora) mesBitacora = hoyF.slice(0, 7);
   if (!diaBitacora) diaBitacora = hoyF;
   const [an, me] = mesBitacora.split("-").map(Number);
@@ -4456,10 +4532,11 @@ function pintarBitacora() {
   for (let i = 0; i < hueco; i++) celdas += `<span class="cal-vacio"></span>`;
   for (let d = 1; d <= dias; d++) {
     const f = `${mesBitacora}-${String(d).padStart(2, "0")}`, en = porDia[f] || [], st = stravaDia[f] || [], ob = objDia[f] || [];
-    celdas += `<button type="button" class="cal-dia${f === hoyF ? " hoy" : ""}${f === diaBitacora ? " sel" : ""}${ob.length ? " meta" : ""}" data-dia="${f}"
-      aria-label="${d}${en.length ? ", " + t("{n} entradas", { n: en.length }) : ""}${ob.length ? ", " + esc(ob.map((o) => o.nombre).join(", ")) : ""}">
+    const pz = pausaDe(f), se = sensDe[f];
+    celdas += `<button type="button" class="cal-dia${f === hoyF ? " hoy" : ""}${f === diaBitacora ? " sel" : ""}${ob.length ? " meta" : ""}${pz ? " en-pausa" : ""}" data-dia="${f}"
+      aria-label="${d}${en.length ? ", " + t("{n} entradas", { n: en.length }) : ""}${ob.length ? ", " + esc(ob.map((o) => o.nombre).join(", ")) : ""}${pz ? ", " + t(MOTIVOS_P.find(([k]) => k === pz.motivo)[1]) : ""}${se ? ", " + t(CARAS[se.nota - 1][1]) + (se.dolor ? ", " + t("con dolor") : "") : ""}">
       <span class="n">${d}</span>${ob.length ? `<span class="obj">🏁 ${esc(ob[0].nombre)}</span>` : ""}
-      <span class="puntos">${en.map(() => `<i class="e"></i>`).join("")}${en.length < st.length ? `<i class="s"></i>` : ""}</span></button>`;
+      <span class="puntos">${pz ? `<span class="ico">${MOTIVOS_P.find(([k]) => k === pz.motivo)[2]}</span>` : ""}${se ? `<span class="ico${se.dolor ? " dolor" : ""}">${CARAS[se.nota - 1][0]}</span>` : ""}${en.map(() => `<i class="e"></i>`).join("")}${en.length < st.length ? `<i class="s"></i>` : ""}</span></button>`;
   }
   // El mes: lo anotado.
   const delMes = b.entradas.filter((e) => e.fecha.startsWith(mesBitacora));
@@ -4475,8 +4552,18 @@ function pintarBitacora() {
   const fd = new Date(diaBitacora + "T12:00"), entradasDia = (porDia[diaBitacora] || []).sort((x, y) => (x.turno || "").localeCompare(y.turno || ""));
   const yaLigadas = new Set(entradasDia.map((e) => e.strava_id).filter(Boolean));
   const coachDia = (leer("pp_revision", null)?.coach?.semana?.sesiones || []).filter((s) => s.fecha === diaBitacora && s.texto && s.tipo !== "extra");
+  const pd = pausaDe(diaBitacora), sd = sensDe[diaBitacora];
+  const rango = (x) => `${fechaCorta(new Date(x.desde + "T12:00"))} – ${x.hasta ? fechaCorta(new Date(x.hasta + "T12:00")) : t("sigue")}`;
+  const pausaHtml = pd ? `<div class="fila-b"><span>${MOTIVOS_P.find(([k]) => k === pd.motivo)[2]} <b>${t(MOTIVOS_P.find(([k]) => k === pd.motivo)[1])}</b> · ${rango(pd)}</span>
+      <button type="button" class="mini" data-pausa-ed="${pd.id}">✎ ${t("Editar")}</button></div>` : "";
+  const sensHtml = diaBitacora > hoyF ? "" : editandoSens?.fecha === diaBitacora
+    ? `<div class="coach-sentir"><b>${t("¿Cómo te sentiste?")}</b>${elegirSens(editandoSens, "d")}
+      <div class="coach-acciones"><button type="button" class="coach-ruta" data-sens-ok${editandoSens.nota ? "" : " disabled"}>${t("Guardar")}</button>
+        <button type="button" class="sec" data-sens-cancelar>${t("Cancelar")}</button>${sd ? `<button type="button" class="sec peligro" data-sens-borrar>${t("Borrar")}</button>` : ""}</div></div>`
+    : sd ? `<div class="fila-b"><span>${t("Cómo te sentiste")}: <b>${txtSens(sd)}</b></span><button type="button" class="mini" data-sens-ed>✎ ${t("Editar")}</button></div>` : "";
   const diaHtml = `<div class="bloque"><h3>${(() => { const x = fd.toLocaleDateString(LOCALE[idioma], { weekday: "long", day: "numeric", month: "long" }); return x[0].toUpperCase() + x.slice(1); })()}</h3>
     ${(objDia[diaBitacora] || []).map((o) => `<p class="obj-dia">🏁 <b>${esc(o.nombre)}</b>${o.meta_s ? " · " + t("meta {t}", { t: hms(o.meta_s) }) : ""}</p>`).join("")}
+    ${pausaHtml}${sensHtml}
     ${entradasDia.length ? `<ul class="entradas">${entradasDia.map((e) => `<li>
       <div class="cab-e"><b>${e.turno ? `<span class="turno">${t(TURNOS.find(([k]) => k === e.turno)[1])}</span>` : ""}${esc(e.titulo || t(TIPOS_B.find(([k]) => k === e.tipo)?.[1] || "Sesión"))}</b>
         ${e.rpe ? `<span class="rpe r${Math.min(4, Math.ceil(e.rpe / 2.5))}">RPE ${e.rpe}</span>` : ""}</div>
@@ -4487,14 +4574,16 @@ function pintarBitacora() {
     ${coachDia.map((s) => `<p class="sugerencia-b">${t("Coach")}: <b>${esc(s.titulo)}</b> · ${esc(s.texto)} <button type="button" class="mini" data-ent-coach="${esc(s.texto)}" data-titulo="${esc(s.titulo)}">+ ${t("Registrar")}</button></p>`).join("")}
     ${(stravaDia[diaBitacora] || []).filter((c) => !yaLigadas.has(c.id)).map((c) => `<p class="sugerencia-b">Strava: <b>${esc(c.nombre || "")}</b> · ${fmtDistKm(c.distancia_m / 1000, 1)} · ${hms(c.tiempo_s)}
       <button type="button" class="mini" data-ent-strava="${c.id}">+ ${t("Anotar")}</button></p>`).join("")}
-    <div class="coach-acciones"><button type="button" class="coach-ruta" data-ent-nueva>+ ${t("Nueva entrada")}</button></div></div>`;
+    <div class="coach-acciones"><button type="button" class="coach-ruta" data-ent-nueva>+ ${t("Nueva entrada")}</button>
+      ${diaBitacora <= hoyF && !sd && !editandoSens ? `<button type="button" class="mini" data-sens-ed>+ ${t("Cómo me sentí")}</button>` : ""}
+      ${pd ? "" : `<button type="button" class="mini" data-pausa-nueva>+ ${t("Pausa desde este día")}</button>`}</div></div>`;
   hoja(`<div class="tipo">${t("Entreno")}</div><h2>${t("Tu bitácora")}</h2>${selectorEntreno()}
     <div class="bloque"><div class="cab-bloque"><h3>${t("Objetivos")}</h3><button type="button" class="mini" data-obj-nuevo>+ ${t("Objetivo")}</button></div>
       ${prox.length ? `<ul class="objetivos">${prox.map(objHtml).join("")}</ul>` : `<p class="pista">${t("Agrega tus carreras objetivo (10K Fedachi, 42K MDS…) y aparecen en el calendario con la cuenta regresiva.")}</p>`}</div>
     <div class="bloque calendario"><div class="cal-cab"><button type="button" class="mini" data-mes="-1" aria-label="${t("Mes anterior")}">‹</button>
       <b>${MESES_LARGO[idioma]?.[me - 1] || MESES_LARGO.es[me - 1]} ${an}</b><button type="button" class="mini" data-mes="1" aria-label="${t("Mes siguiente")}">›</button></div>
       <div class="cal-grilla">${DIA_CORTO.map((d) => `<span class="cal-sem">${t(d)}</span>`).join("")}${celdas}</div>
-      <p class="nota-kpi"><i class="pto e"></i>${t("entrada de bitácora")} <i class="pto s"></i>${t("carrera de Strava sin anotar")} · 🏁 ${t("objetivo")}</p>
+      <p class="nota-kpi"><i class="pto e"></i>${t("entrada de bitácora")} <i class="pto s"></i>${t("carrera de Strava sin anotar")} · 🏁 ${t("objetivo")} · 🙂 ${t("cómo te sentiste")} · 🤒 ${t("pausa")}</p>
       <div class="kpis"><div class="kpi"><span>${t("Entradas")}</span><b>${delMes.length}</b></div>
         <div class="kpi"><span>${t("Km anotados")}</span><b>${num(kmMes, 0)}</b><small>${kmStrava ? t("{k} en Strava", { k: fmtDistKm(kmStrava, 0) }) : ""}</small></div>
         <div class="kpi"><span>${t("RPE medio")}</span><b>${rpes.length ? num(rpes.reduce((a, x) => a + x, 0) / rpes.length, 1) : "–"}</b></div></div></div>
@@ -4520,6 +4609,22 @@ function pintarBitacora() {
     nueva({ titulo: c.nombre || "", strava_id: c.id, km: Math.round(c.distancia_m / 100) / 10, dur_s: c.tiempo_s,
             turno: +(c.fecha_local || c.fecha).slice(11, 13) < 12 ? "manana" : +(c.fecha_local || c.fecha).slice(11, 13) < 19 ? "tarde" : "noche",
             tipo: l.tipo || "otro", bloques: l.bloques }); }; });
+  // Cómo te sentiste ese día: ver, editar, borrar.
+  document.querySelectorAll("[data-sens-ed]").forEach((x) => { x.onclick = () => { editandoSens = { fecha: diaBitacora, nota: sd?.nota ?? null, dolor: sd?.dolor ?? null }; pintarBitacora(); }; });
+  document.querySelectorAll("[data-dnota]").forEach((x) => { x.onclick = () => { editandoSens.nota = +x.dataset.dnota; pintarBitacora(); }; });
+  document.querySelectorAll("[data-ddolor]").forEach((x) => { x.onclick = () => { editandoSens.dolor = x.dataset.ddolor || null; pintarBitacora(); }; });
+  const sOk = document.querySelector("[data-sens-ok]");
+  if (sOk) sOk.onclick = () => { const bt = bitacora(), x = editandoSens;
+    bt.sensaciones = [...bt.sensaciones.filter((y) => y.fecha !== x.fecha), { fecha: x.fecha, nota: x.nota, ...(x.dolor ? { dolor: x.dolor } : {}) }];
+    editandoSens = null; guardarYRecalcular(bt); };
+  const sNo = document.querySelector("[data-sens-cancelar]");
+  if (sNo) sNo.onclick = () => { editandoSens = null; pintarBitacora(); };
+  const sBo = document.querySelector("[data-sens-borrar]");
+  if (sBo) sBo.onclick = () => { const bt = bitacora(); bt.sensaciones = bt.sensaciones.filter((y) => y.fecha !== diaBitacora); editandoSens = null; guardarYRecalcular(bt); };
+  // Pausas
+  const pNueva = document.querySelector("[data-pausa-nueva]");
+  if (pNueva) pNueva.onclick = () => { editandoPausa = { id: null, desde: diaBitacora, hasta: diaBitacora < hoyF ? diaBitacora : null, motivo: "enfermedad" }; pintarBitacora(); };
+  document.querySelectorAll("[data-pausa-ed]").forEach((x) => { x.onclick = () => { editandoPausa = structuredClone(bitacora().pausas.find((y) => y.id === x.dataset.pausaEd)); pintarBitacora(); }; });
   document.querySelector("[data-obj-nuevo]").onclick = () => { editandoObjetivo = { id: null, nombre: "", fecha: diaBitacora > hoyF ? diaBitacora : "", dist: "10k", meta_s: null, prioridad: "A" }; pintarBitacora(); };
   document.querySelectorAll("[data-obj-ed]").forEach((x) => { x.onclick = () => {
     if (x.dataset.objEd === "coach") { subEntreno = "entreno"; escribir("pp_entreno_sub", "entreno"); editandoCoach = true; pintarEntreno(leer("pp_revision", null)); return; }
@@ -4529,6 +4634,7 @@ function pintarBitacora() {
 // ── Editor de una entrada ──
 function pintarEditorEntrada() {
   const e = editandoEntrada;
+  if (e._sens === undefined) { const x = bitacora().sensaciones.find((y) => y.fecha === e.fecha); e._sens = x ? { nota: x.nota, dolor: x.dolor || null } : null; }
   const campoT = (v) => v == null ? "" : mmss(v);
   const bloqueHtml = (b, i) => {
     const filas = Array.from({ length: b.series }, (_, s) => `<div class="fila-rep"><span class="et-s">${b.series > 1 ? "S" + (s + 1) : ""}</span>
@@ -4568,6 +4674,7 @@ function pintarEditorEntrada() {
       <label>${t("Esfuerzo percibido (RPE)")}<div class="rpe-escala">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) =>
         `<button type="button" class="rpe-b r${Math.min(4, Math.ceil(n / 2.5))}${e.rpe === n ? " on" : ""}" data-rpe="${n}">${n}</button>`).join("")}</div>
         <small id="rpeTxt" style="font-weight:400">${e.rpe ? `${e.rpe} · ${t(RPE_TXT[e.rpe])}` : t("1 muy suave · 10 máximo")}</small></label>
+      <label>${t("¿Cómo te sentiste?")}${elegirSens(e._sens, "e")}<small style="font-weight:400">${t("Es el del día: el Coach lo usa para ajustar tu plan.")}</small></label>
       <label>${t("Sensaciones")}<textarea id="sensEnt" rows="3" placeholder="${t("Cómo te sentiste, piernas, clima, qué cambiarías…")}">${esc(e.sensaciones || "")}</textarea></label>
       <div class="coach-acciones"><button type="submit">${t("Guardar")}</button><button type="button" class="sec" data-ent-cancelar>${t("Cancelar")}</button>
         <button type="button" class="sec" data-ent-copiar-ed>⧉ ${t("Copiar")}</button>
@@ -4596,6 +4703,8 @@ function activarEditorEntrada() {
   f.querySelectorAll("[data-turno]").forEach((x) => { x.onclick = () => { e.turno = e.turno === x.dataset.turno ? null : x.dataset.turno; repintar(); }; });
   f.querySelectorAll("[data-tipo-e]").forEach((x) => { x.onclick = () => { e.tipo = x.dataset.tipoE; repintar(); }; });
   f.querySelectorAll("[data-rpe]").forEach((x) => { x.onclick = () => { e.rpe = +x.dataset.rpe; repintar(); }; });
+  f.querySelectorAll("[data-enota]").forEach((x) => { x.onclick = () => { e._sens = { ...(e._sens || {}), nota: +x.dataset.enota }; repintar(); }; });
+  f.querySelectorAll("[data-edolor]").forEach((x) => { x.onclick = () => { e._sens = { nota: 3, ...(e._sens || {}), dolor: x.dataset.edolor || null }; repintar(); }; });
   f.querySelector("[data-armar]").onclick = () => {
     leerFormEntrada();
     const l = leerSesion(e.texto);
@@ -4652,12 +4761,49 @@ function activarEditorEntrada() {
     // Los tiempos vacíos al final no se guardan; si no hay ninguno, la grilla queda vacía.
     for (const b of e.bloques || []) b.tiempos = (b.tiempos || []).slice(0, b.series).map((fila) => (fila || []).slice(0, b.reps).map((x) => x ?? null));
     if (!e.km) { const k = (e.bloques || []).reduce((a, b) => a + (statsBloque(b)?.km || 0), 0); if (k) e.km = Math.round(k * 10) / 10; }
-    const bt = bitacora(), limpio = { ...e, id: e.id || nuevoId() };
+    const { _sens, ...resto } = e;
+    const bt = bitacora(), limpio = { ...resto, id: e.id || nuevoId() };
     bt.entradas = [...bt.entradas.filter((x) => x.id !== limpio.id), limpio].sort((a, c) => a.fecha.localeCompare(c.fecha));
-    guardarBitacora(bt);
+    if (_sens?.nota) bt.sensaciones = [...bt.sensaciones.filter((y) => y.fecha !== e.fecha), { fecha: e.fecha, nota: _sens.nota, ...(_sens.dolor ? { dolor: _sens.dolor } : {}) }];
     diaBitacora = limpio.fecha; mesBitacora = limpio.fecha.slice(0, 7);
-    editandoEntrada = null; pintarBitacora();
+    editandoEntrada = null;
+    if (_sens?.nota) guardarYRecalcular(bt); else { guardarBitacora(bt); pintarBitacora(); }
   };
+}
+
+// ── Editor de una pausa ──
+function pintarEditorPausa() {
+  const x = editandoPausa, hoyF = fechaLocal();
+  hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t(x.id ? "Editar pausa" : "Nueva pausa")}</h2>
+    <form id="formPausa" class="coach-form">
+      <p class="pista" style="margin:0">${t("Los días en pausa no cuentan como sesiones no hechas, y al volver el Coach arma una reentrada según los días parado.")}</p>
+      <label>${t("Motivo")}<div class="fases">${MOTIVOS_P.map(([k, et, ic]) => `<button type="button" class="chip${x.motivo === k ? " on" : ""}" data-pmotivo="${k}">${ic} ${t(et)}</button>`).join("")}</div></label>
+      <div class="rejilla-b"><label>${t("Desde el día")}<input type="date" id="desdeP" value="${x.desde || ""}"></label>
+        <label>${t("Hasta (último día sin correr)")}<input type="date" id="hastaP" value="${x.hasta || ""}"></label></div>
+      <small>${t("Déjalo vacío si todavía sigue.")}</small>
+      <div class="coach-acciones"><button type="submit">${t("Guardar")}</button><button type="button" class="sec" data-p-cancelar>${t("Cancelar")}</button>
+        ${x.id ? `<button type="button" class="sec peligro" data-p-borrar>${t("Borrar")}</button>` : ""}</div>
+      <p class="aviso" id="errorP" style="margin:0"></p></form>`);
+  const f = $("formPausa");
+  const leerF = () => { x.desde = $("desdeP").value; x.hasta = $("hastaP").value || null; };
+  f.querySelectorAll("[data-pmotivo]").forEach((b) => { b.onclick = () => { leerF(); x.motivo = b.dataset.pmotivo; pintarEditorPausa(); }; });
+  f.querySelector("[data-p-cancelar]").onclick = () => { editandoPausa = null; pintarBitacora(); };
+  const borrar = f.querySelector("[data-p-borrar]");
+  if (borrar) borrar.onclick = () => { if (!confirm(t("¿Borrar esta pausa?"))) return;
+    const bt = bitacora(); bt.pausas = bt.pausas.filter((y) => y.id !== x.id); editandoPausa = null; guardarYRecalcular(bt); };
+  f.onsubmit = (ev) => {
+    ev.preventDefault(); leerF();
+    const err = (m) => ($("errorP").textContent = t(m));
+    if (!x.desde) return err("Elige la fecha.");
+    if (x.hasta && x.hasta < x.desde) return err("El término no puede ser antes del inicio.");
+    const bt = bitacora(), otras = bt.pausas.filter((y) => y.id !== x.id);
+    const fin = (y) => y.hasta || "9999-12-31";
+    if (otras.some((y) => y.desde <= fin(x) && x.desde <= fin(y))) return err("Se cruza con otra pausa: edita esa.");
+    bt.pausas = [...otras, { ...x, id: x.id || nuevoId() }];
+    diaBitacora = x.desde; mesBitacora = x.desde.slice(0, 7);
+    editandoPausa = null; guardarYRecalcular(bt);
+  };
+  void hoyF;
 }
 
 // ── Editor de un objetivo ──
