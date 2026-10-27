@@ -376,6 +376,12 @@
   .prev-b { font-size: 13px; margin: 8px 0 0; line-height: 1.5; }
   .vista-envio { white-space: pre-wrap; font: inherit; font-size: 13px; line-height: 1.45; background: var(--gris); border-radius: 10px; padding: 10px; margin: 8px 0 0; color: var(--tinta); }
   #estadoEnvio.ok, #estadoHist.ok { color: #1a7a35; }
+  .menu-envio { display: grid; gap: 6px; margin-top: 10px; padding: 8px; border-radius: 14px; background: var(--fondo); border: 1px solid var(--linea); box-shadow: 0 10px 24px rgba(0,0,0,.1); }
+  .menu-envio button { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; text-align: left; background: none; border: 0; border-radius: 10px;
+    padding: 9px 10px; font: inherit; color: var(--tinta); cursor: pointer; }
+  .menu-envio button:active, .menu-envio button:hover { background: var(--gris); }
+  .menu-envio .ic { font-size: 22px; text-align: center; } .menu-envio b { display: block; font-size: 15px; } .menu-envio small { display: block; font-size: 12.5px; color: var(--suave); }
+  button.mini.on, button.sec.on { background: var(--tinta); color: var(--fondo); }
   .hist-carrusel { display: flex; gap: 10px; overflow-x: auto; padding: 10px 2px 6px; scroll-snap-type: x mandatory; }
   .hist-mini { flex: none; width: 84px; background: none; border: 0; padding: 0; color: var(--tinta); font: inherit; cursor: pointer; scroll-snap-align: start; }
   .hist-mini .lienzo { display: block; width: 84px; height: 149px; border-radius: 10px; overflow: hidden; border: 3px solid transparent; background: #2a2a30; }
@@ -3926,6 +3932,12 @@ Object.assign(EN, {
   "Sticker copiado: en tu historia de Instagram, mantén presionado y pega.": "Sticker copied: in your Instagram story, long-press and paste.",
   "No pude copiar la imagen en este navegador: usa «Guardar imagen».": "Couldn't copy the image in this browser: use «Save image».",
   "Imagen guardada.": "Image saved.",
+  "Sticker o historia con tu sesión": "Sticker or story with your session",
+  "A mi entrenador": "To my coach",
+  "Por correo, con tus estadísticas": "By email, with your stats",
+  "El resumen de la sesión, listo para mandar": "The session summary, ready to send",
+  "Copiar texto": "Copy text",
+  "Para pegarlo donde quieras": "To paste it anywhere",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -4305,6 +4317,12 @@ Object.assign(PT, {
   "Sticker copiado: en tu historia de Instagram, mantén presionado y pega.": "Sticker copiado: no seu story do Instagram, segure e cole.",
   "No pude copiar la imagen en este navegador: usa «Guardar imagen».": "Não consegui copiar a imagem neste navegador: use «Salvar imagem».",
   "Imagen guardada.": "Imagem salva.",
+  "Sticker o historia con tu sesión": "Sticker ou story com sua sessão",
+  "A mi entrenador": "Para meu treinador",
+  "Por correo, con tus estadísticas": "Por e-mail, com suas estatísticas",
+  "El resumen de la sesión, listo para mandar": "O resumo da sessão, pronto para mandar",
+  "Copiar texto": "Copiar texto",
+  "Para pegarlo donde quieras": "Para colar onde quiser",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -4911,6 +4929,7 @@ function pintarBitacora() {
   if (editandoPausa) return pintarEditorPausa();
   if (editandoEnvio) return pintarEnvio();
   if (editandoHistoria) return pintarHistoria();
+  if (menuEnvio === "ed") menuEnvio = null;                  // el del editor no queda abierto
   const hoyF = fechaLocal(), b = bitacora(), objs = objetivosTodos();
   const sensDe = Object.fromEntries(b.sensaciones.map((x) => [x.fecha, x]));
   const pausaDe = (f) => b.pausas.find((x) => x.desde <= f && f <= (x.hasta || hoyF));
@@ -4968,9 +4987,8 @@ function pintarBitacora() {
       ${(e.bloques || []).length ? `<p>${esc((e.bloques || []).map((b) => { const s = statsBloque(b); return estructura(b) + (s ? ` · ${b.dur_s ? t("prom. {x} m", { x: num(s.prom) }) : t("prom. {x}", { x: mmss(s.prom) })}` : ""); }).join(" · "))}</p>` : ""}
       ${kpisHtml(e)}${compararTxt(e) ? `<p class="compara">📈 ${esc(compararTxt(e))}</p>` : ""}${e.sensaciones ? `<p class="sens">“${esc(e.sensaciones)}”</p>` : ""}
       <div class="coach-acciones"><button type="button" class="mini" data-ent-ed="${e.id}">✎ ${t("Editar")}</button>
-        <button type="button" class="mini" data-ent-copiar="${e.id}">⧉ ${t("Copiar")}</button>
-        <button type="button" class="mini" data-ent-enviar="${e.id}">✈️ ${t("Enviar")}</button>
-        <button type="button" class="mini" data-ent-historia="${e.id}">📸 ${t("Historia")}</button></div></li>`).join("")}</ul>`
+        <button type="button" class="mini${menuEnvio === e.id ? " on" : ""}" data-ent-enviar="${e.id}" aria-expanded="${menuEnvio === e.id}">✈️ ${t("Enviar")}</button></div>
+      ${menuEnvio === e.id ? menuEnvioHtml(e.id) : ""}</li>`).join("")}</ul>`
       : `<p class="pista">${t("Sin entradas este día.")}</p>`}
     ${coachDia.map((s) => `<p class="sugerencia-b">${t("Coach")}: <b>${esc(s.titulo)}</b> · ${esc(s.texto)} <button type="button" class="mini" data-ent-coach="${esc(s.texto)}" data-titulo="${esc(s.titulo)}">+ ${t("Registrar")}</button></p>`).join("")}
     ${(stravaDia[diaBitacora] || []).filter((c) => !yaLigadas.has(c.id)).map((c) => `<p class="sugerencia-b">Strava: <b>${esc(c.nombre || "")}</b> · ${fmtDistKm(c.distancia_m / 1000, 1)} · ${hms(c.tiempo_s)}
@@ -5013,14 +5031,11 @@ function pintarBitacora() {
     const d = new Date(an, me - 1 + +x.dataset.mes, 1); mesBitacora = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; pintarBitacora(); }; });
   document.querySelectorAll("[data-dia]").forEach((x) => { x.onclick = () => { diaBitacora = x.dataset.dia; pintarBitacora(); }; });
   document.querySelectorAll("[data-ent-ed]").forEach((x) => { x.onclick = () => {
-    editandoEntrada = structuredClone(bitacora().entradas.find((e) => e.id === x.dataset.entEd)); pintarBitacora(); }; });
-  document.querySelectorAll("[data-ent-historia]").forEach((x) => { x.onclick = () => {
-    editandoHistoria = { e: structuredClone(bitacora().entradas.find((e) => e.id === x.dataset.entHistoria)), sel: 0 }; pintarBitacora(); }; });
+    menuEnvio = null; editandoEntrada = structuredClone(bitacora().entradas.find((e) => e.id === x.dataset.entEd)); pintarBitacora(); }; });
   document.querySelectorAll("[data-ent-enviar]").forEach((x) => { x.onclick = () => {
-    editandoEnvio = { e: structuredClone(bitacora().entradas.find((e) => e.id === x.dataset.entEnviar)), volver: null }; pintarBitacora(); }; });
-  document.querySelectorAll("[data-ent-copiar]").forEach((x) => { x.onclick = async () => {
-    const ok = await copiar(textoEntrada(bitacora().entradas.find((e) => e.id === x.dataset.entCopiar)));
-    x.textContent = ok ? "✓ " + t("Copiada") : t("No se pudo copiar"); }; });
+    menuEnvio = menuEnvio === x.dataset.entEnviar ? null : x.dataset.entEnviar; pintarBitacora(); }; });
+  document.querySelectorAll(".entradas [data-env-op]").forEach((x) => { x.onclick = () =>
+    opcionEnvio(x.dataset.envOp, structuredClone(bitacora().entradas.find((e) => e.id === x.dataset.clave)), null, x); });
   const nueva = (extra = {}) => { editandoEntrada = { id: null, fecha: diaBitacora, turno: entradasDia.length ? "tarde" : "manana", tipo: "series", titulo: "",
     bloques: [], km: null, dur_s: null, rpe: null, sensaciones: "", texto: "", ...extra }; pintarBitacora(); };
   const bNueva = document.querySelector("[data-ent-nueva]");
@@ -5217,9 +5232,9 @@ function pintarEditorEntrada() {
       <label>${t("¿Cómo te sentiste?")}${elegirSens(e._sens, "e")}<small style="font-weight:400">${t("Es el del día: el Coach lo usa para ajustar tu plan.")}</small></label>
       <label>${t("Sensaciones")}<textarea id="sensEnt" rows="3" placeholder="${t("Cómo te sentiste, piernas, clima, qué cambiarías…")}">${esc(e.sensaciones || "")}</textarea></label>
       <div class="coach-acciones"><button type="submit">${t("Guardar")}</button><button type="button" class="sec" data-ent-cancelar>${t("Cancelar")}</button>
-        <button type="button" class="sec" data-ent-copiar-ed>⧉ ${t("Copiar")}</button>
-        <button type="button" class="sec" data-ent-enviar-ed>✈️ ${t("Enviar")}</button>
+        <button type="button" class="sec${menuEnvio === "ed" ? " on" : ""}" data-ent-enviar-ed aria-expanded="${menuEnvio === "ed"}">✈️ ${t("Enviar")}</button>
         ${e.id ? `<button type="button" class="sec peligro" data-ent-borrar>${t("Borrar")}</button>` : ""}</div>
+      ${menuEnvio === "ed" ? menuEnvioHtml("ed") : ""}
       <p class="aviso" id="errorEnt" style="margin:0"></p></form>`);
   activarEditorEntrada();
 }
@@ -5295,13 +5310,11 @@ function activarEditorEntrada() {
       if (v != null && !b.dur_s) x.value = mmss(v); };
   });
   f.querySelector("[data-ent-cancelar]").onclick = () => { editandoEntrada = null; pintarBitacora(); };
-  f.querySelector("[data-ent-enviar-ed]").onclick = () => {
+  f.querySelector("[data-ent-enviar-ed]").onclick = () => { leerFormEntrada(); menuEnvio = menuEnvio === "ed" ? null : "ed"; pintarEditorEntrada(); };
+  f.querySelectorAll("[data-env-op]").forEach((x) => { x.onclick = () => {
     leerFormEntrada();
     const { _sens, _prop, ...limpia } = e;
-    editandoEnvio = { e: structuredClone({ ...limpia, km: limpia.km_manual ? limpia.km : kmAuto(limpia) }), volver: e };
-    editandoEntrada = null; pintarBitacora(); };
-  f.querySelector("[data-ent-copiar-ed]").onclick = async (ev) => { leerFormEntrada(); const ok = await copiar(textoEntrada(e));
-    ev.target.textContent = ok ? "✓ " + t("Copiada") : t("No se pudo copiar"); };
+    opcionEnvio(x.dataset.envOp, structuredClone({ ...limpia, km: limpia.km_manual ? limpia.km : kmAuto(limpia) }), e, x); }; });
   const borrar = f.querySelector("[data-ent-borrar]");
   if (borrar) borrar.onclick = () => {
     if (!confirm(t("¿Borrar esta entrada?"))) return;
@@ -5322,6 +5335,33 @@ function activarEditorEntrada() {
     editandoEntrada = null;
     if (_sens?.nota) guardarYRecalcular(bt); else { guardarBitacora(bt); pintarBitacora(); }
   };
+}
+
+// ── «Enviar»: un solo botón con las opciones (historia, entrenador, WhatsApp, copiar) ──
+let menuEnvio = null;          // la entrada con el menú abierto («ed»: la del editor)
+const menuEnvioHtml = (clave) => `<div class="menu-envio" role="menu">${[
+  ["historia", "📸", "Historia para Instagram", "Sticker o historia con tu sesión"],
+  ["coach", "✉️", "A mi entrenador", "Por correo, con tus estadísticas"],
+  ["wa", "💬", "WhatsApp", "El resumen de la sesión, listo para mandar"],
+  ["copiar", "⧉", "Copiar texto", "Para pegarlo donde quieras"]].map(([op, ic, et, sub]) =>
+  `<button type="button" role="menuitem" data-env-op="${op}" data-clave="${clave}"><span class="ic">${ic}</span><span><b>${t(et)}</b><small>${t(sub)}</small></span></button>`).join("")}</div>`;
+async function opcionEnvio(op, e, volver, boton) {
+  if (!e) return;
+  if (op === "historia" || op === "coach") {
+    menuEnvio = null;
+    if (op === "historia") editandoHistoria = { e, sel: 0, volver };
+    else editandoEnvio = { e, volver };
+    editandoEntrada = null;
+    return pintarBitacora();
+  }
+  if (op === "wa") {
+    const d = { yo: miCuenta?.nombre || "", nombre: "", wa: "", ...(bitacora().entrenador || {}) };
+    const url = `https://wa.me/${(d.wa || "").replace(/\D/g, "")}?text=${encodeURIComponent(textoEnvio(e, d))}`;
+    if (!window.open(url, "_blank")) location.href = url;
+    return;
+  }
+  const ok = await copiar(textoEntrada(e));
+  const b = boton.querySelector("b"); if (b) b.textContent = ok ? "✓ " + t("Copiada") : t("No se pudo copiar");
 }
 
 // ── Enviar una sesión a tu entrenador: por correo (lo manda PacePath) o por WhatsApp ──
@@ -5865,7 +5905,7 @@ async function pintarHistoria() {
     <p class="aviso" id="estadoHist" style="margin:0"></p>`);
   if (!h.pintada) { $("hoja").scrollTop = 0; h.pintada = true; }
   document.querySelectorAll("[data-hist]").forEach((b) => { b.onclick = () => { h.sel = +b.dataset.hist; pintarHistoria(); }; });
-  document.querySelector("[data-hist-volver]").onclick = () => { editandoHistoria = null; pintarBitacora(); };
+  document.querySelector("[data-hist-volver]").onclick = () => { editandoEntrada = h.volver || null; editandoHistoria = null; pintarBitacora(); };
   const aviso = (m, ok) => { const x = $("estadoHist"); if (x) { x.textContent = m; x.classList.toggle("ok", !!ok); } };
   // La grande primero (la que se va a usar) y después las miniaturas.
   const dis = lista[h.sel];
