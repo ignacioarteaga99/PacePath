@@ -382,11 +382,12 @@
   .menu-envio button:active, .menu-envio button:hover { background: var(--gris); }
   .menu-envio .ic { display: grid; place-items: center; color: var(--tinta); } .menu-envio b { display: block; font-size: 15px; } .menu-envio small { display: block; font-size: 12.5px; color: var(--suave); }
   button.mini.on, button.sec.on { background: var(--tinta); color: var(--fondo); }
-  .hist-carrusel { display: flex; gap: 10px; overflow-x: auto; padding: 10px 2px 6px; scroll-snap-type: x mandatory; }
+  .hist-carrusel { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; padding: 10px 2px 6px; scroll-snap-type: x proximity;
+    touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; max-width: 100%; }
   .hist-mini { flex: none; width: 84px; background: none; border: 0; padding: 0; color: var(--tinta); font: inherit; cursor: pointer; scroll-snap-align: start; }
-  .hist-mini .lienzo { display: block; width: 84px; height: 149px; border-radius: 10px; overflow: hidden; border: 3px solid transparent; background: #2a2a30; }
-  .hist-mini .lienzo img { width: 100%; height: 100%; display: block; }
-  .hist-mini.on .lienzo { border-color: var(--fondo); outline: 3px solid var(--tinta); }
+  .hist-mini .hist-lienzo { display: block; width: 84px; height: 149px; border-radius: 10px; overflow: hidden; border: 3px solid transparent; background: #2a2a30; }
+  .hist-mini .hist-lienzo img { width: 100%; height: 100%; display: block; }
+  .hist-mini.on .hist-lienzo { border-color: var(--fondo); outline: 3px solid var(--tinta); }
   .hist-mini.on small { color: var(--tinta); font-weight: 700; }
   .hist-mini small { display: block; font-size: 11px; line-height: 1.2; margin-top: 4px; color: var(--suave); text-align: center; }
   .transp { background-color: #9aa3b5 !important; background-image: linear-gradient(180deg, #34405e 0%, #7b6a8f 45%, #e8a07a 100%) !important; }
@@ -5911,7 +5912,7 @@ async function pintarHistoria() {
   hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t("Historia para Instagram")}</h2>
     <p class="sub" style="margin:0">${esc(h.e.titulo || titulos(h.d).join(" "))} · ${fechaCorta(new Date(h.e.fecha + "T12:00"))}</p>
     <div class="hist-carrusel" id="histCarrusel">${h.lista.map((x, i) => `<button type="button" class="hist-mini${i === h.sel ? " on" : ""}" data-hist="${i}" aria-label="${esc(t(x.nombre))}" aria-pressed="${i === h.sel}">
-      <span class="lienzo${x.sticker ? " transp" : ""}">${h.minis[i] ? `<img src="${h.minis[i]}" alt="">` : ""}</span><small>${esc(t(x.nombre))}</small></button>`).join("")}</div>
+      <span class="hist-lienzo${x.sticker ? " transp" : ""}">${h.minis[i] ? `<img src="${h.minis[i]}" alt="">` : ""}</span><small>${esc(t(x.nombre))}</small></button>`).join("")}</div>
     <div class="hist-grande" id="histGrande"></div>
     <p class="sub" id="histNota" style="margin:6px 0 0"></p>
     <div class="coach-acciones" id="histAcciones"></div>
@@ -5928,7 +5929,7 @@ async function pintarHistoria() {
     if (editandoHistoria !== h) return;
     try { h.minis[i] = (await dibujarHistoria(x, h.d, .2)).toDataURL("image/png"); }
     catch (err) { console.error(err); continue; }
-    const cont = document.querySelector(`[data-hist="${i}"] .lienzo`);
+    const cont = document.querySelector(`[data-hist="${i}"] .hist-lienzo`);
     if (cont) cont.innerHTML = `<img src="${h.minis[i]}" alt="">`;
   }
 }
