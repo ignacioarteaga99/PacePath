@@ -380,7 +380,7 @@
   .menu-envio button { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; text-align: left; background: none; border: 0; border-radius: 10px;
     padding: 9px 10px; font: inherit; color: var(--tinta); cursor: pointer; }
   .menu-envio button:active, .menu-envio button:hover { background: var(--gris); }
-  .menu-envio .ic { font-size: 22px; text-align: center; } .menu-envio b { display: block; font-size: 15px; } .menu-envio small { display: block; font-size: 12.5px; color: var(--suave); }
+  .menu-envio .ic { display: grid; place-items: center; color: var(--tinta); } .menu-envio b { display: block; font-size: 15px; } .menu-envio small { display: block; font-size: 12.5px; color: var(--suave); }
   button.mini.on, button.sec.on { background: var(--tinta); color: var(--fondo); }
   .hist-carrusel { display: flex; gap: 10px; overflow-x: auto; padding: 10px 2px 6px; scroll-snap-type: x mandatory; }
   .hist-mini { flex: none; width: 84px; background: none; border: 0; padding: 0; color: var(--tinta); font: inherit; cursor: pointer; scroll-snap-align: start; }
@@ -1874,10 +1874,10 @@ async function alEntrarCuenta() {
   if (e.conectado && !(await BD.todas()).length) sincronizar(e);
 }
 const enlaceCuenta = () => miCuenta
-  ? `<button type="button" data-cuenta data-salir>👤 ${esc(miCuenta.nombre || miCuenta.correo)} · ${t("Salir")}</button>`
-  : `<a href="/entrar" data-cuenta>👤 ${t("Entrar")}</a>`;
-const PIE_HOJA = () => `<p class="pie-hoja">${enlaceCuenta()} · ${miCuenta ? `<button type="button" data-misdatos>🔒 ${t("Mis datos")}</button> · ` : ""}<button type="button" data-comentario>💬 ${t("Enviar comentario")}</button>
-  ${window.PP_APORTE ? `· <a href="${esc(window.PP_APORTE)}" target="_blank" rel="noopener" data-aporte>☕ ${t("Apoya PacePath")}</a>` : ""}
+  ? `<button type="button" data-cuenta data-salir>${esc(miCuenta.nombre || miCuenta.correo)} · ${t("Salir")}</button>`
+  : `<a href="/entrar" data-cuenta>${t("Entrar")}</a>`;
+const PIE_HOJA = () => `<p class="pie-hoja">${enlaceCuenta()} · ${miCuenta ? `<button type="button" data-misdatos>${t("Mis datos")}</button> · ` : ""}<button type="button" data-comentario>${t("Enviar comentario")}</button>
+  ${window.PP_APORTE ? `· <a href="${esc(window.PP_APORTE)}" target="_blank" rel="noopener" data-aporte>${t("Apoya PacePath")}</a>` : ""}
   · <a href="/beta" target="_blank" rel="noopener">${t("Guía beta")}</a>
   · <a href="/privacidad" target="_blank" rel="noopener">${t("Privacidad")}</a>
   · <a href="/terminos" target="_blank" rel="noopener">${t("Términos")}</a></p>`;
@@ -2182,7 +2182,7 @@ function mostrarTrazado(j) {
       `<div class="cifra"><span>${e}</span><b class="${v === 0 ? "cero" : ""}">${v}</b></div>`).join("")}</div>
     ${perfilSvg(j)}
     <div class="fila"><button id="gpx" type="button">${textoBotonGpx()}</button>
-      <button class="sec" id="favorito" type="button">${t("☆ Guardar como favorito")}</button></div>`);
+      <button class="sec" id="favorito" type="button">${t("Guardar como favorito")}</button></div>`);
   $("favorito").onclick = () => {
     const nombre = prompt(t("Nombre del tramo favorito (por ejemplo, «Ribera Balmaceda–Forestal»):"));
     if (!nombre) return;
@@ -2190,7 +2190,7 @@ function mostrarTrazado(j) {
     const paso = Math.max(1, Math.ceil(todos.length / 1500));
     guardarFavoritos([...favoritos(), { id: Date.now(), nombre: nombre.slice(0, 60),
       km: j.recorrido.distancia_m / 1000, puntos: todos.filter((_, i) => i % paso === 0) }]);
-    $("favorito").textContent = t("★ Guardado"); $("favorito").disabled = true;
+    $("favorito").textContent = t("Guardado como favorito"); $("favorito").disabled = true;
   };
   $("gpx").onclick = () => enviarGpx(j, "pacepath-trazado.gpx");
 }
@@ -3938,6 +3938,10 @@ Object.assign(EN, {
   "El resumen de la sesión, listo para mandar": "The session summary, ready to send",
   "Copiar texto": "Copy text",
   "Para pegarlo donde quieras": "To paste it anywhere",
+  "Calendario": "Calendar",
+  "Lista": "List",
+  "Guardar como favorito": "Save as favorite",
+  "Guardado como favorito": "Saved as favorite",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -4323,6 +4327,10 @@ Object.assign(PT, {
   "El resumen de la sesión, listo para mandar": "O resumo da sessão, pronto para mandar",
   "Copiar texto": "Copiar texto",
   "Para pegarlo donde quieras": "Para colar onde quiser",
+  "Calendario": "Calendário",
+  "Lista": "Lista",
+  "Guardar como favorito": "Salvar como favorito",
+  "Guardado como favorito": "Salvo como favorito",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -4489,12 +4497,12 @@ function bloqueCoach(j) {
   const hoyF = fechaLocal(), domingo = c.semana ? masDias(c.semana.lunes, 6) : hoyF;
   const porque = (s) => s.porque ? `<p class="porque">💡 ${esc(s.porque)}</p>` : "";
   const rutaBtn = (s, chico) => s.texto && s.tipo !== "carrera" && !s.real
-    ? `<button type="button" class="${chico ? "mini" : "coach-ruta"}" data-ruta-coach="${esc(s.texto)}">🗺 ${t(chico ? "Ruta" : "Crear ruta para esta sesión")}</button>` : "";
+    ? `<button type="button" class="${chico ? "mini" : "coach-ruta"}" data-ruta-coach="${esc(s.texto)}">${t(chico ? "Ruta" : "Crear ruta para esta sesión")}</button>` : "";
   let hoyHtml;
   if (c.pausa) hoyHtml = `<div class="coach-hoy pausa"><span class="et">${t("Plan en pausa")}</span>
       <b>${t({ enfermedad: "Enfermedad", lesion: "Lesión", viaje: "Viaje", otro: "Pausa" }[c.pausa.motivo])} · ${c.pausa.dias === 1 ? t("1 día") : t("{n} días", { n: c.pausa.dias })}</b>
       <p>${t("Recupérate tranquilo: los días en pausa no cuentan como sesiones no hechas.")}</p>
-      <div class="coach-acciones"><button type="button" class="coach-ruta" data-reanudar>▶ ${t("Volver a entrenar")}</button></div></div>`;
+      <div class="coach-acciones"><button type="button" class="coach-ruta" data-reanudar>${t("Volver a entrenar")}</button></div></div>`;
   else if (h) hoyHtml = `<div class="coach-hoy"><span class="et">${t("Sugerencia de hoy")}</span><b>${esc(h.titulo)}${h.texto && h.tipo !== "suave" && h.tipo !== "fondo" ? ` · ${esc(h.texto)}` : ""}</b>
       <div class="datos"><span>${fmtDistKm(h.km, 0)}</span>${h.ritmo ? `<span>${ritmoCoach(h.ritmo)}</span>` : ""}<span>~${num(h.minutos)} min</span><span>${t("esfuerzo {n}", { n: num(h.iep) })}</span></div>
       <p>${esc(h.nota || "")}</p>${porque(h)}${h.real ? `<p>✓ ${t("Ya corriste {k} hoy.", { k: fmtDistKm(h.real.km, 1) })}</p>` : ""}
@@ -4512,7 +4520,7 @@ function bloqueCoach(j) {
       <p class="pista" style="margin:4px 0 8px">${t("Mientras dure, no hay sesiones. Al volver, armo una reentrada según los días que estuviste parado.")}</p>
       <div class="fases">${MOTIVOS_P.map(([k, et, ic]) => `<button type="button" class="chip${pausandoCoach.motivo === k ? " on" : ""}" data-motivo="${k}">${ic} ${t(et)}</button>`).join("")}</div>
       <label class="coach-form" style="margin-top:8px"><span>${t("Desde el día")}</span><input type="date" id="desdePausa" max="${hoyF}" value="${pausandoCoach.desde || hoyF}"></label>
-      <div class="coach-acciones"><button type="button" class="coach-ruta" data-pausa-ok>⏸️ ${t("Pausar")}</button><button type="button" class="sec" data-pausa-cancelar>${t("Cancelar")}</button></div></div>` : "";
+      <div class="coach-acciones"><button type="button" class="coach-ruta" data-pausa-ok>${t("Pausar")}</button><button type="button" class="sec" data-pausa-cancelar>${t("Cancelar")}</button></div></div>` : "";
   // Días a los que se puede mover una sesión: los que quedan de la semana, menos el del fondo o la carrera.
   const fijos = new Set((c.semana?.sesiones || []).filter((s) => s.tipo === "fondo" || s.tipo === "carrera").map((s) => s.fecha));
   const quedan = (f, tipo) => { const out = []; for (let x = hoyF > c.semana.lunes ? hoyF : c.semana.lunes; x <= domingo; x = masDias(x, 1))
@@ -4914,7 +4922,7 @@ async function abrirBitacora() {
 }
 const selectorEntreno = () => `<div class="fases seg-entreno" role="tablist">
   <button type="button" class="chip${subEntreno === "entreno" ? " on" : ""}" role="tab" aria-selected="${subEntreno === "entreno"}" data-sub="entreno">${t("Entrenamiento")}</button>
-  <button type="button" class="chip${subEntreno === "bitacora" ? " on" : ""}" role="tab" aria-selected="${subEntreno === "bitacora"}" data-sub="bitacora">📓 ${t("Bitácora")}</button></div>`;
+  <button type="button" class="chip${subEntreno === "bitacora" ? " on" : ""}" role="tab" aria-selected="${subEntreno === "bitacora"}" data-sub="bitacora">${t("Bitácora")}</button></div>`;
 function activarSelectorEntreno() {
   document.querySelectorAll("[data-sub]").forEach((b) => { b.onclick = () => {
     subEntreno = b.dataset.sub; escribir("pp_entreno_sub", subEntreno);
@@ -4972,12 +4980,12 @@ function pintarBitacora() {
   const pd = pausaDe(diaBitacora), sd = sensDe[diaBitacora];
   const rango = (x) => `${fechaCorta(new Date(x.desde + "T12:00"))} – ${x.hasta ? fechaCorta(new Date(x.hasta + "T12:00")) : t("sigue")}`;
   const pausaHtml = pd ? `<div class="fila-b"><span>${MOTIVOS_P.find(([k]) => k === pd.motivo)[2]} <b>${t(MOTIVOS_P.find(([k]) => k === pd.motivo)[1])}</b> · ${rango(pd)}</span>
-      <button type="button" class="mini" data-pausa-ed="${pd.id}">✎ ${t("Editar")}</button></div>` : "";
+      <button type="button" class="mini" data-pausa-ed="${pd.id}">${t("Editar")}</button></div>` : "";
   const sensHtml = diaBitacora > hoyF ? "" : editandoSens?.fecha === diaBitacora
     ? `<div class="coach-sentir"><b>${t("¿Cómo te sentiste?")}</b>${elegirSens(editandoSens, "d")}
       <div class="coach-acciones"><button type="button" class="coach-ruta" data-sens-ok${editandoSens.nota ? "" : " disabled"}>${t("Guardar")}</button>
         <button type="button" class="sec" data-sens-cancelar>${t("Cancelar")}</button>${sd ? `<button type="button" class="sec peligro" data-sens-borrar>${t("Borrar")}</button>` : ""}</div></div>`
-    : sd ? `<div class="fila-b"><span>${t("Cómo te sentiste")}: <b>${txtSens(sd)}</b></span><button type="button" class="mini" data-sens-ed>✎ ${t("Editar")}</button></div>` : "";
+    : sd ? `<div class="fila-b"><span>${t("Cómo te sentiste")}: <b>${txtSens(sd)}</b></span><button type="button" class="mini" data-sens-ed>${t("Editar")}</button></div>` : "";
   const diaHtml = `<div class="bloque"><h3>${(() => { const x = fd.toLocaleDateString(LOCALE[idioma], { weekday: "long", day: "numeric", month: "long" }); return x[0].toUpperCase() + x.slice(1); })()}</h3>
     ${(objDia[diaBitacora] || []).map((o) => `<p class="obj-dia">🏁 <b>${esc(o.nombre)}</b>${o.meta_s ? " · " + t("meta {t}", { t: hms(o.meta_s) }) : ""}</p>`).join("")}
     ${pausaHtml}${sensHtml}
@@ -4986,8 +4994,8 @@ function pintarBitacora() {
         ${e.rpe ? `<span class="rpe r${Math.min(4, Math.ceil(e.rpe / 2.5))}">RPE ${e.rpe}</span>` : ""}</div>
       ${(e.bloques || []).length ? `<p>${esc((e.bloques || []).map((b) => { const s = statsBloque(b); return estructura(b) + (s ? ` · ${b.dur_s ? t("prom. {x} m", { x: num(s.prom) }) : t("prom. {x}", { x: mmss(s.prom) })}` : ""); }).join(" · "))}</p>` : ""}
       ${kpisHtml(e)}${compararTxt(e) ? `<p class="compara">📈 ${esc(compararTxt(e))}</p>` : ""}${e.sensaciones ? `<p class="sens">“${esc(e.sensaciones)}”</p>` : ""}
-      <div class="coach-acciones"><button type="button" class="mini" data-ent-ed="${e.id}">✎ ${t("Editar")}</button>
-        <button type="button" class="mini${menuEnvio === e.id ? " on" : ""}" data-ent-enviar="${e.id}" aria-expanded="${menuEnvio === e.id}">✈️ ${t("Enviar")}</button></div>
+      <div class="coach-acciones"><button type="button" class="mini" data-ent-ed="${e.id}">${t("Editar")}</button>
+        <button type="button" class="mini${menuEnvio === e.id ? " on" : ""}" data-ent-enviar="${e.id}" aria-expanded="${menuEnvio === e.id}">${t("Enviar")}</button></div>
       ${menuEnvio === e.id ? menuEnvioHtml(e.id) : ""}</li>`).join("")}</ul>`
       : `<p class="pista">${t("Sin entradas este día.")}</p>`}
     ${coachDia.map((s) => `<p class="sugerencia-b">${t("Coach")}: <b>${esc(s.titulo)}</b> · ${esc(s.texto)} <button type="button" class="mini" data-ent-coach="${esc(s.texto)}" data-titulo="${esc(s.titulo)}">+ ${t("Registrar")}</button></p>`).join("")}
@@ -5001,7 +5009,7 @@ function pintarBitacora() {
       ${porCerrar.length ? `<p class="sub" style="margin:6px 0 0">${t("¿Cómo te fue?")}</p><ul class="objetivos">${porCerrar.map(objHtml).join("")}</ul>` : ""}
       ${prox.length ? `<ul class="objetivos">${prox.map(objHtml).join("")}</ul>` : porCerrar.length || historial.length ? "" : `<p class="pista">${t("Agrega tus carreras objetivo (10K Fedachi, 42K MDS…) y aparecen en el calendario con la cuenta regresiva.")}</p>`}
       ${historial.length ? `<details class="historial-obj"><summary>${t("Objetivos cumplidos y pasados")}</summary><ul class="objetivos">${historial.map(objHtml).join("")}</ul></details>` : ""}</div>
-    <div class="fases seg-entreno">${[["cal", "📅 Calendario"], ["lista", "☰ Lista"]].map(([k, et]) =>
+    <div class="fases seg-entreno">${[["cal", "Calendario"], ["lista", "Lista"]].map(([k, et]) =>
       `<button type="button" class="chip${vistaBitacora === k ? " on" : ""}" data-vista-b="${k}">${t(et)}</button>`).join("")}</div>
     ${vistaBitacora === "lista" ? listaBitacoraHtml() : `
     <div class="bloque calendario"><div class="cal-cab"><button type="button" class="mini" data-mes="-1" aria-label="${t("Mes anterior")}">‹</button>
@@ -5011,8 +5019,8 @@ function pintarBitacora() {
       <div class="kpis"><div class="kpi"><span>${t("Entradas")}</span><b>${delMes.length}</b></div>
         <div class="kpi"><span>${t("Km anotados")}</span><b>${num(kmMes, 0)}</b><small>${kmStrava ? t("{k} en Strava", { k: fmtDistKm(kmStrava, 0) }) : ""}</small></div>
         <div class="kpi"><span>${t("RPE medio")}</span><b>${rpes.length ? num(rpes.reduce((a, x) => a + x, 0) / rpes.length, 1) : "–"}</b></div></div>
-      <div class="coach-acciones"><button type="button" class="mini" data-copiar-per="semana">⧉ ${t("Copiar semana")}</button>
-        <button type="button" class="mini" data-copiar-per="mes">⧉ ${t("Copiar mes")}</button></div></div>
+      <div class="coach-acciones"><button type="button" class="mini" data-copiar-per="semana">${t("Copiar semana")}</button>
+        <button type="button" class="mini" data-copiar-per="mes">${t("Copiar mes")}</button></div></div>
     ${diaHtml}`}`);
   activarSelectorEntreno();
   document.querySelectorAll("[data-vista-b]").forEach((x) => { x.onclick = () => { vistaBitacora = x.dataset.vistaB; escribir("pp_bitacora_vista", vistaBitacora); pintarBitacora(); }; });
@@ -5140,7 +5148,7 @@ function propuestaHtml(e) {
     </tbody></table>
     ${r.bloques.map((b) => `<p class="prev-b"><b>${estructura(b)}</b>${detalleBloque(b) ? ` (${esc(detalleBloque(b))})` : ""}<br>${b.tiempos.map((f, k) =>
       `${b.series > 1 ? `S${k + 1}: ` : ""}${f.map((x) => b.dur_s ? `${num(x)} m` : mmss(x)).join(" · ")}`).join("<br>")}</p>`).join("")}
-    <div class="coach-acciones"><button type="button" class="coach-ruta" data-prop-ok${r.bloques.length ? "" : " disabled"}>✓ ${t("Usar estos tiempos")}</button>
+    <div class="coach-acciones"><button type="button" class="coach-ruta" data-prop-ok${r.bloques.length ? "" : " disabled"}>${t("Usar estos tiempos")}</button>
       <button type="button" class="sec" data-prop-no>${t("Cancelar")}</button></div>
     <small>${t("Después puedes corregir cualquier tiempo antes de guardar la entrada.")}</small></div>`;
 }
@@ -5216,7 +5224,7 @@ function pintarEditorEntrada() {
       <div id="bloquesEnt">${(e.bloques || []).map(bloqueHtml).join("")}</div>
       <div class="coach-acciones" style="margin-top:0"><button type="button" class="mini" data-nuevo-b="dist">+ ${t("Bloque por distancia")}</button>
         <button type="button" class="mini" data-nuevo-b="dur">+ ${t("Bloque por tiempo")}</button>
-        ${stravaId && !e._prop && !["fondo", "suave"].includes(e.tipo) ? `<button type="button" class="mini" data-strava-t="${stravaId}">⤓ ${t("Tiempos de Strava")}</button>` : ""}</div>
+        ${stravaId && !e._prop && !["fondo", "suave"].includes(e.tipo) ? `<button type="button" class="mini" data-strava-t="${stravaId}">${t("Tiempos de Strava")}</button>` : ""}</div>
       ${comparaHtml}
       <div class="rejilla-b"><label>${t("Calentamiento (km)")}<input id="calEnt" inputmode="decimal" value="${e.cal_km ?? ""}" placeholder="3"></label>
         <label>${t("Vuelta a la calma (km)")}<input id="vcEnt" inputmode="decimal" value="${e.vc_km ?? ""}" placeholder="2"></label></div>
@@ -5232,7 +5240,7 @@ function pintarEditorEntrada() {
       <label>${t("¿Cómo te sentiste?")}${elegirSens(e._sens, "e")}<small style="font-weight:400">${t("Es el del día: el Coach lo usa para ajustar tu plan.")}</small></label>
       <label>${t("Sensaciones")}<textarea id="sensEnt" rows="3" placeholder="${t("Cómo te sentiste, piernas, clima, qué cambiarías…")}">${esc(e.sensaciones || "")}</textarea></label>
       <div class="coach-acciones"><button type="submit">${t("Guardar")}</button><button type="button" class="sec" data-ent-cancelar>${t("Cancelar")}</button>
-        <button type="button" class="sec${menuEnvio === "ed" ? " on" : ""}" data-ent-enviar-ed aria-expanded="${menuEnvio === "ed"}">✈️ ${t("Enviar")}</button>
+        <button type="button" class="sec${menuEnvio === "ed" ? " on" : ""}" data-ent-enviar-ed aria-expanded="${menuEnvio === "ed"}">${t("Enviar")}</button>
         ${e.id ? `<button type="button" class="sec peligro" data-ent-borrar>${t("Borrar")}</button>` : ""}</div>
       ${menuEnvio === "ed" ? menuEnvioHtml("ed") : ""}
       <p class="aviso" id="errorEnt" style="margin:0"></p></form>`);
@@ -5339,11 +5347,12 @@ function activarEditorEntrada() {
 
 // ── «Enviar»: un solo botón con las opciones (historia, entrenador, WhatsApp, copiar) ──
 let menuEnvio = null;          // la entrada con el menú abierto («ed»: la del editor)
+const ICONOS_ENVIO = {"historia": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"5\"/><circle cx=\"12\" cy=\"12\" r=\"4\"/><circle cx=\"17.3\" cy=\"6.7\" r=\".6\" fill=\"currentColor\"/></svg>", "coach": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"m3 7 9 6 9-6\"/></svg>", "wa": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5z\"/></svg>", "copiar": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"8\" y=\"8\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3\"/></svg>"};
 const menuEnvioHtml = (clave) => `<div class="menu-envio" role="menu">${[
-  ["historia", "📸", "Historia para Instagram", "Sticker o historia con tu sesión"],
-  ["coach", "✉️", "A mi entrenador", "Por correo, con tus estadísticas"],
-  ["wa", "💬", "WhatsApp", "El resumen de la sesión, listo para mandar"],
-  ["copiar", "⧉", "Copiar texto", "Para pegarlo donde quieras"]].map(([op, ic, et, sub]) =>
+  ["historia", ICONOS_ENVIO.historia, "Historia para Instagram", "Sticker o historia con tu sesión"],
+  ["coach", ICONOS_ENVIO.coach, "A mi entrenador", "Por correo, con tus estadísticas"],
+  ["wa", ICONOS_ENVIO.wa, "WhatsApp", "El resumen de la sesión, listo para mandar"],
+  ["copiar", ICONOS_ENVIO.copiar, "Copiar texto", "Para pegarlo donde quieras"]].map(([op, ic, et, sub]) =>
   `<button type="button" role="menuitem" data-env-op="${op}" data-clave="${clave}"><span class="ic">${ic}</span><span><b>${t(et)}</b><small>${t(sub)}</small></span></button>`).join("")}</div>`;
 async function opcionEnvio(op, e, volver, boton) {
   if (!e) return;
@@ -5385,8 +5394,8 @@ function pintarEnvio() {
         <small style="font-weight:400">${t("Con código de país. Si lo dejas vacío, WhatsApp te deja elegir el contacto.")}</small></label>
       <label>${t("Nota (opcional)")}<textarea id="envNota" rows="2" maxlength="800" placeholder="${t("ej. La última serie me costó, ¿bajamos el ritmo?")}">${esc(d.nota || "")}</textarea></label>
       <details class="ajustes-zonas"><summary>${t("Ver el mensaje")}</summary><pre class="vista-envio" id="vistaEnvio">${esc(textoEnvio(e, d))}</pre></details>
-      <div class="coach-acciones"><button type="submit">✉️ ${t("Enviar por correo")}</button>
-        <button type="button" class="sec" data-env-wa>💬 WhatsApp</button><button type="button" class="sec" data-env-volver>${t("Volver")}</button></div>
+      <div class="coach-acciones"><button type="submit">${t("Enviar por correo")}</button>
+        <button type="button" class="sec" data-env-wa>WhatsApp</button><button type="button" class="sec" data-env-volver>${t("Volver")}</button></div>
       <p class="aviso" id="estadoEnvio" style="margin:0"></p>
       <p id="respaldoEnvio" class="sub" style="margin:0"${miCuenta && correoActivo ? " hidden" : ""}>${t("¿Prefieres mandarlo tú?")}
         <button type="button" class="enlace" data-env-mail>${t("Abrir mi app de correo")}</button></p></form>`);
@@ -5898,9 +5907,9 @@ async function pintarHistoria() {
     <div class="hist-grande${lista[h.sel].sticker ? " transp" : ""}" id="histGrande"><div class="cargando"><div class="rueda"></div></div></div>
     <p class="sub" style="margin:6px 0 0">${lista[h.sel].sticker ? t("Sticker con fondo transparente: cópialo y pégalo sobre tu foto en la historia de Instagram.") : t("Historia completa: compártela directo a Instagram.")}</p>
     <div class="coach-acciones">
-      <button type="button" class="coach-ruta" data-hist-compartir>📤 ${t("Compartir")}</button>
-      ${lista[h.sel].sticker ? `<button type="button" class="sec" data-hist-copiar>⧉ ${t("Copiar sticker")}</button>` : ""}
-      <button type="button" class="sec" data-hist-bajar>⤓ ${t("Guardar imagen")}</button>
+      <button type="button" class="coach-ruta" data-hist-compartir>${t("Compartir")}</button>
+      ${lista[h.sel].sticker ? `<button type="button" class="sec" data-hist-copiar>${t("Copiar sticker")}</button>` : ""}
+      <button type="button" class="sec" data-hist-bajar>${t("Guardar imagen")}</button>
       <button type="button" class="sec" data-hist-volver>${t("Volver")}</button></div>
     <p class="aviso" id="estadoHist" style="margin:0"></p>`);
   if (!h.pintada) { $("hoja").scrollTop = 0; h.pintada = true; }
@@ -6563,9 +6572,9 @@ $("hoja").addEventListener("click", (e) => {
   if (!e.target.closest("[data-misdatos]")) return;
   hoja(`<h3>${t("Mis datos")}</h3>
     <p class="pista">${t("Descarga una copia de todo lo que PacePath guarda de tu cuenta, o bórrala para siempre. Tus carreras de Strava no están en el servidor: viven sólo en tu teléfono.")}</p>
-    <p><button type="button" class="sec" onclick="location.href='/api/cuenta/exportar'">⬇ ${t("Descargar mis datos")}</button></p>
-    <p><button type="button" class="sec" data-borrar-cuenta>🗑 ${t("Borrar mi cuenta")}</button></p>
-    <p><button type="button" class="sec" data-volver-vista>← ${t("Volver")}</button></p>`);
+    <p><button type="button" class="sec" onclick="location.href='/api/cuenta/exportar'">${t("Descargar mis datos")}</button></p>
+    <p><button type="button" class="sec" data-borrar-cuenta>${t("Borrar mi cuenta")}</button></p>
+    <p><button type="button" class="sec" data-volver-vista>${t("Volver")}</button></p>`);
 });
 // «Volver» desde una pantalla suelta (p. ej. Mis datos): a lo que había en la pestaña.
 $("hoja").addEventListener("click", (e) => {
