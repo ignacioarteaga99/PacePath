@@ -385,7 +385,9 @@
   .hist-carrusel { display: flex; gap: 10px; overflow-x: auto; padding: 10px 2px 6px; scroll-snap-type: x mandatory; }
   .hist-mini { flex: none; width: 84px; background: none; border: 0; padding: 0; color: var(--tinta); font: inherit; cursor: pointer; scroll-snap-align: start; }
   .hist-mini .lienzo { display: block; width: 84px; height: 149px; border-radius: 10px; overflow: hidden; border: 3px solid transparent; background: #2a2a30; }
-  .hist-mini.on .lienzo { border-color: var(--acento); }
+  .hist-mini .lienzo img { width: 100%; height: 100%; display: block; }
+  .hist-mini.on .lienzo { border-color: var(--fondo); outline: 3px solid var(--tinta); }
+  .hist-mini.on small { color: var(--tinta); font-weight: 700; }
   .hist-mini small { display: block; font-size: 11px; line-height: 1.2; margin-top: 4px; color: var(--suave); text-align: center; }
   .transp { background-color: #9aa3b5 !important; background-image: linear-gradient(180deg, #34405e 0%, #7b6a8f 45%, #e8a07a 100%) !important; }
   #estadoHist:empty { display: none; }
@@ -3942,6 +3944,7 @@ Object.assign(EN, {
   "Lista": "List",
   "Guardar como favorito": "Save as favorite",
   "Guardado como favorito": "Saved as favorite",
+  "No pude dibujar este diseño: {e}": "I couldn't draw this design: {e}",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -4331,6 +4334,7 @@ Object.assign(PT, {
   "Lista": "Lista",
   "Guardar como favorito": "Salvar como favorito",
   "Guardado como favorito": "Salvo como favorito",
+  "No pude dibujar este diseño: {e}": "Não consegui desenhar este design: {e}",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -5897,32 +5901,64 @@ async function dibujarHistoria(dis, d, escala = 1) {
 
 // ── La pantalla: elegir el diseño, compartir, copiar, descargar ──
 async function pintarHistoria() {
-  const h = editandoHistoria, d = historiaDatos(h.e);
-  const lista = DISENOS.filter((x) => !x.semana || d.semana.total > 0);
-  h.sel = Math.min(h.sel || 0, lista.length - 1);
+  const h = editandoHistoria;
+  // Los datos y los dibujos se calculan una vez: cambiar de diseño no rehace la pantalla.
+  if (!h.lista) {
+    h.d = historiaDatos(h.e);
+    h.lista = DISENOS.filter((x) => !x.semana || h.d.semana.total > 0);
+    h.minis = []; h.grandes = []; h.sel = Math.min(h.sel || 0, h.lista.length - 1);
+  }
   hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t("Historia para Instagram")}</h2>
-    <p class="sub" style="margin:0">${esc(h.e.titulo || titulos(d).join(" "))} · ${fechaCorta(new Date(h.e.fecha + "T12:00"))}</p>
-    <div class="hist-carrusel">${lista.map((x, i) => `<button type="button" class="hist-mini${i === h.sel ? " on" : ""}" data-hist="${i}" aria-label="${esc(t(x.nombre))}">
-      <span class="lienzo${x.sticker ? " transp" : ""}"><span class="cargando-mini"></span></span><small>${esc(t(x.nombre))}</small></button>`).join("")}</div>
-    <div class="hist-grande${lista[h.sel].sticker ? " transp" : ""}" id="histGrande"><div class="cargando"><div class="rueda"></div></div></div>
-    <p class="sub" style="margin:6px 0 0">${lista[h.sel].sticker ? t("Sticker con fondo transparente: cópialo y pégalo sobre tu foto en la historia de Instagram.") : t("Historia completa: compártela directo a Instagram.")}</p>
-    <div class="coach-acciones">
-      <button type="button" class="coach-ruta" data-hist-compartir>${t("Compartir")}</button>
-      ${lista[h.sel].sticker ? `<button type="button" class="sec" data-hist-copiar>⧉ ${t("Copiar sticker")}</button>` : ""}
-      <button type="button" class="sec" data-hist-bajar>⤓ ${t("Guardar imagen")}</button>
-      <button type="button" class="sec" data-hist-volver>${t("Volver")}</button></div>
+    <p class="sub" style="margin:0">${esc(h.e.titulo || titulos(h.d).join(" "))} · ${fechaCorta(new Date(h.e.fecha + "T12:00"))}</p>
+    <div class="hist-carrusel" id="histCarrusel">${h.lista.map((x, i) => `<button type="button" class="hist-mini${i === h.sel ? " on" : ""}" data-hist="${i}" aria-label="${esc(t(x.nombre))}" aria-pressed="${i === h.sel}">
+      <span class="lienzo${x.sticker ? " transp" : ""}">${h.minis[i] ? `<img src="${h.minis[i]}" alt="">` : ""}</span><small>${esc(t(x.nombre))}</small></button>`).join("")}</div>
+    <div class="hist-grande" id="histGrande"></div>
+    <p class="sub" id="histNota" style="margin:6px 0 0"></p>
+    <div class="coach-acciones" id="histAcciones"></div>
     <p class="aviso" id="estadoHist" style="margin:0"></p>`);
   if (!h.pintada) { $("hoja").scrollTop = 0; h.pintada = true; }
-  document.querySelectorAll("[data-hist]").forEach((b) => { b.onclick = () => { h.sel = +b.dataset.hist; pintarHistoria(); }; });
-  document.querySelector("[data-hist-volver]").onclick = () => { editandoEntrada = h.volver || null; editandoHistoria = null; pintarBitacora(); };
+  if (h.scroll) $("histCarrusel").scrollLeft = h.scroll;
+  $("histCarrusel").onscroll = (ev) => { h.scroll = ev.target.scrollLeft; };
+  document.querySelectorAll("[data-hist]").forEach((b) => { b.onclick = () => elegirHistoria(+b.dataset.hist); });
+  elegirHistoria(h.sel);
+  // Las miniaturas, de a una (sin bloquear la pantalla), y quedan guardadas.
+  for (const [i, x] of h.lista.entries()) {
+    if (h.minis[i]) continue;
+    await new Promise((ok) => setTimeout(ok, 0));
+    if (editandoHistoria !== h) return;
+    try { h.minis[i] = (await dibujarHistoria(x, h.d, .2)).toDataURL("image/png"); }
+    catch (err) { console.error(err); continue; }
+    const cont = document.querySelector(`[data-hist="${i}"] .lienzo`);
+    if (cont) cont.innerHTML = `<img src="${h.minis[i]}" alt="">`;
+  }
+}
+async function elegirHistoria(i) {
+  const h = editandoHistoria;
+  if (!h) return;
+  h.sel = i;
+  document.querySelectorAll("[data-hist]").forEach((b) => { const on = +b.dataset.hist === i; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  const dis = h.lista[i];
+  $("histGrande").classList.toggle("transp", !!dis.sticker);
+  $("histNota").textContent = dis.sticker ? t("Sticker con fondo transparente: cópialo y pégalo sobre tu foto en la historia de Instagram.") : t("Historia completa: compártela directo a Instagram.");
+  $("histAcciones").innerHTML = `<button type="button" class="coach-ruta" data-hist-compartir>${t("Compartir")}</button>
+    ${dis.sticker ? `<button type="button" class="sec" data-hist-copiar>⧉ ${t("Copiar sticker")}</button>` : ""}
+    <button type="button" class="sec" data-hist-bajar>⤓ ${t("Guardar imagen")}</button>
+    <button type="button" class="sec" data-hist-volver>${t("Volver")}</button>`;
   const aviso = (m, ok) => { const x = $("estadoHist"); if (x) { x.textContent = m; x.classList.toggle("ok", !!ok); } };
-  // La grande primero (la que se va a usar) y después las miniaturas.
-  const dis = lista[h.sel];
-  const cv = await dibujarHistoria(dis, d);
-  if (editandoHistoria !== h) return;
+  aviso("");
+  document.querySelector("[data-hist-volver]").onclick = () => { editandoEntrada = h.volver || null; editandoHistoria = null; pintarBitacora(); };
+  // La grande: guardada si ya se dibujó.
+  let cv = h.grandes[i];
+  if (!cv) {
+    $("histGrande").innerHTML = `<div class="cargando"><div class="rueda"></div></div>`;
+    try { cv = h.grandes[i] = await dibujarHistoria(dis, h.d); }
+    catch (err) { console.error(err); $("histGrande").innerHTML = ""; return aviso(t("No pude dibujar este diseño: {e}", { e: err?.message || err })); }
+    if (editandoHistoria !== h || h.sel !== i) return;          // eligió otro mientras se dibujaba
+  }
+  cv.style.cssText = "width:100%;height:auto;display:block";
+  $("histGrande").replaceChildren(cv);
   const blob = () => new Promise((ok) => cv.toBlob(ok, "image/png"));
   const archivo = async () => new File([await blob()], `pacepath-${h.e.fecha}-${dis.id}.png`, { type: "image/png" });
-  $("histGrande").innerHTML = ""; cv.style.cssText = "width:100%;height:auto;display:block"; $("histGrande").appendChild(cv);
   document.querySelector("[data-hist-compartir]").onclick = async () => {
     const f = await archivo();
     if (navigator.canShare?.({ files: [f] })) { try { await navigator.share({ files: [f] }); } catch {} return; }
@@ -5934,12 +5970,6 @@ async function pintarHistoria() {
     catch { aviso(t("No pude copiar la imagen en este navegador: usa «Guardar imagen».")); }
   };
   document.querySelector("[data-hist-bajar]").onclick = async () => { descargar(await archivo()); aviso("✓ " + t("Imagen guardada."), true); };
-  for (const [i, x] of lista.entries()) {
-    if (editandoHistoria !== h) return;
-    const m = await dibujarHistoria(x, d, .18);
-    const cont = document.querySelector(`[data-hist="${i}"] .lienzo`);
-    if (cont) { cont.innerHTML = ""; m.style.cssText = "width:100%;height:100%;display:block"; cont.appendChild(m); }
-  }
 }
 function descargar(f) {
   const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name;
