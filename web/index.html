@@ -2182,7 +2182,7 @@ function mostrarTrazado(j) {
       `<div class="cifra"><span>${e}</span><b class="${v === 0 ? "cero" : ""}">${v}</b></div>`).join("")}</div>
     ${perfilSvg(j)}
     <div class="fila"><button id="gpx" type="button">${textoBotonGpx()}</button>
-      <button class="sec" id="favorito" type="button">${t("Guardar como favorito")}</button></div>`);
+      <button class="sec" id="favorito" type="button">☆ ${t("Guardar como favorito")}</button></div>`);
   $("favorito").onclick = () => {
     const nombre = prompt(t("Nombre del tramo favorito (por ejemplo, «Ribera Balmaceda–Forestal»):"));
     if (!nombre) return;
@@ -2190,7 +2190,7 @@ function mostrarTrazado(j) {
     const paso = Math.max(1, Math.ceil(todos.length / 1500));
     guardarFavoritos([...favoritos(), { id: Date.now(), nombre: nombre.slice(0, 60),
       km: j.recorrido.distancia_m / 1000, puntos: todos.filter((_, i) => i % paso === 0) }]);
-    $("favorito").textContent = t("Guardado como favorito"); $("favorito").disabled = true;
+    $("favorito").textContent = "★ " + t("Guardado como favorito"); $("favorito").disabled = true;
   };
   $("gpx").onclick = () => enviarGpx(j, "pacepath-trazado.gpx");
 }
@@ -4980,12 +4980,12 @@ function pintarBitacora() {
   const pd = pausaDe(diaBitacora), sd = sensDe[diaBitacora];
   const rango = (x) => `${fechaCorta(new Date(x.desde + "T12:00"))} – ${x.hasta ? fechaCorta(new Date(x.hasta + "T12:00")) : t("sigue")}`;
   const pausaHtml = pd ? `<div class="fila-b"><span>${MOTIVOS_P.find(([k]) => k === pd.motivo)[2]} <b>${t(MOTIVOS_P.find(([k]) => k === pd.motivo)[1])}</b> · ${rango(pd)}</span>
-      <button type="button" class="mini" data-pausa-ed="${pd.id}">${t("Editar")}</button></div>` : "";
+      <button type="button" class="mini" data-pausa-ed="${pd.id}">✎ ${t("Editar")}</button></div>` : "";
   const sensHtml = diaBitacora > hoyF ? "" : editandoSens?.fecha === diaBitacora
     ? `<div class="coach-sentir"><b>${t("¿Cómo te sentiste?")}</b>${elegirSens(editandoSens, "d")}
       <div class="coach-acciones"><button type="button" class="coach-ruta" data-sens-ok${editandoSens.nota ? "" : " disabled"}>${t("Guardar")}</button>
         <button type="button" class="sec" data-sens-cancelar>${t("Cancelar")}</button>${sd ? `<button type="button" class="sec peligro" data-sens-borrar>${t("Borrar")}</button>` : ""}</div></div>`
-    : sd ? `<div class="fila-b"><span>${t("Cómo te sentiste")}: <b>${txtSens(sd)}</b></span><button type="button" class="mini" data-sens-ed>${t("Editar")}</button></div>` : "";
+    : sd ? `<div class="fila-b"><span>${t("Cómo te sentiste")}: <b>${txtSens(sd)}</b></span><button type="button" class="mini" data-sens-ed>✎ ${t("Editar")}</button></div>` : "";
   const diaHtml = `<div class="bloque"><h3>${(() => { const x = fd.toLocaleDateString(LOCALE[idioma], { weekday: "long", day: "numeric", month: "long" }); return x[0].toUpperCase() + x.slice(1); })()}</h3>
     ${(objDia[diaBitacora] || []).map((o) => `<p class="obj-dia">🏁 <b>${esc(o.nombre)}</b>${o.meta_s ? " · " + t("meta {t}", { t: hms(o.meta_s) }) : ""}</p>`).join("")}
     ${pausaHtml}${sensHtml}
@@ -4994,7 +4994,7 @@ function pintarBitacora() {
         ${e.rpe ? `<span class="rpe r${Math.min(4, Math.ceil(e.rpe / 2.5))}">RPE ${e.rpe}</span>` : ""}</div>
       ${(e.bloques || []).length ? `<p>${esc((e.bloques || []).map((b) => { const s = statsBloque(b); return estructura(b) + (s ? ` · ${b.dur_s ? t("prom. {x} m", { x: num(s.prom) }) : t("prom. {x}", { x: mmss(s.prom) })}` : ""); }).join(" · "))}</p>` : ""}
       ${kpisHtml(e)}${compararTxt(e) ? `<p class="compara">📈 ${esc(compararTxt(e))}</p>` : ""}${e.sensaciones ? `<p class="sens">“${esc(e.sensaciones)}”</p>` : ""}
-      <div class="coach-acciones"><button type="button" class="mini" data-ent-ed="${e.id}">${t("Editar")}</button>
+      <div class="coach-acciones"><button type="button" class="mini" data-ent-ed="${e.id}">✎ ${t("Editar")}</button>
         <button type="button" class="mini${menuEnvio === e.id ? " on" : ""}" data-ent-enviar="${e.id}" aria-expanded="${menuEnvio === e.id}">${t("Enviar")}</button></div>
       ${menuEnvio === e.id ? menuEnvioHtml(e.id) : ""}</li>`).join("")}</ul>`
       : `<p class="pista">${t("Sin entradas este día.")}</p>`}
@@ -5019,8 +5019,8 @@ function pintarBitacora() {
       <div class="kpis"><div class="kpi"><span>${t("Entradas")}</span><b>${delMes.length}</b></div>
         <div class="kpi"><span>${t("Km anotados")}</span><b>${num(kmMes, 0)}</b><small>${kmStrava ? t("{k} en Strava", { k: fmtDistKm(kmStrava, 0) }) : ""}</small></div>
         <div class="kpi"><span>${t("RPE medio")}</span><b>${rpes.length ? num(rpes.reduce((a, x) => a + x, 0) / rpes.length, 1) : "–"}</b></div></div>
-      <div class="coach-acciones"><button type="button" class="mini" data-copiar-per="semana">${t("Copiar semana")}</button>
-        <button type="button" class="mini" data-copiar-per="mes">${t("Copiar mes")}</button></div></div>
+      <div class="coach-acciones"><button type="button" class="mini" data-copiar-per="semana">⧉ ${t("Copiar semana")}</button>
+        <button type="button" class="mini" data-copiar-per="mes">⧉ ${t("Copiar mes")}</button></div></div>
     ${diaHtml}`}`);
   activarSelectorEntreno();
   document.querySelectorAll("[data-vista-b]").forEach((x) => { x.onclick = () => { vistaBitacora = x.dataset.vistaB; escribir("pp_bitacora_vista", vistaBitacora); pintarBitacora(); }; });
@@ -5148,7 +5148,7 @@ function propuestaHtml(e) {
     </tbody></table>
     ${r.bloques.map((b) => `<p class="prev-b"><b>${estructura(b)}</b>${detalleBloque(b) ? ` (${esc(detalleBloque(b))})` : ""}<br>${b.tiempos.map((f, k) =>
       `${b.series > 1 ? `S${k + 1}: ` : ""}${f.map((x) => b.dur_s ? `${num(x)} m` : mmss(x)).join(" · ")}`).join("<br>")}</p>`).join("")}
-    <div class="coach-acciones"><button type="button" class="coach-ruta" data-prop-ok${r.bloques.length ? "" : " disabled"}>${t("Usar estos tiempos")}</button>
+    <div class="coach-acciones"><button type="button" class="coach-ruta" data-prop-ok${r.bloques.length ? "" : " disabled"}>✓ ${t("Usar estos tiempos")}</button>
       <button type="button" class="sec" data-prop-no>${t("Cancelar")}</button></div>
     <small>${t("Después puedes corregir cualquier tiempo antes de guardar la entrada.")}</small></div>`;
 }
@@ -5224,7 +5224,7 @@ function pintarEditorEntrada() {
       <div id="bloquesEnt">${(e.bloques || []).map(bloqueHtml).join("")}</div>
       <div class="coach-acciones" style="margin-top:0"><button type="button" class="mini" data-nuevo-b="dist">+ ${t("Bloque por distancia")}</button>
         <button type="button" class="mini" data-nuevo-b="dur">+ ${t("Bloque por tiempo")}</button>
-        ${stravaId && !e._prop && !["fondo", "suave"].includes(e.tipo) ? `<button type="button" class="mini" data-strava-t="${stravaId}">${t("Tiempos de Strava")}</button>` : ""}</div>
+        ${stravaId && !e._prop && !["fondo", "suave"].includes(e.tipo) ? `<button type="button" class="mini" data-strava-t="${stravaId}">⤓ ${t("Tiempos de Strava")}</button>` : ""}</div>
       ${comparaHtml}
       <div class="rejilla-b"><label>${t("Calentamiento (km)")}<input id="calEnt" inputmode="decimal" value="${e.cal_km ?? ""}" placeholder="3"></label>
         <label>${t("Vuelta a la calma (km)")}<input id="vcEnt" inputmode="decimal" value="${e.vc_km ?? ""}" placeholder="2"></label></div>
@@ -5908,8 +5908,8 @@ async function pintarHistoria() {
     <p class="sub" style="margin:6px 0 0">${lista[h.sel].sticker ? t("Sticker con fondo transparente: cópialo y pégalo sobre tu foto en la historia de Instagram.") : t("Historia completa: compártela directo a Instagram.")}</p>
     <div class="coach-acciones">
       <button type="button" class="coach-ruta" data-hist-compartir>${t("Compartir")}</button>
-      ${lista[h.sel].sticker ? `<button type="button" class="sec" data-hist-copiar>${t("Copiar sticker")}</button>` : ""}
-      <button type="button" class="sec" data-hist-bajar>${t("Guardar imagen")}</button>
+      ${lista[h.sel].sticker ? `<button type="button" class="sec" data-hist-copiar>⧉ ${t("Copiar sticker")}</button>` : ""}
+      <button type="button" class="sec" data-hist-bajar>⤓ ${t("Guardar imagen")}</button>
       <button type="button" class="sec" data-hist-volver>${t("Volver")}</button></div>
     <p class="aviso" id="estadoHist" style="margin:0"></p>`);
   if (!h.pintada) { $("hoja").scrollTop = 0; h.pintada = true; }
@@ -6572,9 +6572,9 @@ $("hoja").addEventListener("click", (e) => {
   if (!e.target.closest("[data-misdatos]")) return;
   hoja(`<h3>${t("Mis datos")}</h3>
     <p class="pista">${t("Descarga una copia de todo lo que PacePath guarda de tu cuenta, o bórrala para siempre. Tus carreras de Strava no están en el servidor: viven sólo en tu teléfono.")}</p>
-    <p><button type="button" class="sec" onclick="location.href='/api/cuenta/exportar'">${t("Descargar mis datos")}</button></p>
+    <p><button type="button" class="sec" onclick="location.href='/api/cuenta/exportar'">⬇ ${t("Descargar mis datos")}</button></p>
     <p><button type="button" class="sec" data-borrar-cuenta>${t("Borrar mi cuenta")}</button></p>
-    <p><button type="button" class="sec" data-volver-vista>${t("Volver")}</button></p>`);
+    <p><button type="button" class="sec" data-volver-vista>← ${t("Volver")}</button></p>`);
 });
 // «Volver» desde una pantalla suelta (p. ej. Mis datos): a lo que había en la pestaña.
 $("hoja").addEventListener("click", (e) => {
