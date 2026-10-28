@@ -3946,6 +3946,10 @@ Object.assign(EN, {
   "Guardar como favorito": "Save as favorite",
   "Guardado como favorito": "Saved as favorite",
   "No pude dibujar este diseño: {e}": "I couldn't draw this design: {e}",
+  "Tiempos": "Splits",
+  "pausa {p}": "rest {p}",
+  "Idioma": "Language",
+  "Unidades": "Units",
   "Sugerencia de hoy": "Today's suggestion",
   "esfuerzo {n}": "effort {n}",
   "Ya corriste {k} hoy.": "You already ran {k} today.",
@@ -4336,6 +4340,10 @@ Object.assign(PT, {
   "Guardar como favorito": "Salvar como favorito",
   "Guardado como favorito": "Salvo como favorito",
   "No pude dibujar este diseño: {e}": "Não consegui desenhar este design: {e}",
+  "Tiempos": "Tempos",
+  "pausa {p}": "pausa {p}",
+  "Idioma": "Idioma",
+  "Unidades": "Unidades",
   "Sugerencia de hoy": "Sugestão de hoje",
   "esfuerzo {n}": "esforço {n}",
   "Ya corriste {k} hoy.": "Você já correu {k} hoje.",
@@ -5363,7 +5371,7 @@ async function opcionEnvio(op, e, volver, boton) {
   if (!e) return;
   if (op === "historia" || op === "coach") {
     menuEnvio = null;
-    if (op === "historia") editandoHistoria = { e, sel: 0, volver };
+    if (op === "historia") editandoHistoria = { e, sel: null, volver };
     else editandoEnvio = { e, volver };
     editandoEntrada = null;
     return pintarBitacora();
@@ -5597,12 +5605,13 @@ function historiaDatos(e) {
   for (const b of d.bloques || []) { const v = (b.tiempos || []).flat().filter((x) => x > 0); if (b.fc_media && v.length) { const s = v.reduce((a, x) => a + x, 0); fcT += b.fc_media * s; fcN += s; } }
   // La semana (lunes a domingo) de la entrada: lo corrido cada día y, si el Coach la tiene, lo que sugería.
   const lunesF = masDias(e.fecha, -((f.getDay() + 6) % 7));
+  const fu = unidad === "mi" ? 1000 / MILLA : 1;            // km → la unidad de la historia
   const kmDia = (fd) => { const s = carrerasBitacora.filter((x) => (x.fecha_local || x.fecha).slice(0, 10) === fd).reduce((a, x) => a + x.distancia_m / 1000, 0);
-    return s || bitacora().entradas.filter((x) => x.fecha === fd).reduce((a, x) => a + (x.km || 0), 0); };
+    return fu * (s || bitacora().entradas.filter((x) => x.fecha === fd).reduce((a, x) => a + (x.km || 0), 0)); };
   const dias = Array.from({ length: 7 }, (_, i) => masDias(lunesF, i));
   const hecho = dias.map(kmDia), anterior = Array.from({ length: 7 }, (_, i) => kmDia(masDias(lunesF, i - 7))).reduce((a, x) => a + x, 0);
   const sem = leer("pp_revision", null)?.coach?.semana;
-  const plan = sem?.lunes === lunesF ? dias.map((fd) => sem.sesiones.filter((s) => s.fecha === fd && s.tipo !== "extra").reduce((a, s) => a + (s.km || 0), 0)) : null;
+  const plan = sem?.lunes === lunesF ? dias.map((fd) => fu * sem.sesiones.filter((s) => s.fecha === fd && s.tipo !== "extra").reduce((a, s) => a + (s.km || 0), 0)) : null;
   const hoy = (f.getDay() + 6) % 7;
   const runsSemana = carrerasBitacora.filter((x) => { const fd = (x.fecha_local || x.fecha).slice(0, 10); return fd >= lunesF && fd <= dias[6]; });
   const sinU = (s) => s.replace(/\s*\/(km|mi)$/, "");
@@ -5611,6 +5620,9 @@ function historiaDatos(e) {
     fecha: `${may(f.toLocaleDateString(LOCALE[idioma], { weekday: "short" }))} ${f.getDate()} ${may(f.toLocaleDateString(LOCALE[idioma], { month: "short" }))}`,
     fechaNum: `${String(f.getDate()).padStart(2, "0")}.${String(f.getMonth() + 1).padStart(2, "0")}.${String(f.getFullYear()).slice(2)}`,
     hora, ruta, reps, tipo: d.tipo, rpe: d.rpe, sensaciones: d.sensaciones,
+    bloques: (d.bloques || []).filter((b) => b.dist_m && (b.tiempos || []).flat().some((x) => x > 0)).map((b) => ({
+      titulo: estructura(b).replace(/x/g, "×"), dist: b.dist_m, p: b.p_rep, ps: b.series > 1 ? b.p_serie : null, obj: b.obj,
+      ts: (b.tiempos || []).flat().filter((x) => x > 0) })),
     km: d.km ? fmtDistKm(d.km, 1) : null, tiempo: d.dur_s ? hms(d.dur_s) : null,
     ritmo: d.km && d.dur_s ? sinU(ritmo(d.dur_s / d.km)) : null, ritmoS: ritmoS ? sinU(ritmo(ritmoS)) : null, u: "/" + unidad,
     fc: d.fc_media ? Math.round(d.fc_media) : null, fcS: fcN ? Math.round(fcT / fcN) : null, fcMax: d.fc_max ? Math.round(d.fc_max) : null,
@@ -5618,7 +5630,7 @@ function historiaDatos(e) {
     semana: { dias: ["L", "M", "X", "J", "V", "S", "D"].map((x, i) => idioma === "en" ? "MTWTFSS"[i] : x), hecho, plan, hoy, lunes: lunesF, domingo: dias[6],
       total: hecho.reduce((a, x) => a + x, 0), hastaHoy: hecho.slice(0, hoy + 1).reduce((a, x) => a + x, 0),
       meta: plan ? plan.reduce((a, x) => a + x, 0) : null, anterior, salidas: runsSemana.length,
-      larga: Math.max(0, ...runsSemana.map((x) => x.distancia_m / 1000)) },
+      larga: fu * Math.max(0, ...runsSemana.map((x) => x.distancia_m / 1000)) },
   };
 }
 
@@ -5701,7 +5713,41 @@ const DISENOS = [
     ds.forEach(([v, u, e], i) => dato(ctx, v, u, e, W / 2 + (i - (ds.length - 1) / 2) * 300, y + 60, { t: 66, sombra: true }));
     marcaHistoria(ctx, W / 2, y + 190, { a: "center", logo: L, sombra: true });
   } },
-  { id: "parciales", nombre: "Parciales", sticker: true, dibujar(ctx, d, L) {
+  { id: "tiempos", nombre: "Tiempos", sticker: true, reps: true, dibujar(ctx, d, L) {
+    // La tabla de parciales: por bloque, cada repetición con su tiempo, ritmo y una barra (más larga = más rápida dentro del bloque).
+    const filas = d.bloques.reduce((a, b) => a + Math.min(b.ts.length, 20), 0), n = d.bloques.length;
+    const fila = Math.max(46, Math.min(84, 1060 / (filas + n * 1.5)));
+    let y = Math.max(250, (H - (260 + filas * fila + n * fila * 1.5 + 220)) / 2);
+    for (const s of titulos(d)) { txt(ctx, s, W / 2, y + 84, ajustar(ctx, s, { t: 92, w: 700, ls: -.03, a: "center", sombra: true }, 900)); y += 90; }
+    txt(ctx, [d.fecha, d.km, d.tiempo].filter(Boolean).join(" · "), W / 2, y + 50, { t: 26, w: 500, ls: .14, a: "center", sombra: true });
+    y += 160;
+    const x0 = 140, x1 = 940, tt = Math.round(fila * .58);
+    for (const b of d.bloques) {
+      txt(ctx, b.titulo, x0, y, { t: Math.round(fila * .5), w: 700, sombra: true });
+      const det = [b.obj ? `${mmss(b.obj[0])}${b.obj[1] !== b.obj[0] ? "–" + mmss(b.obj[1]) : ""}` : "", b.p ? t("pausa {p}", { p: pausaTxt(b.p) }) : ""].filter(Boolean).join(" · ");
+      if (det) txt(ctx, det, x1, y, { t: Math.round(fila * .32), w: 500, ls: .08, a: "right", sombra: true });
+      y += fila * .5;
+      ctx.save(); ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.fillRect(x0, y - fila * .18, x1 - x0, 2); ctx.restore();
+      y += fila * .55;
+      const rit = b.ts.map((x) => x / (b.dist / 1000)), lo = Math.min(...rit), hi = Math.max(...rit);
+      b.ts.slice(0, 20).forEach((x, i) => {
+        txt(ctx, String(i + 1).padStart(2, "0"), x0, y, { t: Math.round(tt * .62), w: 500, f: HM, c: "rgba(255,255,255,.8)", sombra: true });
+        txt(ctx, mmss(x), x0 + 70, y, { t: tt, w: 700, f: HM, sombra: true });
+        txt(ctx, ritmo(rit[i]).replace(/\s*\/(km|mi)$/, "") + d.u, x0 + 70 + tt * 3.4, y, { t: Math.round(tt * .62), w: 500, sombra: true });
+        const bx = x0 + 70 + tt * 3.4 + tt * 3.2, bw = x1 - bx, frac = hi > lo ? .35 + .65 * (hi - rit[i]) / (hi - lo) : 1;
+        const enObj = b.obj ? (x >= b.obj[0] - 1 && x <= b.obj[1] + 1) : null;
+        ctx.save(); ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+        rr(ctx, bx, y - tt * .5, bw, tt * .42, tt * .21); ctx.fillStyle = "rgba(255,255,255,.28)"; ctx.fill();
+        rr(ctx, bx, y - tt * .5, bw * frac, tt * .42, tt * .21); ctx.fillStyle = enObj === false ? "#ffd2bd" : i === rit.indexOf(lo) ? NARANJO : "#fff"; ctx.fill(); ctx.restore();
+        y += fila;
+      });
+      y += fila * .55;
+    }
+    const ds = datosPrincipales(d).filter(([, , e]) => e !== t("TIEMPO") && e !== t("DISTANCIA")).slice(0, 3);
+    ds.forEach(([v, u, e], i) => dato(ctx, v, u, e, W / 2 + (i - (ds.length - 1) / 2) * 300, y + 40, { t: 56, sombra: true }));
+    marcaHistoria(ctx, W / 2, y + 160, { a: "center", logo: L, sombra: true });
+  } },
+  { id: "parciales", nombre: "Parciales", sticker: true, reps: true, dibujar(ctx, d, L) {
     const hayRuta = trazoRuta(ctx, d.ruta, 280, 300, 520, 360, { grosor: 8 });
     let y = hayRuta ? 790 : 640;
     for (const s of titulos(d)) { txt(ctx, s, W / 2, y, ajustar(ctx, s, { t: 104, w: 700, ls: -.03, a: "center", sombra: true }, 900)); y += 100; }
@@ -5892,11 +5938,17 @@ function barrasSemana(ctx, s, x, y, ancho, alto, valores) {
     txt(ctx, dia, bx + bw / 2, y + alto + 82, { t: 26, w: 600, a: "center", c: destacado ? "#ffb08a" : "#fff", sombra: true });
   });
 }
-async function dibujarHistoria(dis, d, escala = 1) {
+// La historia en otro idioma o unidad sólo mientras se arma (tu configuración no cambia).
+function enIdioma(lang, uni, fn) {
+  const i0 = idioma, u0 = unidad;
+  idioma = lang || idioma; unidad = uni || unidad;
+  try { return fn(); } finally { idioma = i0; unidad = u0; }
+}
+async function dibujarHistoria(dis, d, escala = 1, lang, uni) {
   const [, L] = await prepararHistoria();
   const cv = document.createElement("canvas"); cv.width = W * escala; cv.height = H * escala;
   const ctx = cv.getContext("2d"); ctx.scale(escala, escala);
-  dis.dibujar(ctx, d, L);
+  enIdioma(lang, uni, () => dis.dibujar(ctx, d, L));
   return cv;
 }
 
@@ -5904,10 +5956,16 @@ async function dibujarHistoria(dis, d, escala = 1) {
 async function pintarHistoria() {
   const h = editandoHistoria;
   // Los datos y los dibujos se calculan una vez: cambiar de diseño no rehace la pantalla.
+  // En el idioma y las unidades de la app; si los cambias, los dibujos se rehacen (el diseño elegido se mantiene).
+  if (h.lista && (h.lang !== idioma || h.uni !== unidad)) { h.selId = h.lista[h.sel]?.id; h.lista = null; }
+  h.lang = idioma; h.uni = unidad;
   if (!h.lista) {
-    h.d = historiaDatos(h.e);
-    h.lista = DISENOS.filter((x) => !x.semana || h.d.semana.total > 0);
+    h.d = enIdioma(h.lang, h.uni, () => historiaDatos(h.e));
+    h.lista = DISENOS.filter((x) => (!x.semana || h.d.semana.total > 0) && (!x.reps || h.d.reps.length));
+    if (h.selId) { h.sel = Math.max(0, h.lista.findIndex((x) => x.id === h.selId)); h.selId = null; }
+    else if (h.sel == null && h.d.reps.length) h.sel = h.lista.findIndex((x) => x.id === "tiempos");
     h.minis = []; h.grandes = []; h.sel = Math.min(h.sel || 0, h.lista.length - 1);
+    h.gen = (h.gen || 0) + 1;                      // los dibujos de antes de cambiar idioma/unidad no se usan
   }
   hoja(`<div class="tipo">${t("Bitácora")}</div><h2>${t("Historia para Instagram")}</h2>
     <p class="sub" style="margin:0">${esc(h.e.titulo || titulos(h.d).join(" "))} · ${fechaCorta(new Date(h.e.fecha + "T12:00"))}</p>
@@ -5923,12 +5981,16 @@ async function pintarHistoria() {
   document.querySelectorAll("[data-hist]").forEach((b) => { b.onclick = () => elegirHistoria(+b.dataset.hist); });
   elegirHistoria(h.sel);
   // Las miniaturas, de a una (sin bloquear la pantalla), y quedan guardadas.
+  const gen = h.gen;
   for (const [i, x] of h.lista.entries()) {
     if (h.minis[i]) continue;
     await new Promise((ok) => setTimeout(ok, 0));
-    if (editandoHistoria !== h) return;
-    try { h.minis[i] = (await dibujarHistoria(x, h.d, .2)).toDataURL("image/png"); }
+    if (editandoHistoria !== h || h.gen !== gen) return;
+    let url;
+    try { url = (await dibujarHistoria(x, h.d, .2, h.lang, h.uni)).toDataURL("image/png"); }
     catch (err) { console.error(err); continue; }
+    if (h.gen !== gen) return;
+    h.minis[i] = url;
     const cont = document.querySelector(`[data-hist="${i}"] .hist-lienzo`);
     if (cont) cont.innerHTML = `<img src="${h.minis[i]}" alt="">`;
   }
@@ -5950,11 +6012,12 @@ async function elegirHistoria(i) {
   document.querySelector("[data-hist-volver]").onclick = () => { editandoEntrada = h.volver || null; editandoHistoria = null; pintarBitacora(); };
   // La grande: guardada si ya se dibujó.
   let cv = h.grandes[i];
+  const gen = h.gen;
   if (!cv) {
     $("histGrande").innerHTML = `<div class="cargando"><div class="rueda"></div></div>`;
-    try { cv = h.grandes[i] = await dibujarHistoria(dis, h.d); }
+    try { cv = await dibujarHistoria(dis, h.d, 1, h.lang, h.uni); if (h.gen === gen) h.grandes[i] = cv; }
     catch (err) { console.error(err); $("histGrande").innerHTML = ""; return aviso(t("No pude dibujar este diseño: {e}", { e: err?.message || err })); }
-    if (editandoHistoria !== h || h.sel !== i) return;          // eligió otro mientras se dibujaba
+    if (editandoHistoria !== h || h.sel !== i || h.gen !== gen) return;   // eligió otro (o cambió el idioma) mientras se dibujaba
   }
   cv.style.cssText = "width:100%;height:auto;display:block";
   $("histGrande").replaceChildren(cv);
@@ -6586,6 +6649,7 @@ $("botonIdioma").onclick = () => {
   // Lo que está en pantalla se vuelve a pedir/dibujar en el idioma nuevo.
   if (vista === "ciudad") abrirCiudad();
   else if (vista === "perfil") abrirPerfil(true);
+  else if (vista === "entreno") abrirEntreno();
   else if (modo === "trazar" && puntos.length > 1) recalcular(null);
   else if (document.body.classList.contains("con-ruta")) $("form").requestSubmit();
   else inicioHoja(t("Elige desde dónde sales: escribe una calle o esquina, usa «Cerca de mí» o toca el mapa."));
